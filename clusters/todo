@@ -1,11 +1,6 @@
 To Do:
-0. remove:
-    remove duplicate per-cluster copies of provision/{lib,inc,env}/*.sh, make similar to provision/bin
-    remove slurm build env. cruft, leaving only final artifacts
-    remove vx /build/...
 
-1. a. => git repo
-       move (much of this technical debt etc) into git issues, including philosophy of file system
+1. a. move (much of this technical debt etc) into git issues, including philosophy of file system
         as a consistent instance of a dynamic CI/CD infrastructure
    b. vc: vcdb => vcdb-prime, vcdb-alternate,
           communitySQL or mariadb10.0.3
