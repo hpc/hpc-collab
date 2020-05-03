@@ -1,0 +1,88 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcgate/config/external-access/1.public-ip
+
+## @brief manually bring munge service up so that final slurm db configuration is possible.
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x PUB_IF=$(cat if-dev)
+if [ -z "${PUB_IF}" ] ; then
+  ErrExit ${EX_SOFTWARE} "public interface: empty"
+fi
+
+if_exists=$(ifconfig ${PUB_IF})
+case ${if_exists} in
+  *"Device not found"*) ErrExit ${EX_SOFTWARE} "${PUB_IF}: ${if_exists}"	;;
+  *)										;;
+esac
+
+# to set IS_LANL
+SetFlags >/dev/null 2>&1
+
+if_ip="DHCP"
+declare -x LANL_public_ip_file=LANL/ip
+if [ -n "${IS_LANL}" ] ; then
+  if [ ! -f ${LANL_public_ip_file} ] ; then
+    Warn ${EX_CONFIG} "IS_LANL: ${LANL_public_ip_file} does not exist"
+  else
+    if_ip=$(cat ${LANL_public_ip_file})
+  fi
+fi
+
+if [ "${if_ip}" = "DHCP" -o -z "${if_ip}" ] ; then
+  dhclient_set_default=""
+  ## XXX explicit dhclient timeout rather than using YUM_TIMEOUT_BASE
+  dhclient -4 -1 -timeout ${YUM_TIMEOUT_BASE} ${PUB_IF} >/dev/null 2>&1
+  dhclient_set_default="true"
+else
+  ping -n -c 1 ${if_ip} >/dev/null 2>&1
+  rc=$?
+  if [ ${rc} -eq ${EX_OK} ] ; then
+    if_ip_preexist=$(echo $(ip addr show dev ${PUB_IF}) | sed 's/^.*inet //' | sed 's/ .*$//' | sed 's/\// /' | awk '{print $1}')
+    if [ "${if_ip}" != "${if_ip_preexist}" ] ; then
+      ErrExit ${EX_CONFIG} "interface ${PUB_IF} ip (${if_ip}) already exists, responds to ping, but we have a different IP address: ${if_ip_preexist}"
+    fi
+  else
+    Rc ErrExit ${EX_OSERR} "ip addr add ${if_ip} dev ${PUB_IF}"
+  fi
+fi
+
+if_ip_verify=$(echo $(ip addr show dev ${PUB_IF}) | sed 's/^.*inet //' | sed 's/ .*$//' | sed 's/\// /' | awk '{print $1}')
+if_slashnetmask=$(echo $(ip addr show dev ${PUB_IF}) | sed 's/^.*inet //' | sed 's/ .*$//' | sed 's/\// /' | awk '{print $2}')
+resembles_ip_address="[0-9]+.[0-9]+.[0-9]+.[0-9]+"
+if ! [[ ${if_ip_verify} =~ ${resembles_ip_address} ]] ; then
+  ErrExit ${EX_CONFIG} "ip address for ${PUB_IF} doesn't seem to resemble an ip address ${if_ip_verify}?"
+fi
+if [ -z "${if_ip}" ] ; then
+  ErrExit ${EX_CONFIG} "empty ip address for ${PUB_IF}"
+fi
+
+echo Public interface: ${PUB_IF}
+
+for _c in "ifconfig ${PUB_IF}" "ip link show ${PUB_IF}" "ip addr show ${PUB_IF}"
+do
+  echo ${_c}
+  eval ${_c}
+echo ' '
+
+done
+
+trap '' 0
+exit ${EX_OK}

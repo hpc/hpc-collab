@@ -1,0 +1,310 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Check sinfo node information filtering (--state and --nodes
+#          options).
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2002 The Regents of the University of California.
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Morris Jette <jette1@llnl.gov>
+# CODE-OCEC-09-009. All rights reserved.
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id      "4.5"
+set exit_code    0
+set matches      0
+set name_string  "\[a-zA-Z0-9\]\[^ ]*"
+set node_state   ""
+set num_nodes    0
+set num_cpus     0
+set mismatches   0
+# We start the node position of the array to 3 because the first 2 nodes will be
+# used for allocated state since scontrol cannot change node state to allocated
+set node_pos     2
+array set node_list {}
+
+proc change_state { state nodes } {
+	global scontrol exit_code
+
+	spawn $scontrol update nodename=$nodes state=$state reason=test
+	expect {
+		timeout {
+			send_user "\nFAILURE: scontrol is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+}
+
+proc reset_state { } {
+
+	global scontrol node_list node_pos exit_code
+
+	foreach num [array names node_list] {
+		spawn $scontrol update nodename=$node_list($num) state=idle
+		expect {
+			timeout {
+				send_user "\nFAILURE: scontrol is not responding\n"
+				set exit_code 1
+			}
+			eof {
+				wait
+			}
+		}
+	}
+}
+
+print_header $test_id
+if (![string compare $partition ""]) {
+	set partition [default_partition]
+}
+
+#
+# Get some values to test against
+#
+spawn $sinfo -o%30D%30c --noheader -p$partition
+expect {
+	-re "($number) *($number)" {
+		set num_nodes $expect_out(1,string)
+		set num_cpus $expect_out(2,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo is not responding\n"
+		set exit_code 1
+	}
+	eof  {
+		wait
+	}
+}
+
+if {$num_nodes < 8} {
+	send_user "\nWARNING: This test requires 8 or more nodes but only "
+	send_user "found $num_nodes available\n"
+	exit 0
+}
+
+if {$num_cpus == 0} {
+	send_user "\nFAILURE: Number of CPUs reported is zero\n"
+	exit 1
+}
+
+#
+# Get a list of nodes that we can use
+#
+set i 0
+spawn $sinfo -o%N|%t|%o --noheader -p$partition -N
+expect {
+	-re "($alpha_numeric_nodelist).idle" {
+		if {$i<8} {
+			set node_list($i) $expect_out(1,string)
+			incr i 1
+			exp_continue
+		}
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$i != 8} {
+	send_user "\nWARNING: Unable to get all the required nodes ($i != 8)\n"
+	exit 0
+}
+
+#
+# Submit a job to filter for allocated job state
+#
+send_user "\nTesting ALLOCATED state\n"
+set tmp_id 0
+set tmp_sc "test$test_id\_tmp_sc"
+make_bash_script $tmp_sc "sleep 20"
+spawn $sbatch -p$partition -w$node_list(0),$node_list(1) -o/dev/null -n[expr 2 * $num_cpus] --exclusive $tmp_sc
+expect {
+	-re "Submitted batch job ($number)" {
+		set tmp_id $expect_out(1,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sbatch is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$tmp_id == 0} {
+	send_user "\nFAILURE: sbatch did not submit job\n"
+	set exit_code 1
+}
+
+if {[wait_for_job $tmp_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: error waiting for job $tmp_id to start\n"
+	cancel_job $tmp_id
+	set exit_code 1
+}
+
+spawn $sinfo --Node --node=$node_list(0),$node_list(1) --long --exact --state=allocated -p$partition
+expect {
+	-re "($end_of_line)($name_string) *($number_with_suffix) *($name_string) *($alpha)" {
+		if ([string compare $expect_out(5,string) "allocated"]) {
+			incr mismatches
+		}
+		exp_continue
+	}
+	-re "error:" {
+		send_user "\nFAILURE: Unexpected error from sinfo\n"
+		set exit_code 1
+	}
+	-re "Unable to contact" {
+		send_user "\nFAILURE: slurm appears to be down\n"
+		exit 1
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+cancel_job $tmp_id
+
+# Change nodes to different states and see if they made it to that state.
+
+change_state idle $node_list(2),$node_list(3)
+change_state down $node_list(4),$node_list(5)
+change_state drain $node_list(6),$node_list(7)
+
+#
+# Change node state to idle and use state filter to filter node
+#
+send_user "\nTesting IDLE state\n"
+spawn $sinfo --Node --node=$node_list(2),$node_list(3) --long --exact --state=idle -p$partition
+expect {
+	-re "($end_of_line)($name_string) *($number_with_suffix) *($name_string) *($alpha)" {
+		if ([string compare $expect_out(5,string) "idle"]) {
+			incr mismatches
+		}
+		exp_continue
+	}
+	-re "error:" {
+		send_user "\nFAILURE: Unexpected error from sinfo\n"
+		set exit_code 1
+	}
+	-re "Unable to contact" {
+		send_user "\nFAILURE: slurm appears to be down\n"
+		exit 1
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+#
+# Change node state to down and use state filter to filter node
+#
+send_user "\nTesting DOWN state\n"
+spawn $sinfo --Node --node=$node_list(4),$node_list(5) --long --exact --state=down -p$partition
+expect {
+	-re "($end_of_line)($name_string) *($number_with_suffix) *($name_string) *($alpha)" {
+		if ([string compare $expect_out(5,string) "down"]) {
+			incr mismatches
+		}
+		exp_continue
+	}
+	-re "error:" {
+		send_user "\nFAILURE: Unexpected error from sinfo\n"
+		set exit_code 1
+	}
+	-re "Unable to contact" {
+		send_user "\nFAILURE: slurm appears to be down\n"
+		exit 1
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+#
+# Change node state to drain and use state filter to filter node
+#
+send_user "\nTesting DRAIN state\n"
+spawn $sinfo --Node --node=$node_list(6),$node_list(7) --long --exact --state=drain -p$partition
+expect {
+	-re "($end_of_line)($name_string) *($number_with_suffix) *($name_string) *($alpha)" {
+		if ([string compare $expect_out(5,string) "drained"]) {
+			incr mismatches
+		}
+		exp_continue
+	}
+	-re "error:" {
+		send_user "\nFAILURE: Unexpected error from sinfo\n"
+		set exit_code 1
+	}
+	-re "Unable to contact" {
+		send_user "\nFAILURE: slurm appears to be down\n"
+		exit 1
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+#
+# Reset node states back to idle
+#
+reset_state
+
+if {$mismatches != 0} {
+	send_user "\nFAILURE: sinfo node filtering error\n"
+	set exit_code 1
+}
+if {$exit_code == 0} {
+	file delete $tmp_sc
+	send_user "\nSUCCESS\n"
+}
+exit $exit_code

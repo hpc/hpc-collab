@@ -1,0 +1,3 @@
+appendifcommand: ping -c 1 -i 0.1 -w 1 -n proxyout.lanl.gov
+appendwhere: LANL public services
+appendwhat: 128.165.4.4	ns1 ns1.lanl.gov ntp1 ntp.lanl.gov ntp dns1.lanl.gov dns1

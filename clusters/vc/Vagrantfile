@@ -1,0 +1,210 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+
+require 'pathname'
+
+REPODISK_SIZE = 20	# Gb
+
+clustername_fullpath_raw = %x[pwd]
+clustername_fullpath     = "#{clustername_fullpath_raw}"
+clustername_fullpath     = #{clustername_fullpath}.chomp
+clustername              = Pathname.new(clustername_fullpath).basename
+clustername              = "#{clustername}".chomp
+
+ENV["LC_ALL"] = "en_US.UTF-8"
+ENV["VC"]     = "#{clustername}"
+ENV["TZ"]     = "MST7MDT"
+
+nodes_file = "#{clustername_fullpath_raw}".chomp + "/Vagrantfile." + clustername + ".nodes"
+nodes_file_path = Pathname.new(nodes_file)
+if !File.exists?(nodes_file_path)
+  print "nodes_file_path:#{nodes_file_path} does not exist\n"
+  exit
+end
+load File.expand_path(nodes_file_path)
+
+### XXX ### XXX ### XXX ###
+### The ruby way is to define nodes in an external YAML file, rather than to define within ruby
+### XXX for now, include it inline here
+### XXX including doesn't allow us to define the 'nodes' variables as included files have their own separate scope
+### @todo find some ruby-correct way to use this file's scope so that the Vagrantfile could be a common templated version 
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+
+hosts  = "./common/etc/hosts"
+ethers = "./common/etc/ethers"
+
+ingestfromhost_vcfs_path = "./cfg/vcfs/attributes/ingestfromhost/path"
+ingestfromhost_vcfs_args = "./cfg/vcfs/attributes/ingestfromhost/args"
+
+nodes = {
+  "vcfs"		=> {  :ip             => `grep vcfs #{hosts}  | awk '{printf "%s",$1}'` ,
+									:mac            => `grep vcfs #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcfs/attributes/memory],
+									:cpus           => %x[ls ./cfg/vcfs/attributes/procs],
+									:ingestfromhost => {	path: %x[cat #{ingestfromhost_vcfs_path}],
+																				args: %x[cat #{ingestfromhost_vcfs_args}]
+																			},
+									:adddiskpath    => %x[cat cfg/vcfs/attributes/adddiskpath/path]
+								},
+
+  "vcsvc"		=> {  :ip             => `grep vcsvc #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcsvc #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcsvc/attributes/memory],
+									:cpus           => %x[ls ./cfg/vcsvc/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vcbuild" => {  :ip             => `grep vcbuild #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcbuild #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcbuild/attributes/memory],
+									:cpus           => %x[ls ./cfg/vcbuild/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vcdb" 		=> {  :ip             => `grep vcdb #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcdb #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcdb/attributes/memory],
+									:cpus           => %x[ls ./cfg/vcdb/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vcsched" => {  :ip             => `grep vcsched #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcsched #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcsched/attributes/memory],
+									:cpus	          => %x[ls ./cfg/vcsched/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vc1"			=> {  :ip	            => `grep vc1 #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vc1 #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vc1/attributes/memory],
+									:cpus           => %x[ls ./cfg/vc1/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vc2"			=> {  :ip             => `grep vc2 #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vc2 #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vc2/attributes/memory],
+									:cpus           => %x[ls ./cfg/vc2/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vclogin"		=> {:ip             => `grep vclogin #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vclogin #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vclogin/attributes/memory],
+									:cpus           => %x[ls ./cfg/vclogin/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vcgate"		=> {:ip             => `grep vcgate #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcgate #{ethers} | awk '{printf "%s", $1}' | sed 's/://g'`,
+									:bridge         => `/sbin/ip route | grep default | awk '{printf "%s", $5}'`,
+									:memory         => %x[ls cfg/vcgate/attributes/memory],
+									:cpus           => %x[ls cfg/vcgate/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								}
+}
+###
+
+
+### XXX ### XXX ### XXX ###
+
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/centos7"
+
+  config.ssh.forward_env   = ["TZ", "LC_ALL", "VC"]
+  config.ssh.forward_agent = true
+  config.ssh.forward_x11   = true
+
+  config.vm.provision "shell", path:  "../common/bin/provision.sh"
+
+  config.vm.synced_folder ".",                "/vagrant",                       create: true, type: "virtualbox"
+  config.vm.synced_folder "../vc",            "/vc",                            create: true, type: "virtualbox"
+  config.vm.synced_folder "../vx",            "/vx",                            create: true, type: "virtualbox"
+
+  # in-cluster tools
+  config.vm.synced_folder "../common/bin",    "/vagrant/cfg/provision/bin",     create: true, type: "virtualbox"
+
+  config.vm.synced_folder "../common/env",    "/vc/cfg/provision/env",     create: true, type: "virtualbox"
+  config.vm.synced_folder "../common/flag",   "/vc/cfg/provision/flag",    create: true, type: "virtualbox"
+  config.vm.synced_folder "../common/inc",    "/vc/cfg/provision/inc",     create: true, type: "virtualbox"
+  config.vm.synced_folder "../common/lib",    "/vc/cfg/provision/lib",     create: true, type: "virtualbox"
+  config.vm.synced_folder "../common/loader", "/vc/cfg/provision/loader",  create: true, type: "virtualbox"
+
+# config.vm.network # eth0 will always be NAT (Vagrant requirement)
+
+  nodes.each_with_index do |(hostnm,manifest), index|
+    config.vm.define hostnm do |cfg|
+      cfg.vm.provider :virtualbox do |vb, override|
+        vb.memory = manifest[:memory].chomp
+        vb.cpus = manifest[:cpus].chomp
+
+        override.vm.hostname = hostnm
+				override.vm.graceful_halt_timeout = 10
+        override.vm.network "private_network", nic_type: "virtio",
+															:ip => manifest[:ip],
+															:mac => manifest[:mac]
+
+        if manifest[:bridge] then
+          override.vm.network "public_network",
+															:ip => manifest[:ip],
+															nic_type: "virtio",
+															:bridge => manifest[:bridge]
+        end # manifest[:bridge]
+
+        override.trigger.before [:up] do |noduplicate|
+          noduplicate.run = {path: "../common/bin/nodup.sh", args: hostnm }
+        end # override.trigger.before[:up]
+
+				if #{manifest[:ingestfromhost]}.chomp then
+          override.trigger.before [:up] do |ingestfromhost|
+
+### XXX FIXME
+### XXX     manifest[:ingestfromhost].each do |key,value|
+### XXX       print "       ", "#{key}  #{value}\n"
+### XXX     end
+### XXX Doesn't execute unless run method is set, but need to set path and args
+
+            ingestfromhost.run = { path: "../common/bin/ingestfromhost.sh" , args: "vcfs :DOTFILES :DOTSSH" }
+### XXX FIXME ingestfromhost.run = { path: manifest[:ingestfromhost[#{path}]], args: manifest[:ingestfromhost[#{:args}]] }
+
+          end # override.trigger.before [:up]
+				end # manifest[:ingestfromhost]
+
+         if manifest[:adddiskpath] then
+           unless File.exist?(manifest[:adddiskpath])
+             vb.customize ['createhd', '--filename', manifest[:adddiskpath],
+														'--variant', 'Fixed', '--size', REPODISK_SIZE * 1024]
+           end # File.exit?(manifest[:adddiskpath])
+
+           vb.customize ['storageattach', :id,  '--storagectl', 'IDE Controller', '--port', 1, '--device', 0,
+  													'--type', 'hdd', '--medium', manifest[:adddiskpath]]
+         end # manifest[:adddiskpath]
+
+        override.trigger.before [:destroy] do |unprovision|
+          unprovision.run = {path: "../common/bin/unprovision.sh", args: hostnm }
+        end # override.trigger.before
+
+      end # cfg.vm.provider
+    end # config.vm
+  end # nodes
+end # configure

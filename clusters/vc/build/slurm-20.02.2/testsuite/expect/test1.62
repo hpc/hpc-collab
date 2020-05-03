@@ -1,0 +1,167 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Test of gres/gpu plugin (if configured).
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2010 Lawrence Livermore National Security
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Morris Jette <jette1@llnl.gov>
+# CODE-OCEC-09-009. All rights reserved.
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id          "1.62"
+set exit_code        0
+set file_in          "test$test_id.bash"
+
+proc run_gpu_test { gres_cnt } {
+	global max_job_delay srun number file_in
+
+	set timeout $max_job_delay
+	set bad_format 0
+	set devices    0
+	set invalid    0
+	set srun_pid [spawn $srun -N1 -n1 --gres=gpu:$gres_cnt -t1 ./$file_in]
+	expect {
+		-re "Unable to allocate" {
+			incr invalid
+			exp_continue
+		}
+		-re "CUDA_VISIBLE_DEVICES=($number),($number),($number)" {
+			if {$expect_out(1,string) == $expect_out(2,string)} {
+				incr bad_format
+			} elseif {$expect_out(2,string) == $expect_out(3,string)} {
+				incr bad_format
+			} elseif {$expect_out(1,string) == $expect_out(3,string)} {
+				incr bad_format
+			}
+			incr devices +3
+			exp_continue
+		}
+		-re "CUDA_VISIBLE_DEVICES=($number),($number)" {
+			if {$expect_out(1,string) == $expect_out(2,string)} {
+				incr bad_format
+			}
+			incr devices +2
+			exp_continue
+		}
+		-re "CUDA_VISIBLE_DEVICES=($number)" {
+			incr devices
+			exp_continue
+		}
+		-re "CUDA_VISIBLE_DEVICES=" {
+			send_user "\nWARNING: This could indicate that gres.conf lacks device files for the GPUs\n"
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: srun not responding\n"
+			slow_kill $srun_pid
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+	if {$invalid != 0} {
+		send_user "\WARNING: Insufficient resources to test $gres_cnt GPUs\n"
+		return 0
+	} elseif {$bad_format != 0} {
+		send_user "\nFAILURE: Duplicated device number in GRES allocation\n"
+		return 1
+	} elseif {$devices != $gres_cnt} {
+		send_user "\nFAILURE: Exected $gres_cnt GPUs, but was allocated $devices\n"
+		return 1
+	}
+	return 0
+}
+
+proc run_gpu_fail { gres_spec } {
+	global max_job_delay srun number exit_code file_in
+
+	set timeout $max_job_delay
+	set bad_format 0
+	set devices    0
+	set invalid    0
+	set srun_pid [spawn $srun -N1 -n1 --gres=$gres_spec -t1 ./$file_in]
+	expect {
+		-re "Invalid" {
+			incr invalid
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: srun not responding\n"
+			slow_kill $srun_pid
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+	if {$invalid == 0} {
+		send_user "\nFAILURE: Failure to reject job with invalid GRES specification\n"
+		set exit_code 1
+	} else {
+		send_user "\nError is expected, no worries.\n"
+	}
+	return
+}
+
+print_header $test_id
+
+#
+# Test if gres/gpu is configured
+#
+set gpu_cnt [get_gpu_count 1]
+if {$gpu_cnt < 1} {
+	send_user "\nWARNING: This test can not be run without gres/gpu configured\n"
+	exit $exit_code
+}
+send_user "\n GPUs:$gpu_cnt\n"
+#
+# Spawn a job via srun to print environment variables and
+# check count GPU devices allocated
+#
+for {set inx 1} {$inx <= $gpu_cnt && $inx <= 3} {incr inx} {
+	if {[run_gpu_test $inx ] != 0} {
+		incr exit_code
+		break
+	}
+}
+
+#
+# Spawn a job via srun with various invalid GRES specifications
+#
+send_user "\nTest various invalid GRES specifications\n"
+run_gpu_fail "gpu:"
+run_gpu_fail "gpu::"
+run_gpu_fail "gpu:tesla:"
+run_gpu_fail "gpu:tesla:INVALID_COUNT"
+run_gpu_fail "gpu:INVALID_TYPE:"
+run_gpu_fail "gpu:INVALID_TYPE:INVALID_COUNT"
+
+if {$exit_code == 0} {
+	send_user "\nSUCCESS\n"
+}
+exit $exit_code

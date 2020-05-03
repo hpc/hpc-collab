@@ -1,0 +1,57 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../config/slurm/2.slurm-files-permissions
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x ETC=/etc
+declare -x ETCMUNGE=${ETC}/munge
+
+declare -x VXCOMMON=/home/vx/common
+declare -x VARLOGSLURM=/var/log/slurm
+declare -x COMMON_VARLOGSLURM=${VXCOMMON}${VARLOGSLURM}
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x COMMONETCMUNGE=${COMMON}${ETCMUNGE}
+declare -x SLURMDSERVICE=/usr/lib/systemd/system/slurmd.service
+
+# stop any prior instances of munge
+
+svc_pid=$(ps ax | grep -v grep | grep munged|awk '{print $1}')
+if [ -n "${svc_pid}" ] ; then
+  kill -1 ${svc_pid}
+
+  for sig in 15 9
+  do
+    sleep 1
+    svc_pid=$(ps ax | grep -v grep | grep munged | awk '{print $1}')
+    if [ -n "${svc_pid}" ] ; then
+      kill -s 0 ${svc_pid} && \ 
+        kill -${sig} ${svc_pid}
+    fi
+  done
+fi
+
+Rc ErrExit ${EX_OSFILE} "mkdir -p /var/spool/slurm /var/run/slurm"
+Rc ErrExit ${EX_OSFILE} "mkdir -p ${COMMON_VARLOGSLURM}"
+Rc ErrExit ${EX_OSFILE} "touch ${COMMON_VARLOGSLURM}/slurmd.log"
+Rc ErrExit ${EX_OSFILE} "cmp ${ROOTFS}${SLURMDSERVICE} ${SLURMDSERVICE} || cp -bv ${ROOTFS}${SLURMDSERVICE} ${SLURMDSERVICE}"
+Rc ErrExit ${EX_OSFILE} "systemctl daemon-reload"
+
+trap '' 0
+exit ${EX_OK}

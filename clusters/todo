@@ -1,0 +1,120 @@
+To Do:
+0. remove:
+    remove duplicate per-cluster copies of provision/{lib,inc,env}/*.sh, make similar to provision/bin
+    remove slurm build env. cruft, leaving only final artifacts
+    remove vx /build/...
+
+1. a. => git repo
+       move (much of this technical debt etc) into git issues, including philosophy of file system
+        as a consistent instance of a dynamic CI/CD infrastructure
+   b. vc: vcdb => vcdb-prime, vcdb-alternate,
+          communitySQL or mariadb10.0.3
+
+2.  Fault-insertion framework
+
+3.  a. Queue-loading scenarios
+    b. job-allocation signatures
+
+---
+[Technical debt, good hygiene & issues for the git repo]
+A. refactor more of the provisioning tools outside of each virtual cluster definition, to common: useradd, etc
+B. i. use-case cluster recipe (template?) to construct a cluster snapshot to reproduce user problems
+   ii. Use a lighter weight vagrant provider (lxc? kvm/ovirt? docker or equiv?) rather than virtualbox
+   iii. *run as an HPC job on production cluster* (probably requires lightweight container provider, !virtualbox)
+    --- run on multiple nodes?  [above (i) and (ii): ndebard feedback]
+   iv. collaborative outreach use case, showing a configuration or slurm algorithm comparison case study
+C. move data base onto vcfs storage and out of vcdb local storage, or possibly 2nd vcdb disk (requires selinux tagging)
+D. preserve some state (home directories) between versions
+   - explore pushing & pulling from external source via one/all of: git, nfs, sshfs
+   - use NFS for initial /vagrant rather than vboxsf (for I/O speed, but how to avoid privileged host operation?)
+E. prototype CI validation & continuous test infrastructure; how to (non-heavyweight) rebuild post-change to validate
+F. Use packer, or vagrant snapshot or suspend so that a quick resumption of the full cluster can be made available
+G. i. TOSS rather than CentOS, fully replace test environment, ideally, create vagrant TOSS box
+   ii. refactor into a model where the control system may not be the host system
+    possible enabler for "run on multiple nodes/deply within an HPC allocation"
+    consider how to deploy from a central source of truth/config mgmt server, rather than a local library & script 
+   [sanchez feedback: (i) and (ii)]
+H. bounce a node (shutdown, 'vagrant halt' becomes 'vagrant suspend'): howto
+   determine & document process for quick-start users
+   freeze/thaw has low overhead, possibly distribute "frozen" images?
+   suspend/resume (suspend:vcfs, vcdb, possibly destroy for lightweight others)
+I. Makefile/Autoconf/Ansible-glue to generate Vagrantfile for a meta-make cluster recipe (using above templates)
+   - constructs other shared views into common data such as:
+     /etc/ethers, /etc/networks, /etc/hosts and Vagrantfile IP and MAC addresses dynamically
+   - Use this instantiation of a file system import into the cluster as a consistent set checkout to interface
+     with an external configuration management system (ex. ansible)
+     populate user data, slurmdb, full node config? from HESIOD, or construct HESIOD from file system configuration
+   - Ruby-based parser to generate Vagrantfile from fs structure or equivalent yaml 
+   - howto document and/or tool with templates re- create a new node & its hierarchy
+     dom0:/etc/hosts, Vagrantfile, common:/etc/*
+J. graphviz & doxygen
+   - node state diagram
+   - the annotated cfg directory structure
+   - node dependency diagram (using sdedit.jar?)
+     make -Bnd | make2graph | dot -Tsvg -o out.svg
+     show dependencies: https://unix.stackexchange.com/questions/283478/how-to-display-dependencies-given-in-a-makefile-as-a-tree
+     https://plindenbaum.blogspot.com/2012/11/visualizing-dependencies-of-makefile.html
+     https://github.com/lindenb/makefile2graph
+   - self-documenting Makefile rules
+K. consolidate RPM's in each node's load list into localrepo and an index file table, for space reduction
+       may require a secondary local_repo.tgz tarball
+L. vcsvc service node adds the service: SMTP-outbound
+M. vclustre combined node (MST, MDT, OST, ODT) or preferably, a separate lustre-cluster recipe
+N. common template for all nodes in Makefile / dynamic Makefile construction based on external data templates
+   - implement <node-type>/<node-class> lighterweight file system structure
+   - node data from HESIOD? yaml config file?
+   - Makefile per virtual cluster? or per typed-hierarchy of nodes? (part of gitification?)
+O. README(s) & better graphviz/doxygen self-documentation,
+   execution scripts move into per-node/node-type
+   Makefile target rules (build, install, configure, verify) rather than in provision.sh driver
+   - create a hierarchy of services in sub-directories of {build,config,install,verify} so ordering may be precisely specified
+   - this includes the inc/*.sh headers which should not be loaded in alphabetic order (ex. dynamic before cfgfs)
+     each directory contains a "cursor", "next" and a "requires"
+   - update/replace this Notes file with README/INSTALL guidance, ideally auto-generated (doxygen)
+     tie closely with open issues from git repository (import with git pull?)
+P. Additional in-built software:
+    i. slurm lua plugin ii. (ldms?) spank plugin, iii. epilog framework iv. node health check v. reboot framework vi. pmix
+    vii. use "configless slurm" slurm.conf viii. LDMS/OVID (on all schedulable nodes) ix. yeti
+Q. trigger on job events to generate data traces for monitoring, vizualization and analysis
+R. refactor Vagrantfile unprovision.sh so it takes a #{machine.id} rather than needing to duplicate in each vm block
+S. common/etc/yum.repos.d/local-vcbuild.repo starting with 'enabled=0'; only enable it in requires/{build,fs}
+T. PREFERRED_REPO modifies 'CentOS-Base.repo' baseurl to its contents
+U. in-cluster local repo key
+V. nodes define their own "requires/provides" test scripts that subsequent nodes use to validate requires/ hierarchy
+W. flags per-node or node-type, not global
+X. Virtualbox v. 6.<latest>, when vagrant supports it
+Y. rework links to common to be relative rather than via /vagrant or /home/vagrant (works inside & outside cluster)
+Z. sshd complaints about /etc/hosts.allow being a symlink, requires selinux context setting
+a. Modulefile to set env, path, etc
+b. utility to walk rpm/install, convert downloaded *.rpm back to 0-length text keys; regenerate repos.tgz from latest
+   needed for periodic CentOS dependency issues, once rpms have been downloaded to local
+c. fully network-UNconnected repo ingestion, may require rework of local/remote repo flags
+d. community mysql v.5.7 or greater, mariadb v.10.0.2 or greater (to include GTID feature) [select with a flag?]
+e. reimplement as a service mesh orchestrated by Istio, provisioned by Kubernetes 
+f. review scripts for commonality that are presently duplicated(?) between nodes
+g. Use a lighter weight linux distribution (alpine?) rather than centos
+h. Terraform implementation, possibly with minimal ruby extensions as needed
+i. Doxygen dependencies generated dynamically in Makefile, incorporated into Doxyfile
+k. /etc/localtime dynamically constructed, based on host's TZ
+l. Mac vagrant initialization requires ip command?
+m. replace "OverlayRootFS" with the use of a general patch-based mechanism
+n. remove all 'ipaddr' calls & replace with host lookup based on 'requires' hierarchy
+o. vx hostkey userverify ssh job fails (using vc hostkeys?)
+p. industry-standard provisioner conversion: terraform, istio/kubernetes, ansible, etc
+q. env/cluster-local.h.sh
+r. enable rpcbind and sshd to be wrapped with tcp_wrappers
+s. /root/.ssh/.ssh & /etc/cron.d/mon_knownhosts -- better way of propagating host keys but then stopping cron/rsync log spam
+t. Makefile/._state cache can be stale; glue it in more tightly with Vagrantfile/ruby hooks to minimize or eliminate
+u. move user home directory configuration specification into top-level common, outside of individual cluster recipes
+   consider provisioning extension that just instantiates this hierarchy for the invoking user dynamically
+   ("make clean" removes)
+v. interruptions & errors of provisioning force a rsynchronization of Vagrant and Makefile's sense of node state
+w. fix non-relocatable paths in Vagrantfile, generating errors such as the following if 'vagrant' is not invoked from
+   the directory where Vagrantfile is located:
+      % vagrant ssh vcfs
+      nodes_file_path:/home/sts/hpc-collab/clusters/vc/cfg/vcfs/verify/firewall/Vagrantfile.firewall.nodes does not exist
+x. when rpms are downloaded (not SKIP_YUMDOWNLOAD) emplace them in the (eventual) target repo, not in the cfg hierarchy
+   perhaps optionally or selectable with a value in SKIP_YUMDOWNLOAD~
+y. fix names in vx*/common that refer to vc* but should refer to vx* (ex. vcsched => vxsched), even though the IP reference is correct
+z. provisioning repodata.xml complaints (updaterepo earlier?)
+aa. clean up clusters/vc/build & create proper (dynamic?) dependency hierarchy

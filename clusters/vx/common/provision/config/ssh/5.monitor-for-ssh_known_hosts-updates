@@ -1,0 +1,59 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../common/provision/config/ssh/5.monitor-for-ssh_known_hosts-updates
+
+## @brief This sshd configuration script constructs and enables the cron directive to keep the node-local ssh_known_hosts (target) file in sync with common ssh_known_hosts (source)
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+
+declare -x ETC=/etc
+declare -x ETCSSH=${ETC}/ssh
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x COMMONETC_SSH=${COMMONETC}/ssh
+
+declare -x COMMONETC_SSH_KNOWNHOSTS=${COMMONETC_SSH}/ssh_known_hosts
+declare -x ETCSSH_KNOWNHOSTS=${ETCSSH}/ssh_known_hosts
+declare -x CROND=${ETC}/cron.d
+declare -x CROND_MON_KNOWNHOSTS=${CROND}/mon_knownhosts
+
+Rc ErrExit ${EX_OSFILE} "test -f ${COMMONETC_SSH_KNOWNHOSTS}"
+Rc ErrExit ${EX_OSFILE} "test -f ${ETCSSH_KNOWNHOSTS}"
+
+rsync=$(which rsync)
+rsync_args="-b -c"
+rsync_dryrun="-n"
+
+if [ ! -x "${rsync}" ] ; then
+  ErrExit ${EX_OSFILE} "rsync: ${rsync} is not executable"
+fi
+
+Rc ErrExit ${EX_OSFILE} "${rsync} ${rsync_dryrun} ${rsync_args} ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}"
+
+cat - << __CRON_HOURLY_ENTRY_EOF__ > ${CROND_MON_KNOWNHOSTS}
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+
+*/3 * * * * root ${rsync} ${rsync_args} ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}
+__CRON_HOURLY_ENTRY_EOF__
+
+Rc ErrExit ${EX_OSERR} "systemctl restart crond"
+
+exit ${EX_OK}

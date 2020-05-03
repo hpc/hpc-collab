@@ -1,0 +1,96 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../config/ssh/1.sshd-config
+
+## @brief This sshd configuration script enables host-based authentication, permits root logins, and may allow password authentication for users.
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x ETC=/etc
+declare -x ETCSSH=${ETC}/ssh
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x COMMONETC_SSH=${COMMONETC}/ssh
+
+declare -x SSHDCONFIG=${ETCSSH}/sshd_config
+declare -x COMMONETC_SSHDCONFIG=${COMMONETC_SSH}/sshd_config
+declare -x COMMONETC_SSHCONFIG=${COMMONETC_SSH}/ssh_config
+declare -x COMMONETC_SSHHOSTPUBKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key.pub
+declare -x COMMONETC_SSHHOSTPRIVKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key
+
+declare -x COMMONETC_SHOSTSEQUIV=${COMMONETC_SSH}/shosts.equiv
+declare -x COMMONETC_SSHKNOWNHOSTS=${COMMONETC_SSH}/ssh_known_hosts
+
+declare -x SLASHROOT=/root
+declare -x SLASHROOT_DOTSSH=${SLASHROOT}/.ssh
+declare -x COMMONSLASHROOT=/home/${CLUSTERNAME}/common/${SLASHROOT}
+declare -x COMMONSLASHROOT_DOTSSH=${COMMONSLASHROOT}/.ssh
+
+declare -x COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS=${COMMONSLASHROOTDOTSSH}/authorized_keys
+declare -x COMMONSLASHROOT_DOTSSH_PRIVKEYRSA=${COMMONSLASHROOTDOTSSH}/id_rsa
+declare -x COMMONSLASHROOT_DOTSSH_PUBKEYRSA=${COMMONSLASHROOTDOTSSH}/id_rsa.pub
+
+for d in ${COMMONETC_SSH} ${COMMONSLASHROOT} ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH}
+do
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
+done
+
+if [ ! -f "${SSHDCONFIG}" ] ; then
+  ErrExit ${EX_SOFTWARE} "$SSHDCONFIG does not exist"
+fi
+
+## @note The ';' at the end of this command causes Rc() to run this via an eval().
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#HostbasedAuthentication no/s//HostbasedAuthentication yes/' ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#IgnoreRHosts yes/s//IgnoreRhosts no/'                       ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#IgnoreUserKnownHosts no/s//IgnoreUserKnownHosts yes/'       ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#PasswordAuthentication no/s//PasswordAuthentication no/'    ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#PermitEmptyPasswords no/s//PermitEmptyPasswords no/'        ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#PermitRootLogin .*$/s//PermitRootLogin yes/'                ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#PubkeyAuthentication .*$/s//PubkeyAuthentication yes/'      ${SSHDCONFIG} ; "
+Rc ErrExit ${EX_OSERR}	"sed -i\~ -e '/^#StrictModes .*$/s//StrictModes no/'                         ${SSHDCONFIG} ; "
+
+if [ ! -d "${USERADD}" ] ; then
+  ErrExit ${EX_OSFILE} "USERADD: ${USERADD} is not a directory"
+fi
+
+UsersPWAuth() {
+  users=$(echo $(ls ${USERADD}) | sed 's/root//')
+  if [ -n "${users}" ] ; then
+    echo "Allow PasswordAuthentication:"
+  fi
+  for u in ${users}
+  do
+    if [ ! -d ${USERADD}/${u} ] ; then
+      continue
+    fi
+    printf "\nMatch user ${u}\nPasswordAuthentication yes\nPermitEmptyPasswords yes\n" >> ${SSHDCONFIG}
+    echo -n " ${u}"
+  done
+  if [ -n "${users}" ] ; then
+    echo ''
+  fi
+  return
+}
+
+UsersPWAuth
+
+Rc ErrExit 20  "systemctl restart sshd"
+Rc ErrExit 21  "systemctl status sshd"
+
+trap '' 0
+exit ${EX_OK}

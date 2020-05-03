@@ -1,0 +1,4 @@
+/home/vagrant			192.168.56.0/24(rw,no_root_squash,sync,security_label)
+/home/vagrant			192.168.57.0/24(rw,no_root_squash,sync,security_label)
+/home/vagrant/common/repos	192.168.56.0/24(rw,no_root_squash,sync,security_label)
+/home/vagrant/common/repos	192.168.57.0/24(rw,no_root_squash,sync,security_label)

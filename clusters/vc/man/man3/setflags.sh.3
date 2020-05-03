@@ -1,0 +1,120 @@
+.TH "common/provision/lib/setflags.sh" 3 "Wed Apr 15 2020" "HPC Collaboratory" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+common/provision/lib/setflags.sh
+.SH SYNOPSIS
+.br
+.PP
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBIsLANL\fP ()"
+.br
+.RI "This library file contains a commonly called routine to ingest flags from the file system which affect the running behavior of the script\&. "
+.ti -1c
+.RI "\fBSetFlags\fP ()"
+.br
+.in -1c
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "Exported String \fBPREFERRED_REPO\fP = ''"
+.br
+.RI "XXX validity check that PREFERRED_REPO is an actual URL, else use DEFAULT_PREFERRED_REPO\&. "
+.ti -1c
+.RI "Exported String \fBhttp_proxy\fP"
+.br
+.ti -1c
+.RI "Exported String \fBIS_LANL\fP = 'true'"
+.br
+.ti -1c
+.RI "Exported String \fBOUTPUT_PROTOCOL\fP = stdout"
+.br
+.ti -1c
+.RI "Exported String \fBDEFAULT_ORDER_OF_OPERATIONS\fP = ${DEBUG_DEFAULT_ORDER_OF_OPERATIONS}"
+.br
+.ti -1c
+.RI "Exported String \fBTAR_CHECKPOINT_DEBUG_ARGS\fP = '\-\-checkpoint=1024 \-\-checkpoint\-action=dot'"
+.br
+.ti -1c
+.RI "Exported String \fBDISABLE_RM\fP = $(cat ${\fBFLAGS\fP}/DISABLE_RM)"
+.br
+.ti -1c
+.RI "Exported String \fBHALT_PREREQ_ERROR\fP = 'true'"
+.br
+.ti -1c
+.RI "Exported String \fBHALT_ERREXIT\fP = 'true'"
+.br
+.ti -1c
+.RI "Exported String \fBHUSH_OUTPUT\fP = 'true'"
+.br
+.ti -1c
+.RI "Exported String \fBLUSTRE\fP = 'true'"
+.br
+.ti -1c
+.RI "Exported String \fBRSYNC_CENTOS_REPO\fP = ''"
+.br
+.ti -1c
+.RI "Exported String \fBONLY_REMOTE_REPOS\fP = 'true'"
+.br
+.ti -1c
+.RI "Exported String \fBSKIP_SW\fP = $(cat ${\fBFLAGS\fP}/SKIP_SW)"
+.br
+.ti -1c
+.RI "Exported String \fBSKIP_UPDATERPMS\fP = 'true'"
+.br
+.in -1c
+.SH "Function Documentation"
+.PP 
+.SS "IsLANL ()"
+
+.PP
+This library file contains a commonly called routine to ingest flags from the file system which affect the running behavior of the script\&. @side effect: sets http_proxy, https_proxy 
+.SS "SetFlags ()"
+Set flags within our execution, based on their existence in the configuration specifier 
+.SH "Variable Documentation"
+.PP 
+.SS "Exported String DEFAULT_ORDER_OF_OPERATIONS = ${DEBUG_DEFAULT_ORDER_OF_OPERATIONS}"
+
+.SS "Exported String DISABLE_RM = $(cat ${\fBFLAGS\fP}/DISABLE_RM)"
+
+.SS "Exported String HALT_ERREXIT = 'true'"
+
+.SS "Exported String HALT_PREREQ_ERROR = 'true'"
+
+.SS "Exported String http_proxy"
+\fBInitial value:\fP
+.PP
+.nf
+= http:
+Exported String https_proxy = http:
+Exported String RSYNC_PROXY = ${LANL_PROXY}
+.fi
+.SS "Exported String HUSH_OUTPUT = 'true'"
+
+.SS "Exported String IS_LANL = 'true'"
+
+.SS "Exported String LUSTRE = 'true'"
+
+.SS "Exported String ONLY_REMOTE_REPOS = 'true'"
+
+.SS "Exported String OUTPUT_PROTOCOL = stdout"
+
+.SS "Exported String PREFERRED_REPO = ''"
+
+.PP
+XXX validity check that PREFERRED_REPO is an actual URL, else use DEFAULT_PREFERRED_REPO\&. 
+.SS "Exported String RSYNC_CENTOS_REPO = ''"
+
+.SS "Exported String SKIP_SW = $(cat ${\fBFLAGS\fP}/SKIP_SW)"
+
+.SS "Exported String SKIP_UPDATERPMS = 'true'"
+
+.SS "Exported String TAR_CHECKPOINT_DEBUG_ARGS = '\-\-checkpoint=1024 \-\-checkpoint\-action=dot'"
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for HPC Collaboratory from the source code\&.

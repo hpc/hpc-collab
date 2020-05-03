@@ -1,0 +1,270 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          sacctmgr add a cluster
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2008-2010 Lawrence Livermore National Security.
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Joseph Donaghy <donaghy1@llnl.gov>
+# CODE-OCEC-09-009. All rights reserved.
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+source ./globals_accounting
+
+set test_id     "21.5"
+set exit_code   0
+set dmatches    0
+# Test Clusters
+set tc1		"test$test_id-cluster.1"
+# Cluster Limits
+array set cluster {}
+set cluster(Fairshare)     2500
+set cluster(GrpCPUs)       50
+set cluster(GrpJobs)       100
+set cluster(GrpMemory)     200
+set cluster(GrpSubmitJobs) 500
+set cluster(GrpNodes)      300
+set cluster(MaxCPUMins)    100000
+set cluster(MaxCPUs)       100
+set cluster(MaxJobs)       500
+set cluster(MaxSubmitJobs) 500
+set cluster(MaxNodes)      300
+set cluster(MaxWall)       01:00:00
+set cluster(DefaultQos)    "test$test_id\_qos"
+set access_err  0
+
+print_header $test_id
+
+#
+# Check accounting config and bail if not found.
+#
+if { [test_account_storage] == 0 } {
+	send_user "\nWARNING: This test can't be run without a usable AccountStorageType\n"
+	exit 0
+}
+
+if { [string compare [check_accounting_admin_level] "Administrator"] } {
+	send_user "\nWARNING: This test can't be run without being an Accounting administrator.\nUse: sacctmgr mod user \$USER set admin=admin.\n"
+	exit 0
+}
+
+#
+# Use sacctmgr to delete the test cluster
+#
+	set nothing 0
+	set matches 0
+
+set my_pid [spawn $sacctmgr -i delete cluster $tc1]
+
+	expect {
+		-re "privilege to perform this action" {
+			set access_err 1
+			exp_continue
+		}
+		-re "(There was a problem|Unknown condition|Bad format on|Bad MaxWall|Unknown option)" {
+			send_user "FAILURE: there was a problem with the sacctmgr command\n"
+			incr exit_code 1
+		}
+		-re "Problem getting" {
+			send_user "FAILURE: there was a problem getting information from the database\n"
+			incr exit_code 1
+		}
+		-re "Problem adding" {
+			send_user "FAILURE: there was an unknown problem\n"
+			incr exit_code 1
+		}
+		-re "No associations" {
+			send_user "FAILURE: your command didn't return anything\n"
+			incr exit_code 1
+		}
+		-re "Deleting clusters" {
+			incr matches
+			exp_continue
+		}
+		-re " Nothing deleted" {
+			incr matches
+			set nothing 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: sacctmgr delete not responding\n"
+			slow_kill $my_pid
+			incr exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+	if {$access_err != 0} {
+		return 1
+	}
+	if {$matches != 1} {
+		send_user "\nFAILURE: sacctmgr had a problem deleting cluster got $matches\n"
+		incr exit_code 1
+	}
+	if { !$nothing } {
+		if { ![check_acct_associations] } {
+			send_user "\nFAILURE:  Our associations don't line up\n"
+			incr exit_code 1
+		}
+	}
+#
+# Delete vestigial QOSs
+#
+set dmatches 0
+set sadel_pid [spawn $sacctmgr -i delete qos $cluster(DefaultQos)]
+expect {
+	-re "Deleting QOS" {
+		incr dmatches
+		exp_continue
+	}
+	-re "Nothing deleted" {
+		incr dmatches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr delete not responding\n"
+		slow_kill $sadel_pid
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$dmatches != 1} {
+	send_user "\nFAILURE: sacctmgr had a problem deleting QOS got $dmatches\n"
+	set exit_code 1
+}
+
+#
+# Create tmp QOS
+#
+set qos_set 0
+spawn $sacctmgr -i add qos $cluster(DefaultQos)
+expect {
+	-re "Adding QOS" {
+		set qos_set 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$qos_set != 1} {
+	send_user "\nFAILURE QOS $cluster(DefaultQos) was not created\n"
+	set exit_code 1
+}
+
+#
+# NOTE: GrpWall, GrpCPUMins, and GrpCPURunMins are not add to test
+# because they are not valid for root associations of a cluster.
+#
+
+#
+# Add a Cluster for testing
+#
+add_cluster $tc1 [array get cluster]
+
+if {$access_err != 0} {
+	send_user "\nWARNING: not authorized to perform this test\n"
+	exit $exit_code
+}
+
+check_assoc_limit 1 cluster $tc1 [array get cluster]
+
+if { ![check_acct_associations] } {
+	send_user "\nFAILURE:  Our associations don't line up\n"
+	set exit_code 1
+}
+
+#
+# Use sacctmgr to delete the test cluster
+#
+set dmatches 0
+set sadel_pid [spawn $sacctmgr -i delete cluster $tc1]
+expect {
+	-re "Deleting clusters" {
+		incr dmatches
+		exp_continue
+	}
+	-re "$tc1" {
+		incr dmatches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr delete not responding\n"
+		slow_kill $sadel_pid
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$dmatches != 2} {
+	send_user "\nFAILURE: sacctmgr had a problem deleting cluster got $dmatches\n"
+	set exit_code 1
+}
+
+#
+# Delete Qos
+#
+set dmatches 0
+set sadel_pid [spawn $sacctmgr -i delete qos $cluster(DefaultQos)]
+expect {
+	-re "Deleting QOS" {
+		incr dmatches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr delete not responding\n"
+		slow_kill $sadel_pid
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$dmatches != 1} {
+	send_user "\nFAILURE: sacctmgr had a problem deleting QOS got $dmatches\n"
+	set exit_code 1
+}
+
+if { ![check_acct_associations] } {
+	send_user "\nFAILURE:  Our associations don't line up\n"
+	set exit_code 1
+}
+
+if {$exit_code == 0} {
+	print_success $test_id
+}
+
+exit $exit_code

@@ -1,0 +1,57 @@
+#!/bin/bash -vx
+
+## $Header: $
+## Source:
+## @file vcdb/config/slurm/1.create-cluster-db
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x COMMON_ETCSLURM=${COMMON}/etc/slurm
+declare -x SLURMCONF=${COMMON_ETCSLURM}/slurm.conf
+
+if [ -z "${SLURMCONF}" ] ; then
+  ErrExit ${EX_OSFILE} "empty SLURMCONF"
+fi
+if [ ! -f ${SLURMCONF} ] ; then
+  ErrExit ${EX_OSFILE} "SLURMCONF: ${SLURMCONF} nonexistent"
+fi
+
+CLUSTERNAME=$(grep ClusterName ${SLURMCONF} | sed 's/ClusterName=//')
+rc=$?
+
+if [ ${rc} -ne ${GREP_FOUND} ] ; then
+  ErrExit ${EX_OSFILE} "ClusterName not found in ${SLURMCONF}"
+fi
+
+exists=$(sacctmgr show cluster ${CLUSTERNAME} -n -P)
+if [ -z "${exists}" ] ; then
+  db_cluster=$(echo $(sacctmgr -iQ create cluster ${CLUSTERNAME}))
+  # "Adding Cluster(s) Name = ${CLUSTERNAME}"
+fi
+
+db_cluster=$(sacctmgr show cluster ${CLUSTERNAME} -p -n | tail -1 | awk -F\| '{print $1}')
+echo "db_cluster (sacctmgr show cluster): \"${db_cluster}\""
+if [ -z "${db_cluster}" ] ; then
+  ErrExit ${EX_OSERR} "sacctmgr show cluster \"${CLUSTERNAME}\" failed"
+fi
+
+if [[ ${db_cluster} != ${CLUSTERNAME} ]] ; then
+  ErrExit ${EX_OSERR} "sacctmgr show cluster: \"${db_cluster}\" != \"${CLUSTERNAME}\""
+fi
+
+trap '' 0
+exit ${EX_OK}

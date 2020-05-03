@@ -1,0 +1,3 @@
+appendwhere: swap
+appendwhat: vcfs:/home/vagrant/build /home/vx/build	nfs	defaults,nofail,_netdev 0 0
+

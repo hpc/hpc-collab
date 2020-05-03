@@ -1,0 +1,523 @@
+### ### ### ###
+
+# individual NODE states
+
+vcfs!: verifylocalenv $(NONEXISTENT_D)/vcfs $(PROVISIONED_D)/vcfs
+
+vcfs--: vcfs_UNPROVISION
+
+vcfs-: verifylocalenv $(POWEROFF_D)/vcfs
+
+vcfs+: verifylocalenv $(RUNNING_D)/vcfs
+
+vcfs: verifylocalenv $(PROVISIONED_D)/vcfs
+
+# XXX @todo this sort of structure including the $(PROVISIONED_D)/... from the actual node requirements is best
+# XXX @todo but the following generic pattern $(CFG)/%/requires/*) is not honored in the dependencies
+# XXX $(RUNNING_D)/%: $(XFR_PREREQ) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/%/requires/*)))
+
+$(RUNNING_D)/vcfs: $(XFR_PREREQ) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcfs/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vcfs ] ; then				   \
+	  vagrant up --no-provision vcfs || exit 1				 ; \
+										   \
+	elif [ -f $(POWEROFF_D)/vcfs ] ; then					   \
+	  vagrant up --no-provision vcfs || exit 2				 ; \
+										   \
+	elif [ ! -f $(PROVISIONED_D)/vcfs -a ! -f $(NONEXISTENT_D)/vcfs ] ; then   \
+	    vagrant destroy -f vcfs || exit 3					 ; \
+	fi
+
+$(PROVISIONED_D)/vcfs: $(XFR_PREREQ) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcfs/requires/*)))
+	$(HUSH)for prereq in $^							; \
+        do									  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then				  \
+	    continue								; \
+	  fi									; \
+	  if [ ! -f "$${prereq}" ] ; then					  \
+	    echo prerequisite: $${prereq} missing				; \
+	    exit 4								; \
+	  fi									; \
+	done									; \
+	if [ -f "$(RUNNING_D)/vcfs" -a ! -f "$(PROVISIONED_D)/vcfs" ] ; then	  \
+	  vagrant destroy -f vcfs || exit 5					; \
+	fi									; \
+	if [ ! -f "$(PROVISIONED_D)/vcfs" ] ; then				  \
+	  vagrant up --provision vcfs || exit 6					; \
+	  env VC=$(VC) $(MARK_PROVISIONED)					; \
+	fi
+
+$(POWEROFF_D)/vcfs: 
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vcfs" ] ; then  \
+		vagrant halt vcfs			 ; \
+	fi
+
+$(NONEXISTENT_D)/vcfs: $(POWEROFF_D)/vcfs
+	$(HUSH)vagrant destroy -f vcfs
+
+# unprovision may be necessary even if provisioning failed, leaving node in RUNNING state
+vcfs_UNPROVISION: $(NONEXISTENT_D)/vcfs ingest-state
+	$(HUSH)$(UNPROVISION) vcfs
+
+# --- 
+
+vcsvc!: verifylocalenv $(NONEXISTENT_D)/vcsvc $(PROVISIONED_D)/vcsvc
+
+vcsvc--: vcsvc_UNPROVISION
+
+vcsvc-: verifylocalenv $(POWEROFF_D)/vcsvc
+
+vcsvc+: verifylocalenv $(RUNNING_D)/vcsvc
+
+vcsvc: verifylocalenv $(PROVISIONED_D)/vcsvc
+
+$(RUNNING_D)/vcsvc: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcsvc/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vcsvc ] ; then				   \
+	  vagrant up --no-provision vcsvc || exit 11				 ; \
+										   \
+	elif [ -f $(POWEROFF_D)/vcsvc ] ; then					   \
+	  vagrant up --no-provision vcsvc || exit 12				 ; \
+										   \
+	elif [ ! -f $(PROVISIONED_D)/vcsvc -a ! -f $(NONEXISTENT_D)/vcsvc ] ; then \
+	    vagrant destroy -f vcsvc || exit 13					 ; \
+	fi
+
+$(PROVISIONED_D)/vcsvc: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcsvc/requires/*)))
+	$(HUSH)for prereq in $^						  ; \
+        do								    \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then			    \
+	    continue							  ; \
+	  fi								  ; \
+	  if [ ! -f "$${prereq}" ] ; then				    \
+	    echo prerequisite: $${prereq} missing			  ; \
+	    exit 14							  ; \
+	  fi								  ; \
+	done								  ; \
+	if [ -f $(RUNNING_D)/vcsvc -a ! -f $(PROVISIONED_D)/vcsvc ] ; then \
+	  vagrant destroy -f vcsvc || exit 15				  ; \
+	fi								  ; \
+	if [ ! -f $(PROVISIONED_D)/vcsvc ] ; then			    \
+	  vagrant up --provision vcsvc || exit 16			  ; \
+	  env VC=$(VC) $(MARK_PROVISIONED)				  ; \
+	fi
+
+$(POWEROFF_D)/vcsvc:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vcsvc" ] ; then  \
+		vagrant halt vcsvc			  ; \
+	fi
+
+$(NONEXISTENT_D)/vcsvc: $(POWEROFF_D)/vcsvc
+	$(HUSH)vagrant destroy -f vcsvc
+
+vcsvc_UNPROVISION: $(NONEXISTENT_D)/vcsvc ingest-state
+	$(HUSH)$(UNPROVISION) vcsvc
+
+# --- 
+
+vcbuild!: verifylocalenv $(NONEXISTENT_D)/vcbuild $(PROVISIONED_D)/vcbuild
+
+vcbuild--: vcbuild_UNPROVISION
+
+vcbuild-: verifylocalenv $(POWEROFF_D)/vcbuild
+
+vcbuild+: verifylocalenv $(RUNNING_D)/vcbuild
+
+vcbuild: verifylocalenv $(PROVISIONED_D)/vcbuild
+
+$(RUNNING_D)/vcbuild: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcbuild/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vcbuild ] ; then			       \
+	  vagrant up --no-provision vcbuild || exit 21				     ; \
+										       \
+	elif [ -f $(POWEROFF_D)/vcbuild ] ; then				       \
+	  vagrant up --no-provision vcbuild || exit 22				     ; \
+										       \
+	elif [ ! -f $(PROVISIONED_D)/vcbuild -a ! -f $(NONEXISTENT_D)/vcbuild ] ; then \
+	    vagrant destroy -f vcbuild || exit 23				     ; \
+	fi
+
+$(PROVISIONED_D)/vcbuild: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcbuild/requires/*)))
+	$(HUSH)for prereq in $^							; \
+        do									  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then				  \
+	    continue								; \
+	  fi									; \
+	  if [ ! -f "$${prereq}" ] ; then					  \
+	    echo prerequisite: $${prereq} missing				; \
+	    exit 24								; \
+	  fi									; \
+	done									; \
+	if [ -f $(RUNNING_D)/vcbuild -a ! -f $(PROVISIONED_D)/vcbuild ] ; then    \
+	  vagrant destroy -f vcbuild || exit 25				        ; \
+	fi								        ; \
+	if [ ! -f $(PROVISIONED_D)/vcbuild ] ; then			          \
+	  vagrant up --provision vcbuild || exit 26			        ; \
+	  env VC=$(VC) $(MARK_PROVISIONED)				        ; \
+	fi
+
+$(POWEROFF_D)/vcbuild:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vcbuild" ] ; then	  \
+		vagrant halt vcbuild				; \
+	fi
+
+$(NONEXISTENT_D)/vcbuild: $(POWEROFF_D)/vcbuild
+	$(HUSH)vagrant destroy -f vcbuild
+
+vcbuild_UNPROVISION: $(NONEXISTENT_D)/vcbuild ingest-state
+	$(HUSH)$(UNPROVISION) vcbuild
+
+# ---
+
+vcdb!: verifylocalenv $(NONEXISTENT_D)/vcdb $(PROVISIONED_D)/vcdb
+
+vcdb--: vcdb_UNPROVISION
+
+vcdb-: verifylocalenv $(POWEROFF_D)/vcdb
+
+vcdb+: verifylocalenv $(RUNNING_D)/vcdb
+
+vcdb: verifylocalenv $(PROVISIONED_D)/vcdb
+
+$(RUNNING_D)/vcdb: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcdb/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vcdb ] ; then				 \
+	  vagrant up --no-provision vcdb || exit 31			      ;  \
+										 \
+	elif [ -f $(POWEROFF_D)/vcdb ] ; then					 \
+	  vagrant up --no-provision vcdb || exit 32			      ;  \
+										 \
+	elif [ ! -f $(PROVISIONED_D)/vcdb -a ! -f $(NONEXISTENT_D)/vcdb ] ; then \
+	    vagrant destroy -f vcdb || exit 33				      ;  \
+	fi
+
+$(PROVISIONED_D)/vcdb: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcdb/requires/*)))
+	$(HUSH)for prereq in $^						; \
+        do								  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then			  \
+	    continue							; \
+	  fi								; \
+	  if [ ! -f "$${prereq}" ] ; then				  \
+	    echo prerequisite: $${prereq} missing			; \
+	    exit 34							; \
+	  fi								; \
+	done								; \
+	if [ -f $(RUNNING_D)/vcdb -a ! -f $(PROVISIONED_D)/vcdb ] ; then  \
+	  vagrant destroy -f vcdb || exit 35				; \
+	fi								; \
+	if [ ! -f $(PROVISIONED_D)/vcdb ] ; then		          \
+	  vagrant up --provision vcdb || exit 36			; \
+	  env VC=$(VC) $(MARK_PROVISIONED)				; \
+	fi
+
+$(POWEROFF_D)/vcdb:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vcdb" ] ; then \
+		vagrant halt vcdb			; \
+	fi
+
+$(NONEXISTENT_D)/vcdb: $(POWEROFF_D)/vcdb
+	$(HUSH)vagrant destroy -f vcdb
+
+vcdb_UNPROVISION: $(NONEXISTENT_D)/vcdb ingest-state
+	$(HUSH)$(UNPROVISION) vcdb
+
+# ---
+vcsched!: verifylocalenv $(NONEXISTENT_D)/vcsched $(PROVISIONED_D)/vcsched
+
+vcsched--: vcsched_UNPROVISION
+
+vcsched-: verifylocalenv $(POWEROFF_D)/vcsched
+
+vcsched+: verifylocalenv $(RUNNING_D)/vcsched
+
+vcsched: verifylocalenv $(PROVISIONED_D)/vcsched
+
+$(RUNNING_D)/vcsched: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcsched/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vcsched ] ; then				  \
+	  vagrant up --no-provision vcsched || exit 41		 			; \
+											  \
+	elif [ -f $(POWEROFF_D)/vcsched ] ; then					  \
+	  vagrant up --no-provision vcsched || exit 42					; \
+											  \
+	elif [ ! -f $(PROVISIONED_D)/vcsched -a ! -f $(NONEXISTENT_D)/vcsched ] ; then	  \
+	    vagrant destroy -f vcsched || exit 43					; \
+	fi
+
+$(PROVISIONED_D)/vcsched: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcsched/requires/*)))
+	$(HUSH)for prereq in $^							; \
+        do									  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then				  \
+	    continue								; \
+	  fi									; \
+	  if [ ! -f "$${prereq}" ] ; then					  \
+	    echo prerequisite: $${prereq} missing				; \
+	    exit 44								; \
+	  fi									; \
+	done									; \
+	if [ -f $(RUNNING_D)/vcsched -a ! -f $(PROVISIONED_D)/vcsched ] ; then   \
+	  vagrant destroy -f vcsched || exit 45					; \
+	fi								        ; \
+	if [ ! -f $(PROVISIONED_D)/vcsched ] ; then		       	          \
+	  vagrant up --provision vcsched || exit 46				; \
+	  env VC=$(VC) $(MARK_PROVISIONED)					; \
+	fi
+
+$(POWEROFF_D)/vcsched:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vcsched" ] ; then  \
+		vagrant halt vcsched			    ; \
+	fi
+
+$(NONEXISTENT_D)/vcsched: $(POWEROFF_D)/vcsched
+	$(HUSH)vagrant destroy -f vcsched
+
+vcsched_UNPROVISION: $(NONEXISTENT_D)/vcsched ingest-state
+	$(HUSH)$(UNPROVISION) vcsched
+
+# ---
+vc1!: verifylocalenv $(NONEXISTENT_D)/vc1 $(PROVISIONED_D)/vc1
+
+vc1--: vc1_UNPROVISION
+
+vc1-: verifylocalenv $(POWEROFF_D)/vc1
+
+vc1+: verifylocalenv $(RUNNING_D)/vc1
+
+vc1: verifylocalenv $(PROVISIONED_D)/vc1
+
+$(RUNNING_D)/vc1: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vc1/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vc1 ] ; then		       \
+	  vagrant up --no-provision vc1 || exit 51		     ; \
+								       \
+	elif [ -f $(POWEROFF_D)/vc1 ] ; then			       \
+	  vagrant up --no-provision vc1 || exit 52		     ; \
+								       \
+	elif [ ! -f $(PROVISIONED_D)/vc1 -a ! -f $(NONEXISTENT_D)/vc1 ] ; then \
+	    vagrant destroy -f vc1 || exit 53			     ; \
+	fi
+
+$(PROVISIONED_D)/vc1: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vc1/requires/*)))
+	$(HUSH)for prereq in $^						; \
+        do								  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then			  \
+	    continue							; \
+	  fi								; \
+	  if [ ! -f "$${prereq}" ] ; then				  \
+	    echo prerequisite: $${prereq} missing			; \
+	    exit 54							; \
+	  fi								; \
+	done								; \
+	if [ -f $(RUNNING_D)/vc1 -a ! -f $(PROVISIONED_D)/vc1 ] ; then    \
+	  vagrant destroy -f vc1 || exit 55				; \
+	fi								; \
+	if [ ! -f $(PROVISIONED_D)/vc1 ] ; then		       	          \
+	  vagrant up --provision vc1 || exit 56				; \
+	  env VC=$(VC) $(MARK_PROVISIONED)				; \
+	fi
+
+$(POWEROFF_D)/vc1:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vc1" ] ; then  \
+		vagrant halt vc1			; \
+	fi
+
+$(NONEXISTENT_D)/vc1: $(POWEROFF_D)/vc1
+	$(HUSH)vagrant destroy -f vc1
+
+vc1_UNPROVISION: $(NONEXISTENT_D)/vc1 ingest-state
+	$(HUSH)$(UNPROVISION) vc1
+
+# ---
+vc2!: verifylocalenv $(NONEXISTENT_D)/vc2 $(PROVISIONED_D)/vc2
+
+vc2--: vc2_UNPROVISION
+
+vc2-: verifylocalenv $(POWEROFF_D)/vc2
+
+vc2+: verifylocalenv $(RUNNING_D)/vc2
+
+vc2: verifylocalenv $(PROVISIONED_D)/vc2
+
+$(RUNNING_D)/vc2: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vc2/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vc2 ] ; then			       \
+	  vagrant up --no-provision vc2 || exit 61			 ;     \
+									       \
+	elif [ -f $(POWEROFF_D)/vc2 ] ; then				       \
+	  vagrant up --no-provision vc2 || exit 62			 ;     \
+									       \
+	elif [ ! -f $(PROVISIONED_D)/vc2 -a ! -f $(NONEXISTENT_D)/vc2 ] ; then \
+	    vagrant destroy -f vc2 || exit 63				 ;     \
+	fi
+
+$(PROVISIONED_D)/vc2: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vc2/requires/*)))
+	$(HUSH)for prereq in $^							; \
+        do									  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then				  \
+	    continue								; \
+	  fi									; \
+	  if [ ! -f "$${prereq}" ] ; then					  \
+	    echo prerequisite: $${prereq} missing				; \
+	    exit 64								; \
+	  fi									; \
+	done									; \
+	if [ -f $(RUNNING_D)/vc2 -a ! -f $(PROVISIONED_D)/vc2 ] ; then		  \
+	  vagrant destroy -f vc2 || exit 65					; \
+	fi									; \
+	if [ ! -f $(PROVISIONED_D)/vc2 ] ; then		       	        	  \
+	  vagrant up --provision vc2 || exit 66					; \
+	  env VC=$(VC) $(MARK_PROVISIONED)					; \
+	fi
+
+$(POWEROFF_D)/vc2:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vc2" ] ; then  \
+		vagrant halt vc2			; \
+	fi
+
+$(NONEXISTENT_D)/vc2: $(POWEROFF_D)/vc2
+	$(HUSH)vagrant destroy -f vc2
+
+vc2_UNPROVISION: $(NONEXISTENT_D)/vc2 ingest-state
+	$(HUSH)$(UNPROVISION) vc2
+
+# ---
+vclogin!: verifylocalenv $(NONEXISTENT_D)/vclogin $(PROVISIONED_D)/vclogin
+
+vclogin--: verifylocalenv vclogin_UNPROVISION
+
+vclogin-: verifylocalenv $(POWEROFF_D)/vclogin
+
+vclogin+: verifylocalenv $(RUNNING_D)/vclogin
+
+vclogin: verifylocalenv $(PROVISIONED_D)/vclogin
+
+$(RUNNING_D)/vclogin: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vclogin/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vclogin ] ; then			       \
+	  vagrant up --no-provision vclogin					     ; \
+	  rc=$$?								     ; \
+	  if [ $${rc} -ne 0 ] ; then						       \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/vclogin			     ; \
+	    exit 71								     ; \
+	  fi									     ; \
+	elif [ -f $(POWEROFF_D)/vclogin ] ; then				       \
+	  vagrant up --no-provision vclogin					     ; \
+	  rc=$$?								     ; \
+	  if [ $${rc} -ne 0 ] ; then						       \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/vclogin			     ; \
+	    exit 72								     ; \
+	  fi									     ; \
+										       \
+	elif [ ! -f $(PROVISIONED_D)/vclogin -a ! -f $(NONEXISTENT_D)/vclogin ] ; then \
+	  vagrant destroy -f vclogin || exit 73					     ; \
+	fi									     ; \
+	ssh vclogin uptime >/dev/null 2>&1					     ; \
+	rc=$$?									     ; \
+	if [ $${rc} -ne 0 ] ; then						       \
+	  $(DISABLE_RM) rm -f $(PROVISIONED_D)/vclogin				     ; \
+	  exit 74								     ; \
+	fi
+
+$(PROVISIONED_D)/vclogin: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vclogin/requires/*)))
+	$(HUSH)for prereq in $^							; \
+        do									  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then				  \
+	    continue								; \
+	  fi									; \
+	  if [ ! -f "$${prereq}" ] ; then					  \
+	    echo prerequisite: $${prereq} missing				; \
+	    exit 75								; \
+	  fi									; \
+	done									; \
+	if [ -f $(RUNNING_D)/vclogin -a ! -f $(PROVISIONED_D)/vclogin ] ; then	  \
+	  vagrant destroy -f vclogin || exit 76					; \
+	fi								      	; \
+	if [ ! -f $(PROVISIONED_D)/vclogin ] ; then			       	  \
+	  vagrant up --provision vclogin					; \
+	  rc=$$?								; \
+	  if [ $${rc} -ne 0 ] ; then						  \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/vclogin			; \
+	    exit 77								; \
+	  else									  \
+	    env VC=$(VC) $(MARK_PROVISIONED)					; \
+	  fi									; \
+	fi
+
+$(POWEROFF_D)/vclogin:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vclogin" ] ; then  \
+		vagrant halt vclogin			    ; \
+	fi
+
+$(NONEXISTENT_D)/vclogin: $(POWEROFF_D)/vclogin
+	$(HUSH)vagrant destroy -f vclogin
+
+vclogin_UNPROVISION: $(NONEXISTENT_D)/vclogin ingest-state
+	$(HUSH)$(UNPROVISION) vclogin
+
+# ---
+vcgate!: verifylocalenv $(NONEXISTENT_D)/vcgate $(PROVISIONED_D)/vcgate
+
+vcgate--: verifylocalenv vcgate_UNPROVISION
+
+vcgate-: verifylocalenv $(POWEROFF_D)/vcgate
+
+vcgate+: verifylocalenv $(RUNNING_D)/vcgate
+
+vcgate: verifylocalenv $(PROVISIONED_D)/vcgate
+
+$(RUNNING_D)/vcgate: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcgate/requires/*)))
+	$(HUSH)if [ -f $(PROVISIONED_D)/vcgate ] ; then				       \
+	  vagrant up --no-provision vcgate					     ; \
+	  rc=$$?								     ; \
+	  if [ $${rc} -ne 0 ] ; then						       \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/vcgate				     ; \
+	    exit 81								     ; \
+	  fi									     ; \
+	elif [ -f $(POWEROFF_D)/vcgate ] ; then					       \
+	  vagrant up --no-provision vcgate					     ; \
+	  rc=$$?								     ; \
+	  if [ $${rc} -ne 0 ] ; then						       \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/vcgate				     ; \
+	    exit 82								     ; \
+	  fi									     ; \
+										       \
+	elif [ ! -f $(PROVISIONED_D)/vcgate -a ! -f $(NONEXISTENT_D)/vcgate ] ; then \
+	  vagrant destroy -f vcgate || exit 83					     ; \
+	fi									     ; \
+	ssh vcgate uptime >/dev/null 2>&1					     ; \
+	rc=$$?									     ; \
+	if [ $${rc} -ne 0 ] ; then						       \
+	  $(DISABLE_RM) rm -f $(PROVISIONED_D)/vcgate				     ; \
+	  exit 84								     ; \
+	fi
+
+$(PROVISIONED_D)/vcgate: $(XFR_VBOXADD_ISO) ingest-state $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/vcgate/requires/*)))
+	$(HUSH)for prereq in $^							; \
+        do									  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then				  \
+	    continue								; \
+	  fi									; \
+	  if [ ! -f "$${prereq}" ] ; then					  \
+	    echo prerequisite: $${prereq} missing				; \
+	    exit 85								; \
+	  fi									; \
+	done									; \
+	if [ -f $(RUNNING_D)/vcgate -a ! -f $(PROVISIONED_D)/vcgate ] ; then	  \
+	  vagrant destroy -f vcgate || exit 86					; \
+	fi								      	; \
+	if [ ! -f $(PROVISIONED_D)/vcgate ] ; then			       	  \
+	  vagrant up --provision vcgate						; \
+	  rc=$$?								; \
+	  if [ $${rc} -ne 0 ] ; then						  \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/vcgate				; \
+	    exit 87								; \
+	  else									  \
+	    env VC=$(VC) $(MARK_PROVISIONED)					; \
+	  fi									; \
+	fi
+
+$(POWEROFF_D)/vcgate:
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/vcgate" ] ; then  \
+		vagrant halt vcgate			   ; \
+	fi
+
+$(NONEXISTENT_D)/vcgate: $(POWEROFF_D)/vcgate
+	$(HUSH)vagrant destroy -f vcgate
+
+vcgate_UNPROVISION: $(NONEXISTENT_D)/vcgate ingest-state
+	$(HUSH)$(UNPROVISION) vcgate
+
+# ---
+

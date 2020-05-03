@@ -1,0 +1,66 @@
+.TH "common/provision/lib/errexit.sh" 3 "Wed Apr 15 2020" "HPC Collaboratory" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+common/provision/lib/errexit.sh
+.SH SYNOPSIS
+.br
+.PP
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBErrExit\fP (ExitCode, ErrorMessage, \fBERREXIT_PRINT_CALL_STACK\fP, \fBHOSTNAME\fP, \fBIAM\fP)"
+.br
+.RI "This library file contains the terminal error handler, \fBErrExit()\fP\&. "
+.in -1c
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "Exported String \fBrecursed\fP = ${recursed:=''}"
+.br
+.ti -1c
+.RI "Exported String \fBcalledby\fP = '${bsrc}${FUNCNAME[1]}(${BASH_LINENO[0]}):'"
+.br
+.in -1c
+.SH "Function Documentation"
+.PP 
+.SS "ErrExit (ExitCode, ErrorMessage, \fBERREXIT_PRINT_CALL_STACK\fP, \fBHOSTNAME\fP, \fBIAM\fP)"
+
+.PP
+This library file contains the terminal error handler, \fBErrExit()\fP\&. exits or returns after emitting message: exits (parent context), returns (daughter context) 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIExitCode\fP 
+.br
+\fIErrorMessage\fP The message emitted to the user just before exit() 
+.br
+\fIERREXIT_PRINT_CALL_STACK\fP if set, callstack is emitted 
+.br
+\fIHOSTNAME\fP 
+.br
+\fIIAM\fP 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+ExitCode (exits in parent context, returns in daughter context) 
+.RE
+.PP
+\fBNote:\fP
+.RS 4
+if called from daughter's context, only emit the error message for collection by the parent 
+.RE
+.PP
+
+.SH "Variable Documentation"
+.PP 
+.SS "Exported String calledby = '${bsrc}${FUNCNAME[1]}(${BASH_LINENO[0]}):'"
+
+.SS "Exported String recursed = ${recursed:=''}"
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for HPC Collaboratory from the source code\&.

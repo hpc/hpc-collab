@@ -1,0 +1,3 @@
+appendwhere: swap
+appendwhat: vagrant	/vx	vboxsf	ro,defaults,noauto,_netdev	0 0
+

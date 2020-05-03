@@ -1,0 +1,61 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vxsched/verify/slurm/2.slurm-ctld-commands
+
+## @brief ensure slurmctld commands are functional
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+if [ -z "${USERADD}" ] ; then
+  ErrExit ${EX_CONFIG} "USERADD empty"
+fi
+
+if [ ! -d ${USERADD} ] ; then
+  ErrExit ${EX_CONFIG} "USERADD: ${USERADD} is not a directory"
+fi
+
+# slurm version 20 seems to require default account to be (re)set late in setup
+users=$(echo $(ls ${USERADD} | grep -v root))
+
+if [ -z "${users}" ] ; then
+  ErrExit ${EX_CONFIG} "users: list empty?"
+fi
+
+for u in ${users}
+do
+  if [ ! -d ${USERADD}/${u} ] ; then
+    continue
+  fi
+  Verbose "  ${u}"
+  d=${USERADD}/${u}/slurm/acct/DefaultAccount
+  if [ -d ${d} ] ; then
+    defacct=$(ls ${USERADD}/${u}/slurm/acct/DefaultAccount)
+    if [ -n "${defacct}" ] ; then
+      Rc ErrExit "sacctmgr -iQ update user ${u} set DefaultAccount=${defacct}"
+    fi
+  fi
+done
+
+# work around SchedMD bug #8849
+Rc ErrExit ${EX_OSERR} "ssh -o \"StrictHostKeyChecking no\" vxsched systemctl restart slurmctld ; "
+
+trap '' 0
+exit ${EX_OK}

@@ -1,0 +1,47 @@
+1. Create a work directory, usually $HOME/vagrant.
+
+2. mkdir tarballs
+   This directory name is expected by the Makefile
+   This directory is also used for the expansion of the source repositories, as a second disk.
+
+3. a. Download repos.tgz, repos.cksum
+      This only needs to be done once, or occasionally when there's a major CentOS version upgrade.
+   b. Download vc.tgz, vc.cksum
+      These may be named vc,<timestamp>.tgz, vc,<timestamp>.cksum
+
+4. Put these into the tarballs directory
+      mv *.tgz tarballs
+
+5. Compare checksums of the tarballs:
+      ex. "cksum repos.tgz; cat repos.cksum", "cksum vc.tgz; cat vc.cksum"
+
+6. Untar vc.tgz
+      tar -xzvf tarballs/vc.tgz
+
+7. Either one of:
+     a. bash/zsh/ksh: export PATH=vc/cfg/provision/bin:${PATH} or ". setpath.sh" in this directory
+     b. [t]csh: setenv path=(vc/cfg/provision/bin $path) or "source setpath.csh" in this directory
+     [source setpath.sh or source setpath.csh]
+
+8. make [help | show | up | pkg | ...]
+   This will trigger construction of the virtual cluster nodes, with dependencies.
+   The Makefile codifies dependencies so that the full cluster can be brought up or down with, for example,
+     'make up' or 'make unprovision'
+
+
+### ### state transitions ### ###
+#
+# these are not mutually exclusive,
+#  - a provisioned node may be powered off
+#  - an up node may be partially provisioned, the provision.sh script did not complete successfully 
+#  - provisioned means that the provision.sh script completed successfully
+# to be usable, a node must be in PROVISIONED state
+#
+#                                     ⬐ ─────────────────────── [unprovision.sh] ⟵ ─────────────────────── ↰
+#                                     ↓                                                                    ↑
+# NONEXISTENT ─── "vagrant up" ─── → RUNNING ─── [provision.sh] ── → PROVISIONED ─── vagrant halt ─── → POWEROFF
+#     ↑                ↑ ⬑ ──────────────────────────────────────────── ⬑ ──── [already provisioned] ⟵ ─── ↲ 
+#     ↑                ⬑ ────────────────────── [unprovision.sh] ────────────── UNPROVISION ⟵ ──────────── ↲ 
+#     ⬑ ─────────────────────────────────────── "vagrant destroy" ──────────────────────────────────────── ↲ 
+#
+### ### state transitions ### ###

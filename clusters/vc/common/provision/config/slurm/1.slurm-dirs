@@ -1,0 +1,35 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/config/slurm/1.slurm-dirs
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+declare -x ETC=/etc
+declare -x VARLOGSLURM=/var/log/slurm
+declare -x VARSPOOLSLURM=/var/spool/slurm
+declare -x COMMONVARLOGSLURM=${COMMON}${VARLOGSLURM}
+
+if [ ! -L ${VARLOGSLURM} ] ; then
+  Rc ErrExit 2 "ln -s ${COMMONVARLOGSLURM} ${VARLOGSLURM}"
+fi
+Rc ErrExit 3 "mkdir -p ${VARSPOOLSLURM}/$(hostname -s)"
+
+trap '' 0
+exit ${EX_OK}

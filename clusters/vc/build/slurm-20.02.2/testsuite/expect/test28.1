@@ -1,0 +1,207 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Confirms that the sbatch --array option is submitted and
+#          scancel cancels the job array.
+#
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2011-2013 SchedMD LLC
+# Written by Nathan Yee <nyee32@schedmd.com>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id     "28.1"
+set exit_code   0
+set file_script "test$test_id.sh"
+set file_in     "test$test_id.input"
+set file_out    "test$test_id.output"
+set array_id    ""
+set job_id      ""
+set min_task_id 5
+set max_task_id 8
+
+print_header $test_id
+
+set array_size  [get_array_config]
+if {$array_size < $min_task_id} {
+	send_user "\nWARNING: MaxArraySize is too small\n"
+	exit 0
+}
+if {$array_size > $max_task_id} {
+	set array_size $max_task_id
+}
+
+proc scontrol_check { job_id } {
+	global scontrol alpha_numeric_under array_id exit_code
+
+	spawn $scontrol show job $job_id
+	expect {
+		-re "JobState=($alpha_numeric_under)" {
+			set tmp $expect_out(1,string)
+			if {[string compare $tmp "CANCELLED"]} {
+				send_user "\nFAILURE: Job was not cancelled\n"
+				set exit_code 1
+			}
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: scontrol not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+}
+
+proc multi_squeue_check {job_id} {
+
+	global squeue number array_id exit_code
+
+	set array_in 0
+	spawn $squeue -r
+	expect {
+		-re "$job_id\_($number\)" {
+			set array_id $expect_out(1,string)
+			if {$array_id != $array_in} {
+				send_user "\nFAILURE: array IDs do not match $array_id != $array_in\n"
+				set exit_code 1
+			}
+			incr array_in
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: squeue is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+	return $array_in
+}
+
+proc multi_scontrol_check { job_id } {
+
+	global scontrol number array_id exit_code
+
+	set task_cnt 0
+	spawn $scontrol show job $job_id
+	expect {
+		-re "ArrayTaskId=($number)-($number)" {
+			set task_cnt [expr $expect_out(2,string) - $expect_out(1,string) + 1]
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: scontrol not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+
+	return $task_cnt
+}
+
+############Test Starts Here###########
+make_bash_script $file_script "sleep 10"
+
+# submit a batch job with an array of $array_size
+spawn $sbatch -N1 --array=0-[expr $array_size - 1] --begin=midnight --input=$file_in --output=$file_out $file_script
+expect {
+	-re "Submitted batch job ($number)" {
+		set job_id $expect_out(1,string)
+		send_user "\njob $job_id was submitted\n"
+		exp_continue
+	}
+	-re "error" {
+		send_user "\nFAILURE: sbatch did not submit jobs\n"
+		exit 1
+	}
+	timeout {
+		send_user "\nFAILURE: sbatch not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+# checks all the job array indexes
+set task_cnt [multi_scontrol_check $job_id]
+if {$task_cnt != $array_size} {
+	send_user "\nFAILURE: job count found by scontrol bad ($task_cnt != $array_size)\n"
+	set exit_code
+}
+
+# uses squeue to check for the jobs
+set job_cnt [multi_squeue_check $job_id]
+if {$job_cnt != $array_size} {
+	send_user "\nFAILURE: job count found by squeue bad ($job_cnt != $array_size)\n"
+	set exit_code 1
+}
+
+# cancel a job with a specific job array index
+spawn $scancel -v $job_id\_$array_id
+expect {
+	-re "Terminating job" {
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scancel not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+# checks to see the job was cancelled
+scontrol_check $job_id\_$array_id
+
+# cancels the entire job array
+spawn $scancel -v $job_id
+expect {
+	-re "Terminating job" {
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scancel not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+# checks that all the job indexes where cancelled
+scontrol_check $job_id
+
+if {$exit_code == 0} {
+	file delete $file_in $file_out $file_script
+	send_user "\nSUCCESS\n"
+}
+exit $exit_code

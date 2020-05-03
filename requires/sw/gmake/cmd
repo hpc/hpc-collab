@@ -1,0 +1,1 @@
+gmake --version | grep "GNU Make" | awk '{printf "%s %s",$1,$2}'

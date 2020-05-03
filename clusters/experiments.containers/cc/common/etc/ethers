@@ -1,0 +1,31 @@
+02:00:DE:C0:DE:00	tc0.ext
+02:00:DE:C0:DE:01	tc1.ext
+02:00:DE:C0:DE:02	tc2.ext
+02:00:DE:C0:DE:DB	tc-db.ext
+02:00:DE:C0:DE:F5	tc-fs.ext
+
+02:00:10:CA:10:00	tc0.int
+02:00:10:CA:10:01	tc1.int
+02:00:10:CA:10:02	tc2.int
+02:00:10:CA:10:DB	tc-db.int
+02:00:10:CA:10:F5	tc-fs.int
+
+5C:A1:AB:1E:00:5A	vcgate.tc
+5C:A1:AB:1E:00:00	vcsched.tc
+5C:A1:AB:1E:00:01	vc1.tc
+5C:A1:AB:1E:00:02	vc2.tc
+5C:A1:AB:1E:05:1C	vcsvc.tc
+5C:A1:AB:1E:01:06	vclogin.tc
+5C:A1:AB:1E:00:B1	vcbuild.tc
+5C:A1:AB:1E:00:DB	vcdb.tc
+5C:A1:AB:1E:00:F5	vcfs.tc
+
+5C:A1:AB:1E:CC:5A	ccgate.tc
+5C:A1:AB:1E:CC:00	ccsched.tc
+5C:A1:AB:1E:CC:01	cc1.tc
+5C:A1:AB:1E:CC:02	cc2.tc
+5C:A1:AB:1E:C5:1C	ccsvc.tc
+5C:A1:AB:1E:C1:06	cclogin.tc
+5C:A1:AB:1E:CC:B1	ccbuild.tc
+5C:A1:AB:1E:CC:DB	ccdb.tc
+5C:A1:AB:1E:CC:F5	ccfs.tc

@@ -1,0 +1,47 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc1/requires/vcsched/4.provisioned
+## @author LANL/HPC/ENV/WLM/sts Steven Senator sts@lanl.gov
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x PWD=$(pwd)
+declare -x REQUIRED_HOST=$(basename ${PWD})
+
+declare -x REQUIRED_PROVISIONED=${STATE_PROVISIONED}/${REQUIRED_HOST}
+declare -x REQUIRED_NOT_RUNNING=${STATE_RUNNING}/${REQUIRED_HOST}
+declare -x REQUIRED_NOT_POWEROFF=${STATE_POWEROFF}/${REQUIRED_HOST}
+declare -x REQUIRED_NOT_NONEXISTENT=${STATE_NONEXISTENT}/${REQUIRED_HOST}
+
+Rc ErrExit 3  "timeout ${TIMEOUT} test -d ${STATE_D}"
+
+Rc ErrExit 5  "timeout ${TIMEOUT} test -d ${NONEXISTENT}"
+Rc ErrExit 6  "timeout ${TIMEOUT} test -d ${POWEROFF}"
+Rc ErrExit 7  "timeout ${TIMEOUT} test -d ${RUNNING}"
+Rc ErrExit 8  "timeout ${TIMEOUT} test -d ${PROVISIONED}"
+
+Rc ErrExit 10 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_POWEROFF}"
+Rc ErrExit 11 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_RUNNING}"
+Rc ErrExit 12 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_NONEXISTENT}"
+Rc ErrExit 13 "timeout ${TIMEOUT} test   -f ${REQUIRED_PROVISIONED}"
+
+trap '' 0
+exit ${EX_OK}

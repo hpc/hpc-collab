@@ -1,0 +1,81 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../config/rsyslog/3.semanage
+
+## @brief This rsyslog configuration script enables tcp access.
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+
+declare -x ETC=/etc
+declare -x ETCFSTAB=${ETC}/fstab
+declare -x ETC_RSYSLOG_CONF=${ETC}/rsyslog.conf
+declare -x MOUNTINFO=/proc/self/mountinfo
+declare -x VAR_LOG_RSYSLOG=/var/log/rsyslog
+declare -x VAR_LOG_RSYSLOG_HOSTNAME=${VAR_LOG_RSYSLOG}/${HOSTNAME}
+declare -x COMMON_VAR_LOG_RSYSLOG=${COMMON}${VAR_LOG_RSYSLOG}
+
+if [ ! -f "${ETC_RSYSLOG_CONF}" ] ; then
+  ErrExit ${EX_SOFTWARE} "${ETC_RSYSLOG_CONF} does not exist"
+fi
+
+mountable=$(grep "${VAR_LOG_RSYSLOG}.*nfs" ${ETCFSTAB})
+if [ -z "${mountable}" ] ; then
+  ErrExit ${EX_CONFIG} "nfs mount: ${VAR_LOG_RSYSLOG} not found in ${ETCFSTAB}"
+fi
+
+grep ${VAR_LOG_RSYSLOG} ${MOUNTINFO} >/dev/null 2>&1
+rc=$?
+if [ ${rc} -eq ${GREP_FOUND} ] ; then
+  Verbose " ${VAR_LOG_RSYSLOG} already mounted"
+  exit ${EX_OK}
+fi
+
+Rc ErrExit ${EX_OSFILE} "mount ${VAR_LOG_RSYSLOG}"
+
+IfNFSSELinuxLabelingWorks() {
+  for _f in ${VAR_LOG_RSYSLOG} ${COMMON_VAR_LOG_RSYSLOG} ${COMMON_VAR_LOG_RSYSLOG}/*
+  do
+    orig_secontext=$(ls -lZ ${_f} | awk '{print $4}')
+    setype=var_log_t
+    varlog_secontext="unconfined_u:object_r:${setype}:s0"
+    fstyp=$(stat -f --format="%T" ${_f})
+    if [ "${fstyp}" = "nfs" ] ; then
+      Verbose " Warning: skipping: ${_f}"
+      continue
+    fi
+    if [ "${orig_secontext}" != "${varlog_secontext}" ] ; then
+      Rc Warn ${EX_OSERR} "chcon ${varlog_secontext} ${_f}"
+      Rc Warn ${EX_OSERR} "semanage fcontext -a -t ${setype} ${_f}\(/.*\)\?"
+    fi
+
+    secontext=$(ls -lZ ${_f} | awk '{print $4}')
+    if [ "${secontext}" != "${varlog_secontext}" ] ; then
+      # This is not necessarily bad if a subsequent selinux chcon/semanage relabels these files.
+      Verbose " Note: ${_f}: secontext mismatch"
+      Verbose "          secontext:\"${secontext}\""
+      Verbose "               !="
+      Verbose "          varlog_secontext:\"${varlog_secontext}\""
+    fi
+  done
+  return
+}
+
+trap '' 0
+exit ${EX_OK}

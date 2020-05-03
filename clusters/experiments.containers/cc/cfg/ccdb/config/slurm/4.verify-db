@@ -1,0 +1,59 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/slurm/2.verify-db
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+declare -x ETCSLURM=${COMMON}/etc/slurm
+declare -x SLURMCONF=${ETCSLURM}/slurm.conf
+declare -x SLURMDBDCONF=${ETCSLURM}/slurmdbd.conf
+
+CLUSTERNAME=$(grep ClusterName ${SLURMCONF} | sed 's/ClusterName=//')
+rc=$?
+echo "CLUSTERNAME: \"${CLUSTERNAME}\""
+if [ ${rc} -ne ${GREP_FOUND} ] ; then
+  ErrExit ${EX_SOFTWARE} "ClusterName not found in ${SLURMCONF}"
+fi
+
+export dbdhost=$(grep -i dbdhost ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdhost=//')
+export dbdaddr=$(grep -i dbdaddr ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdaddr=//')
+
+if [ -z "${dbdhost}" ] ; then
+  ErrExit ${EX_SOFTWARE} "empty dbdhost"
+fi
+if [ -z "${dbdaddr}" ] ; then
+  ErrExit ${EX_SOFTWARE} "empty dbdaddr"
+fi
+
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 1 -n ${dbdhost}"
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 1 -n ${dbdaddr}"
+
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} mysql --host=${dbdhost} --batch --execute 'show databases;'"
+
+clustername=$(timeout ${TIMEOUT} mysql --database=slurm_acct_db --host=${dbdhost} --batch --skip-column-names --execute 'select name from cluster_table;' )
+
+if [[ ${clustername} != ${CLUSTERNAME} ]] ; then
+  ErrExit ${EX_SOFTWARE} "select name from cluster_table => ${clustername} != ${CLUSTERNAME}"
+fi
+
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} mysql --database=slurm_acct_db --host=${dbdhost} --batch --execute 'show tables;' --skip-column-names | grep ${CLUSTERNAME}_last_ran"
+
+trap '' 0
+exit ${EX_OK}

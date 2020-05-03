@@ -1,0 +1,226 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Validate sbcast for a hetjob allocation.
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2015-2107 SchedMD LLC
+# Written by Nathan Yee <nyee32@schedmd.com>
+# and Isaac Hartung <ihartung@schedmd.com>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id    38.11
+set script1   "test$test_id.in1"
+set exit_code  0
+set job_id     0
+set hostlist   ""
+set node1      ""
+set node2      ""
+set prompt	"PROMPT: "
+
+proc end_it { exit_code } {
+	global het_job_id scancel
+	if {$het_job_id > 0} {
+		exec $scancel $het_job_id
+	}
+	exit $exit_code
+}
+
+print_header $test_id
+
+if {![test_accting_steps]} {
+	send_user "\nWARNING: This test can not be run with nosteps or nojobs "
+	send_user "(AccountingStorageEnforce)\n"
+	exit 0
+}
+if {[test_front_end] != 0} {
+	send_user "\nWARNING: This test is incompatible with front-end systems\n"
+	exit 0
+} elseif {[slurmd_user_root] == 0} {
+	send_user "\nWARNING: This test requires that the SlurmdUser be root\n"
+	exit 0
+} elseif {[get_node_cnt] < 2} {
+	send_user "\nWARNING: This test requires that the configuration has at least 2 nodes.\n"
+	exit 0
+}
+
+set def_part [default_partition]
+spawn $bin_bash -c "exec $scontrol show hostnames \$($sinfo -tidle --partition=$def_part -h -o%N) | head -n2 |tr \'\n\' ' ' "
+expect {
+	-re "($alpha_numeric_under) ($alpha_numeric_under)" {
+		set node1 $expect_out(1,string)
+		set node2 $expect_out(2,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sinfo is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {![string compare $node1 ""] || ![string compare $node2 ""]} {
+	send_user "\nWARNING: Did not find at least 2 idle nodes\n"
+	exit 0
+}
+
+set het_job_id 0
+set matches 0
+set index 0
+set timeout $max_job_delay
+spawn $salloc -t2 -N1 : -N1 $bin_bash
+expect {
+	-re "job ($number) has been allocated resources" {
+		set het_job_id $expect_out(1,string)
+		send "export PS1=\"$prompt\"\r"
+		exp_continue
+	}
+	-re "\"$prompt" {
+		# skip this, just echo of setting prompt"
+		exp_continue
+	}
+	-re "$prompt" {
+		#send_user "Job initiated\n"
+	}
+	timeout {
+		log_error "salloc : allocation not granted in $timeout seconds\n"
+		end_it 1
+	}
+	eof {
+		wait
+	}
+}
+if {$het_job_id == 0} {
+	log_error "salloc failure\n"
+	end_it 1
+}
+
+make_bash_script $script1 "
+$srun --het-group=0 $bin_rm -f  /tmp/test_${test_id}/$node1/test$test_id\_file\_comp0
+$srun --het-group=1 $bin_rm -f  /tmp/test_${test_id}/$node2/test$test_id\_file\_comp1
+$srun --het-group=0 $bin_rm -f  /tmp/test_${test_id}/test$test_id\_file
+$srun --het-group=0 $bin_rm -fr /tmp/test_${test_id}/$node1
+$srun --het-group=1 $bin_rm -f  /tmp/test_${test_id}/test$test_id\_file
+$srun --het-group=1 $bin_rm -fr /tmp/test_${test_id}/$node2
+$srun --het-group=1 $bin_rm -fr /tmp/test_${test_id}
+
+$srun -N1 -n1 --het-group=0 mkdir /tmp/test_${test_id}
+$srun -N1 -n1 --het-group=1 mkdir /tmp/test_${test_id}
+$srun -N1 -n1 --het-group=0 mkdir /tmp/test_${test_id}/$node1
+$srun -N1 -n1 --het-group=1 mkdir /tmp/test_${test_id}/$node2
+
+$sbcast -f -j$het_job_id $srun /tmp/test_${test_id}/test$test_id\_file
+$sbcast -f -j${het_job_id}+0 $srun /tmp/test_${test_id}/$node1/test$test_id\_file\_comp0
+$sbcast -f -j${het_job_id}+1 $srun /tmp/test_${test_id}/$node2/test$test_id\_file\_comp1
+
+echo -n \"\nChecking node 1: \"
+$srun -Q -N1 -n1 --het-group=1 ls /tmp/test_${test_id}/test$test_id\_file
+
+echo -n \"\nChecking node 0: \"
+$srun -Q -N1 -n1 --het-group=0 ls /tmp/test_${test_id}/test$test_id\_file
+
+echo -n \"\nChecking node 1 again: \"
+$srun -Q -N1 -n1 --het-group=1 ls /tmp/test_${test_id}/$node2/test$test_id\_file\_comp1
+
+echo -n \"\nChecking node 0 again: \"
+$srun -Q -N1 -n1 --het-group=0 ls /tmp/test_${test_id}/$node1/test$test_id\_file\_comp0
+
+echo -n \"\nChecking node 1 for lack: \"
+$srun -Q -N1 -n1 --het-group=1 ls /tmp/test_${test_id}/$node2/test$test_id\_file\_comp0
+
+echo -n \"\nChecking node 0 for lack: \"
+$srun -Q -N1 -n1 --het-group=0 ls /tmp/test_${test_id}/$node1/test$test_id\_file\_comp1
+
+$srun --het-group=0 $bin_rm -f  /tmp/test_${test_id}/$node1/test$test_id\_file\_comp0
+$srun --het-group=1 $bin_rm -f  /tmp/test_${test_id}/$node2/test$test_id\_file\_comp1
+$srun --het-group=0 $bin_rm -f  /tmp/test_${test_id}/test$test_id\_file
+$srun --het-group=0 $bin_rm -fr /tmp/test_${test_id}/$node1
+$srun --het-group=1 $bin_rm -f  /tmp/test_${test_id}/test$test_id\_file
+$srun --het-group=1 $bin_rm -fr /tmp/test_${test_id}/$node2
+$srun --het-group=1 $bin_rm -fr /tmp/test_${test_id}
+$srun --het-group=0 $bin_rm -fr /tmp/test_${test_id}
+"
+
+set timeout $max_job_delay
+set matches 0
+send "./$script1 \r"
+expect {
+	-re "Permission denied" {
+		send_user "\nFAILURE: Unable to delete/create file, check permissions\n"
+		exit 1
+	}
+	-re "cannot create directory" {
+		send_user "\nThis error is expected when nodes share the "
+		send_user "same tmp directory\n"
+		exp_continue
+	}
+	-re "Checking node 1: */tmp/test_${test_id}/test$test_id\_file" {
+		incr matches
+		exp_continue
+	}
+	-re "Checking node 0: */tmp/test_${test_id}/test$test_id\_file" {
+		incr matches
+		exp_continue
+	}
+	-re "Checking node 1 again: */tmp/test_${test_id}/$node2/test$test_id\_file\_comp1" {
+		incr matches
+		exp_continue
+	}
+	-re "Checking node 0 again: */tmp/test_${test_id}/$node1/test$test_id\_file\_comp0" {
+		incr matches
+		exp_continue
+	}
+	-re "Checking node 1 for lack: */tmp/test_${test_id}/$node1/test$test_id\_file\_comp0" {
+		send_user "\nFAILURE: sbcast copied file to wrong node\n"
+		set exit_code 1
+		exp_continue
+	}
+	-re "Checking node 0 for lack: */tmp/test_${test_id}/$node2/test$test_id\_file\_comp1" {
+		send_user "\nFAILURE: sbcast copied file to wrong node\n"
+		set exit_code 1
+		exp_continue
+	}
+	-re "$prompt" {
+		#send_user "Job initiated\n"
+	}
+	timeout {
+		send_user "\nFAILURE: salloc is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 4} {
+	send_user "\nFAILURE: sbcast did not copy the file(s) to the correct nodes ($matches != 4)\n"
+	set exit_code 1
+}
+
+if {$exit_code == 0} {
+	exec $bin_rm -rf $script1
+	send_user "\nSUCCESS\n"
+}
+exit $exit_code

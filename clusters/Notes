@@ -1,0 +1,43 @@
+
+This directory's structure:
+/hpc-collab/vc/ external directory === /vagrant/ (or /<cluster> ex. "/vx")
+        Notes           this file
+            vc    +
+            +--  build ----+    common sw build area
+            |              +--- slurm
+            |              +--- cedet
+            |              +--- slash-cluster
+            |
+            +---cfg             skeleton of changes from a stock OS install for each node, organized by hostname
+                        + <node-names> | <node-type>
+                                      [+Type -> <node-type>] if present, a symlink to a node-type (ex. "compute", "db", "scheduler", "fs")
+                                      [+--- Nodes         ]  if this is a <node-type> directory rather than a <node-name>, this file contains node-names of this node-type
+
+                        +--- rpm             flag files which are rpm names to be installed on machine creation, ex "ed", "tcsh"
+                        +--- build     flag hierarchy which are directory names in the common build area to build
+                        +--- install   contains flag hierarchy which are directory names in the common install area to be installed on this node
+                        +--- rootfs      sparse image of overlay files for the cluster nodes
+                        +--- services
+                                +--- on services to be turned on, early in the provisioning cycle
+                                +--- off        services to be turned off
+                                +--- install::on services to be turned on after the installation of all software
+                        +--- verify   contains hierarchy which are directory names of software to verify
+
+                common                  files that are actively shared between test cluster nodes, such as /etc/slurm/slurm.conf
+                        +--- config     configuration methods & data common to multiple node
+                        +--- install    installation methods & data common to multiple node
+                        +--- home       shared home directories within the cluster
+                        +--- verify     verification methods & data common to multiple node
+                        +--- useradd    shared home directories within the cluster
+                               +
+                               +<root>
+                               +<user1>
+                               +<user2>
+                               +<userX> per-user attributes and methods
+
+                provision       master and common provisioning mechanism
+
+                xfr
+          tarballs
+
+# vim: background=dark expandtab shiftwidth=2 softtabstop=2 tabstop=2

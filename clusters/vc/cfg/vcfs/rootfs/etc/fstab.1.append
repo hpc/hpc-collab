@@ -1,0 +1,3 @@
+appendwhere: boot.*xfs
+appendwhat: /dev/sdb	/home/vagrant/common/repos	xfs	rw,defaults	0 0
+

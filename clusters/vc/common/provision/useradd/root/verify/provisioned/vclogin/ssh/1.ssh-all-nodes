@@ -1,0 +1,63 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc/common/provision/useradd/root/verify/provisioned/vclogin/ssh/1.sshd-all-nodes
+
+## @brief This sshd configuration script enables host-based authentication, permits root logins, and may allow password authentication for users.
+
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CLUSTERNAME=${HOSTNAME:0:2}
+VCLOAD=/${CLUSTERNAME}/cfg/provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SKIP_NODES_FILE=skip.nodes
+
+nodes=$(sinfo -N -h -o "%N" | sort | uniq)
+nodes_to_skip=""
+if [ -z "${SKIP_NODES_FILE}" ] ; then
+  ErrExit ${EX_SOFTWARE} "SKIP_NODES_FILE: empty"
+fi
+if [ -f ${SKIP_NODES_FILE} -a -s ${SKIP_NODES_FILE} ] ; then
+  nodes_to_skip=$(echo $(cat ${SKIP_NODES_FILE}))
+fi
+nl=""
+nodes_skipped=""
+for n in ${nodes}
+do
+  if [ -n "${nodes_to_skip}" ] ; then
+    case "${nodes_to_skip}" in
+      *${n}*)
+              if [ -z "${nodes_skipped}" ] ; then
+                nodes_skipped="skipped: ${n}"
+              else
+                nodes_skipped="${nodes_skipped} ${n}"
+              fi
+              continue 
+              ;;
+      *)
+              ;;
+    esac
+  fi
+  Rc ErrExit ${EX_OSERR} "ssh ${n} hostname"
+done
+
+if [ -n "${nodes_skipped}" ] ; then
+  echo " ${nodes_skipped}"
+fi
+
+trap '' 0
+exit ${EX_OK}

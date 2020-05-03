@@ -1,0 +1,117 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Test of --deadline option too short
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2015 CEA/DAM/DIF
+# Written by Aline Roy <aline.roy@cea.fr>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+############################################################################
+source ./globals
+
+set test_id     "15.31"
+set job_id	0
+set exit_code   0
+
+print_header $test_id
+
+#
+# Since we make changes to configuration, call this function restore
+# configuration before exiting.
+#
+proc endit { } {
+	global exit_code
+	reconfigure
+	if {$exit_code == 0} {
+		send_user "\nSUCCESS\n"
+	} else {
+		send_user "\nFAILURE: exiting with exit code $exit_code\n"
+	}
+	exit $exit_code
+}
+
+#
+# We must be SlurmUser or root in order to change the partition MaxTime limit,
+# otherwise this test may fail.
+#
+if {[test_super_user] == 0} {
+	log_warn "You must be SlurmUser or root to run this test."
+	exit 0
+}
+
+#
+# Ensure that MaxTime is UNLIMITED so this test won't fail due to trying to set
+# time limits greater than MaxTime.
+#
+set exit_code [set_partition_maximum_time_limit "" -1]
+if { $exit_code != 0 } {
+	endit
+}
+
+#
+# Spawn a job that deadline is too short
+#
+set timeout $max_job_delay
+set salloc_pid [spawn $salloc -N1 --deadline now+1hour -t120 $bin_sleep 1]
+expect {
+	-re "Requested time limit is invalid" {
+		set exit_code 1
+		exp_continue
+	}
+	-re "Granted job allocation ($number)" {
+		set job_id $expect_out(1,string)
+		set exit_code 0
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: salloc not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$job_id != 0} {
+	spawn $scontrol show job $job_id
+	expect {
+		-re "TimeLimit=00:59" {
+			send_user "\nTimelimit OK\n"
+		}
+		-re "TimeLimit=01:00:00" {
+			send_user "\nTimelimit OK\n"
+		}
+		-re "TimeLimit=" {
+			send_user "\nFAILURE : Timelimit not OK with deadline\n"
+			set exit_code 1
+		}
+		timeout {
+			send_user "\nFAILURE: scontrol not responding\n"
+			set exit_code 1
+			exp_continue
+		}
+	}
+}
+
+endit

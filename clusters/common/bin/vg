@@ -1,0 +1,5 @@
+#!/bin/sh
+
+vagrant_dir=$(dirname `which provision.sh`)/../../..
+cd ${vagrant_dir}
+vagrant $@

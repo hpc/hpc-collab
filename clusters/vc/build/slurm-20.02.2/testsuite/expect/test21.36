@@ -1,0 +1,188 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Validates that sacctmgr show runawayjobs returns runawayjobs
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2016 SchedMD LLC
+# Written by Nathan Yee <nyee32@schedmd.com>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+source ./globals_accounting
+
+set test_id          21.36
+set sql_query        "test$test_id\-query.sql"
+set sql_query_rem    "test$test_id\-query-rem.sql"
+set cluster          [get_cluster_name]
+set account          "test$test_id\_acct"
+set user             "test$test_id\_user"
+set config_dir       ""
+set exit_code        1
+set access_err       0
+
+# Cluster requirments
+array set clus_req {}
+
+# Account requirments
+set acct_req(cluster) $cluster
+
+# User requirments
+set user_req(account) $account
+set user_req(cluster) $cluster
+
+# Remove pre-existing items
+proc cleanup { } {
+	global cluster account user sql_query_rem
+	archive_load $sql_query_rem
+	remove_user "" "" $user
+	remove_acct "" $account
+}
+
+proc endit { } {
+	global exit_code bin_rm sql_query sql_query_rem
+	cleanup
+
+	if {$exit_code == 0} {
+		send_user "\nSUCCESS\n"
+	} else {
+		send_user "\nFAILURE\n"
+	}
+
+	exec $bin_rm -f $sql_query $sql_query_rem
+
+	exit $exit_code
+}
+
+
+print_header $test_id
+
+if {[test_using_slurmdbd] == 0} {
+	send_user "\nWARNING: This test can't be run without AccountStorageType=slurmdbd\n"
+	exit 0
+}
+if {[string compare [check_accounting_admin_level] "Administrator"]} {
+	send_user "\nThis test can't be run without being an Accounting administrator.\n"
+	exit 0
+}
+
+exec $bin_rm -f $sql_query $sql_query_rem
+
+# Make SQL file to remove the inserted job
+set file [open $sql_query_rem "w"]
+# This SQL statement is correct for our purposes (missing && infront of cluster)
+puts $file "delete from job_table where alloc_nodes=\'test21.36_node\' cluster=\'$cluster\';"
+close $file
+
+# Remove pre-existing items
+cleanup
+
+# Add Test Account
+if {[add_acct $account [array get acct_req]]} {
+	endit
+}
+
+# Add Test User
+if {[add_user $user [array get user_req]]} {
+	endit
+}
+
+set assoc_id [get_assoc_id $user $account $cluster]
+
+if {$assoc_id == -1} {
+	endit
+}
+
+# DON'T MESS WITH THIS UNLESS YOU REALLY UNDERSTAND WHAT YOU ARE DOING!!!!!
+# THIS COULD SERIOUSLY MESS UP YOUR DATABASE IF YOU ALTER THIS INCORRECTLY
+# JUST A FRIENDLY REMINDER ;)
+
+# SINCE THIS TEST HAS TO PUT A JOB INTO THE ACTUAL CLUSTER INSTEAD
+# OF A TEST CLUSTER THIS IS MORE IMPORTANT TO GET RIGHT.
+
+# Insert a job that has no end time and is still in running state
+set file [open $sql_query "w"]
+puts $file "insert into job_table (jobid, associd, cluster, uid, gid, `partition`, account, eligible, submit, start, end, name, state, priority, tres_req, tres_alloc, nodelist, alloc_nodes, qos, deleted) values"
+puts $file "('65536', '$assoc_id', '$cluster', '1002', '1002', 'debug', '$account', 1199170800, 1199170800, 1199170800, 0, 'test21.32_job1', '1', '2', '1=2,2=200,4=1', '1=2,2=200,4=1', 'test21.36_node', 'test21.36_node', '0', '0')"
+puts $file "on duplicate key update id=LAST_INSERT_ID(id), eligible=VALUES(eligible), submit=VALUES(submit), start=VALUES(start), end=VALUES(end), associd=VALUES(associd), tres_alloc=VALUES(tres_alloc);"
+close $file
+
+log_user 1
+
+# Get the current working directory
+set cwd "[$bin_pwd]"
+
+# Load a job to the database that has no end time.
+if {[archive_load $sql_query]} {
+	archive_load $sql_query_rem
+	endit
+}
+
+# Test sacctmgr show runawayjobs
+set list_job 0
+spawn $sacctmgr show -i runawayjobs $cluster
+expect {
+	-re "NOTE: Runaway jobs" {
+		set list_job 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr is not responding\n"
+		endit
+	}
+	eof {
+		wait
+	}
+}
+
+if {$list_job != 1} {
+	send_user "\nFAILURE: sacctmgr did not find any runaway jobs when "
+	send_user "it should have\n"
+	endit
+}
+
+# Check that jobs were fixed
+set list_job 0
+spawn $sacctmgr show -i runawayjobs $cluster
+expect {
+	-re "No runaway jobs found" {
+		set list_job 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr is not responding\n"
+		endit
+	}
+	eof {
+		wait
+	}
+}
+
+if {$list_job != 1} {
+	send_user "\nFAILURE: sacctmgr found runaway jobs when "
+	send_user "it should not have\n"
+	endit
+}
+
+set exit_code 0
+endit

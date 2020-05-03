@@ -1,0 +1,34 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../requires/vcsvc/2.socket-SYSLOG
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x SYSLOG_PORT=514
+TIMEOUT=4
+
+Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
+Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1    -v -z ${IPADDR} ${SYSLOG_PORT} </dev/null"
+
+#rsyslog uses @@ = tcp
+#Rc ErrExit 4  "timeout ${TIMEOUT} ncat -4 -w1 -u -v -z ${IPADDR} ${SYSLOG_PORT} </dev/null"
+
+trap '' 0
+exit ${EX_OK}

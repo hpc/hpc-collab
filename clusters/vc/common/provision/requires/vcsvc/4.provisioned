@@ -1,0 +1,45 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc*/common/requires/vcsvc/4.provisioned
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x PWD=$(pwd)
+declare -x REQUIRED_HOST=$(basename ${PWD})
+declare -x REQUIRED_PROVISIONED=${STATE_PROVISIONED}/${REQUIRED_HOST}
+declare -x REQUIRED_NOT_RUNNING=${STATE_RUNNING}/${REQUIRED_HOST}
+declare -x REQUIRED_NOT_POWEROFF=${STATE_POWEROFF}/${REQUIRED_HOST}
+declare -x REQUIRED_NOT_NONEXISTENT=${STATE_NONEXISTENT}/${REQUIRED_HOST}
+
+Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_D}"
+
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_NONEXISTENT}"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_POWEROFF}"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_RUNNING}"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_PROVISIONED}"
+
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_POWEROFF}"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_RUNNING}"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_NONEXISTENT}"
+Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test   -f ${REQUIRED_PROVISIONED}"
+
+trap '' 0
+exit ${EX_OK}

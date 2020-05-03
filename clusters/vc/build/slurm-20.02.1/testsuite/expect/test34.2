@@ -1,0 +1,301 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Validate that preemption by qos is enforced
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2011-2014 SchedMD LLC
+# Written by Nathan Yee <nyee32@schedmd.com>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id     34.2
+set exit_code   0
+set user        ""
+set acct_1      "test$test_id\_acct1"
+set acct_2      "test$test_id\_acct2"
+set qos_1       "test$test_id\_qos1"
+set qos_2       "test$test_id\_qos2"
+set qos_1_id    0
+set qos_2_id    0
+set file_in     "test$test_id\_sc"
+set nodes       [available_nodes $partition idle]
+set job_id      0
+
+print_header $test_id
+
+if {[test_preempttype_qos] == 0} {
+	send_user "\nWARNING: This test requires that "
+	send_user "PreemptType=preempt/qos\n"
+	exit $exit_code
+}
+if {[test_using_slurmdbd] == 0} {
+	send_user "\nWARNING: This test requires use of Slurmdbd\n"
+	exit $exit_code
+}
+
+set min_job_age [get_min_job_age]
+if {$min_job_age < 10} {
+	send_user "\nWARNING: MinJobAge configured too low for this test ($min_job_age < 10)\n"
+	exit $exit_code
+}
+
+proc acct_setup { acct_name qos_name pre_qos pre_type } {
+
+	global user nodes sacctmgr exit_code
+
+	set added 0
+	spawn $sacctmgr -i create qos $qos_name preempt=$pre_qos preemptmode=$pre_type maxnodes=$nodes
+	expect {
+		-re "Adding QOS" {
+			incr added 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: sacctmgr is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+
+	spawn $sacctmgr -i create account $acct_name qos=$qos_name
+	expect {
+		-re "Adding Account" {
+			incr added 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: sacctmgr is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+
+	spawn $sacctmgr -i add user $user account=$acct_name
+	expect {
+		-re "Associations" {
+			incr added 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: sacctmgr is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+
+	if {$added != 3} {
+		send_user "\nFAILURE: account was not created properly\n"
+		exit 1
+	}
+}
+
+proc mod_qos { qos_name pre_type } {
+
+	global sacctmgr exit_code
+
+	set mod 0
+	spawn $sacctmgr -i mod qos where name=$qos_name set preemptmode=$pre_type
+	expect {
+		-re "Modified qos" {
+			set mod 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: sacctmgr is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+
+	if { $mod != 1 } {
+		send_user "\nFAILURE: qos $qos_name was not modified\n"
+		set exit_code 1
+	}
+}
+
+proc sub_job { acct } {
+
+	global nodes file_in sbatch number exit_code
+
+	set job_id 0
+	spawn $sbatch -o/dev/null --exclusive -N$nodes -A$acct $file_in
+	expect {
+		-re "Submitted batch job ($number)" {
+			set job_id $expect_out(1,string)
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: sbatch is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+
+	if { $job_id == 0 } {
+		send_user "\nFAILURE: sbatch did not submit job\n"
+		exit $exit_code
+	} else {
+		return $job_id
+	}
+}
+
+proc clean_up { rc } {
+
+	global acct_1 acct_2 qos_1 qos_2 qos_1_id qos_2_id sacctmgr exit_code
+
+	set cleanacct(0) $acct_1
+	set cleanacct(1) $acct_2
+	set cleanqos(0) $qos_1
+	set cleanqos(1) $qos_2
+
+	set clean 0
+
+	wait_for_account_done $acct_1,$acct_2
+
+	for {set i 0} {$i<2} {incr i 1} {
+		spawn $sacctmgr delete -i account $cleanacct($i)
+		expect {
+			-re "(Deleting accounts|Nothing deleted)"  {
+				incr clean 1
+				exp_continue
+			}
+			timeout {
+				send_user "\nFAILURE: sacctmgr is not responding\n"
+				set exit_code 1
+			}
+			eof {
+				wait
+			}
+		}
+
+		spawn $sacctmgr delete -i qos $cleanqos($i)
+		expect {
+			-re "(Deleting QOS|Nothing deleted)" {
+				incr clean 1
+				exp_continue
+			}
+			timeout {
+				send_user "\nFAILURE: sacctmgr is not responding\n"
+				set exit_code 1
+			}
+			eof {
+				wait
+			}
+		}
+	}
+
+	if { $clean != 4 } {
+		send_user "\nFAILURE: unable to clean up accounts and qos\n"
+		set exit_code 1
+	}
+
+	if {$rc != 0} {
+		exit $rc
+	}
+}
+
+make_bash_script $file_in "sleep 30"
+
+set user [get_my_user_name]
+
+
+###################### Test preempt cancel ######################
+log_info "**** Cleanup from previous run ****"
+clean_up 0
+
+send_user "\n*** TEST PREEMPT CANCEL ***\n"
+
+acct_setup $acct_1 $qos_1 "" cancel
+acct_setup $acct_2 $qos_2 $qos_1 cluster
+
+set qos_1_id [sub_job $acct_1]
+if { [wait_for_job $qos_1_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: job $qos_1_id failed to start\n"
+	clean_up 1
+}
+
+set qos_2_id [sub_job $acct_2]
+if { [wait_for_job $qos_2_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: job $qos_2_id failed to start\n"
+	clean_up 1
+}
+
+sleep 2
+check_job_state $qos_1_id PREEMPTED
+
+wait_for_account_done $acct_1,$acct_2
+
+###################### Test preempt requeue ######################
+send_user "\n*** TEST PREEMPT REQUEUE ***\n"
+
+mod_qos $qos_1 requeue
+
+set qos_1_id [sub_job $acct_1]
+if { [wait_for_job $qos_1_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: job $qos_1_id failed to start\n"
+	clean_up 1
+}
+
+set qos_2_id [sub_job $acct_2]
+if { [wait_for_job $qos_2_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: job $qos_2_id failed to start\n"
+	clean_up 1
+}
+
+sleep 2
+check_job_state $qos_1_id PENDING
+
+# Wait for requeued job to restart
+if { [wait_for_job $qos_2_id "DONE"] != 0} {
+	send_user "\nFAILURE: job $qos_2_id failed to complete\n"
+	clean_up 1
+}
+if { [wait_for_job $qos_1_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: job $qos_1_id failed to start\n"
+	clean_up 1
+}
+
+sleep 2
+check_job_state $qos_1_id "RUNNING"
+
+wait_for_account_done $acct_1,$acct_2
+
+clean_up 0
+
+if {$exit_code == 0} {
+	exec $bin_rm $file_in
+	send_user "\nSUCCESS\n"
+}
+exit $exit_code

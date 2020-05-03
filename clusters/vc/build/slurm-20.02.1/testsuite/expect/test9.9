@@ -1,0 +1,90 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Timing test for 5000 jobs.
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2012 SchedMD LLC
+# Written by Danny Auble <da@schedmd.com>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id	"9.9"
+set exit_code   0
+set test_script "./test$test_id.bash"
+
+#   job_blocks  Submit jobs in blocks of this size (job count)
+set job_blocks  5000
+
+#   job_cnt     Number of batch jobs to be submitted
+set job_cnt     1000
+
+print_header $test_id
+
+if {[test_front_end] || $enable_memory_leak_debug != 0} {
+	set job_cnt 2
+}
+
+#
+# NOTE: test9.9.bash seems to have trouble running out of process IDs when
+# more than about 5000 jobs are submitted at one time, so we can execute the
+# script multiple times if necessary. A more reliable alternative would be
+# to catch the fork() failures and retry.
+#
+# NOTE: The throughput rate is highly dependent upon configuration
+#
+proc _submit_jobs { job_name test_file } {
+	global exit_code job_blocks job_cnt sbatch test_script
+
+	log_user 0
+	for {set jobs_rem $job_cnt} {$jobs_rem > 0} { } {
+		if {$jobs_rem > $job_blocks} {
+			set submit_cnt $job_blocks
+		} else {
+			set submit_cnt $jobs_rem
+		}
+		spawn -nottyinit -nottycopy $test_script $sbatch "/bin/hostname" $job_name $submit_cnt
+		expect {
+			eof {
+				wait
+			}
+		}
+		set jobs_rem [expr $jobs_rem - $job_blocks]
+	}
+	log_user 1
+	if {[wait_for_all_jobs $job_name] != 0} {
+		send_user "\nFAILURE: some submitted jobs failed to terminate\n"
+		set exit_code 1
+	}
+}
+
+set time_took [string trim [time {_submit_jobs "test$test_id" "/dev/null"}] " per iteration microseconds"]
+set jobs_per_sec [expr $job_cnt * 1000000 / $time_took]
+send_user "Ran $job_cnt jobs in $time_took microseconds or $jobs_per_sec jobs per second\n"
+
+if { $exit_code != 0 } {
+	exit $exit_code
+}
+
+send_user "\nSUCCESS\n"
+exit $exit_code

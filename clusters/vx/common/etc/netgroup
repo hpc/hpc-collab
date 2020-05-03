@@ -1,0 +1,10 @@
+compute vx1 vx2
+
+control vxsched
+
+#all except for fs 
+all-xfs control compute
+
+most all-xfs
+
+all all-xfs fs

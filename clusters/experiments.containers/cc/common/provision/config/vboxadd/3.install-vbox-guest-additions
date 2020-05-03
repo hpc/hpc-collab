@@ -1,0 +1,67 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcfs/config/vboxadd/3.install-vbox-guest-additions
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+declare -x MNT=/mnt
+declare -x TMP=/tmp
+declare -x ISOS=${HOMEVAGRANT}/xfr
+declare -x VBOXGUESTADDITIONS_VERSION=$(cat version)
+declare -x VBOXISO=VBoxGuestAdditions_${VBOXGUESTADDITIONS_VERSION}.iso
+declare -x VBOXORG_DOWNLOAD_URL=https://download.virtualbox.org/virtualbox/
+declare -x VBOXISO_TMP=${TMP}/${VBOXISO}
+declare -x VBOXLINUXADD=${MNT}/VBoxLinuxAdditions.run
+declare -x NEED_INSTALL_GUEST_ADDITONS=""
+
+if [ ! -d /opt/VBoxGuestAdditions* ] ; then
+  ErrExit 2 "/opt/VBoxGuestAdditions* nonexistent or not a directory"
+fi
+
+existing_vbox_guest_additions=$(basename /opt/VBoxGuestAdditions* | sed 's/VBoxGuestAdditions-//')
+
+# 32 = (u)mount failed
+grep -s ${MNT} /proc/self/mountinfo >/dev/null 2>&1
+rc=$?
+if [ ${rc} -ne ${GREP_FOUND} ] ; then
+  Rc ErrExit 3 "mount -r -o loop -t iso9660 ${VBOXISO_TMP} ${MNT}"
+fi
+
+if [ "${VBOXGUESTADDITIONS_VERSION}" != "${existing_vbox_guest_additions}" ] ; then
+  if [ -x "${VBOXLINUXADD}" ] ; then
+    export NEED_INSTALL_GUEST_ADDITIONS="${VBOXLINUXADD}"
+  else
+    ErrExit 4 "VBOXLINUXADD: ${VBOXLINUXADD} is not executable; existing: ${existing_vbox_guest_additions}"
+  fi
+fi
+
+date ${OUT}
+if [ -n "${NEED_INSTALL_GUEST_ADDITIONS}" ] ; then
+  ## always returns exit code = 2, so don't use 'Rc ...'
+  sh ${NEED_INSTALL_GUEST_ADDITIONS} --nox11 ${OUT}
+fi
+date ${OUT}
+
+Rc ErrExit 5 "umount -f ${MNT}"
+Rc ErrExit 6 "rm -f /usr/lib/VBoxGuestAdditions"
+Rc ErrExit 7 "ln -s /opt/VBoxGuestAdditions-6.0.14 /usr/lib/VBoxGuestAdditions"
+
+trap '' 0
+exit ${EX_OK}

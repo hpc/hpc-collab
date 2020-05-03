@@ -1,0 +1,31 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vxsched/verify/slurm/2.slurm-ctld-commands
+
+## @brief ensure slurmctld commands are functional
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sinfo              >/dev/null"
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show part >/dev/null"
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show res  >/dev/null"
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} squeue             >/dev/null"
+
+trap '' 0
+exit ${EX_OK}

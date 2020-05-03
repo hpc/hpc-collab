@@ -1,0 +1,49 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../common/config/rsyslog/1.config-var_log_rsyslog_nodename
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x VAR_LOG_RSYSLOG=/var/log/rsyslog
+declare -x COMMON_VAR_LOG_RSYSLOG=$(readlink ${VAR_LOG_RSYSLOG})
+
+if [ -z "${COMMON_VAR_LOG_RSYSLOG}" ] ; then
+  ErrExit ${EX_OSFILE} "COMMON_VAR_LOG_RSYSLOG:${COMMON_VAR_LOG_RSYSLOG} empty"
+fi
+
+#XXX Rc ErrExit ${EX_CONFIG} "test -d ${VAR_LOG_RSYSLOG}"
+#XXX Rc ErrExit ${EX_CONFIG} "test -L ${VAR_LOG_RSYSLOG}"
+Rc ErrExit ${EX_CONFIG} "test -d ${COMMON_VAR_LOG_RSYSLOG}"
+Rc ErrExit ${EX_CONFIG} "chown -h root:root ${VAR_LOG_RSYSLOG}"
+Rc ErrExit ${EX_CONFIG} "chown root:root ${COMMON_VAR_LOG_RSYSLOG}"
+
+if [ -z "${HOSTNAME}" ] ; then
+  HOSTNAME=$(hostname -s)
+fi
+
+if [ ! -f ${VAR_LOG_RSYSLOG}/${HOSTNAME} ] ; then
+  Rc ErrExit ${EX_CONFIG} "touch ${COMMON_VAR_LOG_RSYSLOG}/${HOSTNAME}"
+  Rc ErrExit ${EX_CONFIG} "chown root:root ${COMMON_VAR_LOG_RSYSLOG}/${HOSTNAME}"
+fi
+
+Rc ErrExit ${EX_CONFIG} "test -f ${COMMON_VAR_LOG_RSYSLOG}/${HOSTNAME}"
+Rc ErrExit ${EX_CONFIG} "echo --- >> ${COMMON_VAR_LOG_RSYSLOG}/${HOSTNAME}"
+
+trap '' 0
+exit ${EX_OK}

@@ -1,0 +1,109 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/config/slurm/4.configure-slurm-db
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+qos=$(echo $(sacctmgr show qos -n format=name))
+if [ -z "${qos}" ] ; then
+  ErrExit 2 "no slurm qos specified"
+fi
+partitions=$(echo $(sinfo -h -o "%R"))
+if [ -z "${partitions}" ] ; then
+  ErrExit 3 "no slurm partitions defined"
+fi
+
+if [ ! -d "${USERADD}" ] ; then
+  ErrExit 4 "USERADD: ${USERADD} not a directory"
+fi
+users=$(echo $(ls ${USERADD}))
+if [ -z "${users}" ] ; then
+  ErrExit 5 "no slurm users defined"
+fi
+
+account_exists=$(sacctmgr show account default -n | awk '{print $1}')
+if [[ ${account_exists} != default ]] ; then
+  Rc ErrExit 6 "sacctmgr -iQ add account name=default parent=root"
+fi
+
+for u in ${users} vagrant
+do
+  slurm_attr=${USERADD}/${u}/slurm
+  slurm_acct=${slurm_attr}/acct
+  slurm_qos=${slurm_attr}/qos
+  slurm_assoc=${slurm_attr}/assoc
+  slurm_adminlevel=${slurm_attr}/AdminLevel
+  DefaultAccount=""
+  accounts=""
+  associations=""
+
+  # may be a login-only account
+  if [ ! -d ${slurm_acct} ] ; then
+    continue
+  fi
+  if [ -d ${slurm_acct}/acct/DefaultAccount ] ; then
+    DefaultAccount=$(echo $(ls ${slurm_acct}/DefaultAccount) | awk '{print $1}')
+  fi
+  if [ -d ${slurm_acct}/Accounts ] ; then
+    accounts=$(echo $(ls ${slurm_acct}/Accounts))
+  fi
+  if [ -d ${slurm_acct}/qos ] ; then
+    qos=$(echo $(ls ${slurm_acct}/qos))
+  fi
+
+  associations=$(echo $(ls ${slurm_assoc}))
+  for a in ${associations}
+  do
+    _p=""
+    _q=""
+    _a=""
+    exists=""
+
+    _p=$(basename $(echo $(readlink ${slurm_assoc}/${a}/partition)))
+    _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
+    _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
+
+    exists=$(sacctmgr show user withassoc -n name=${u} partition=${_p} qos=${_q} account=${_a} | egrep "${_a}.*${_p}")
+    if [ -z "${exists}" ] ; then
+      def_arg=""
+      if [ -n "${DefaultAccount}" ] ; then
+        def_arg="defaultaccount=${DefaultAccount}"
+      fi
+      Rc ErrExit 7 "sacctmgr -iQ add user name=${u} partition=${_p} qos=${_q} account=${_a} ${def_arg}"
+    fi
+  done
+
+  if [ -d "${slurm_adminlevel}" ] ; then
+    _adminlevel=$(echo $(ls ${slurm_adminlevel}))
+    case "${_adminlevel}" in
+      *"perator"|*"dministrator")
+        Rc ErrExit 8 "sacctmgr -iQ update user name=${u} set AdminLevel=${_adminlevel}"
+        ;;
+      "")
+        ;;
+      *)
+        ErrExit 9 "${u}: unknown AdminLevel ${_adminlevel}"
+        ;;
+      esac
+  fi
+done
+
+trap '' 0
+exit ${EX_OK}

@@ -1,0 +1,3 @@
+appendwhere: repos
+appendwhat: vcfs:/home/vagrant/common/root /home/vx/common/root	nfs defaults,nofail,_netdev,nfsvers=4.2,context=unconfined_u:object_r:public_content_rw_t:s0 0 0
+

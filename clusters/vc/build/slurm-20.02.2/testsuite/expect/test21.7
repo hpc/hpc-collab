@@ -1,0 +1,142 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          sacctmgr list clusters
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2008-2010 Lawrence Livermore National Security.
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Joseph Donaghy <donaghy1@llnl.gov>
+# CODE-OCEC-09-009. All rights reserved.
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+source ./globals_accounting
+
+set test_id     "21.7"
+set exit_code   0
+set amatches    0
+set dmatches    0
+set tc1		"test$test_id-cluster-1"
+set tc2		"test$test_id-cluster-2"
+set tc3		"test$test_id-cluster-3"
+
+array set cluster {}
+set cluster(Fairshare)     2500
+set cluster(GrpCPUs)       50
+set cluster(GrpJobs)       100
+set cluster(GrpMemory)     200
+set cluster(GrpSubmitJobs) 500
+set cluster(GrpNodes)      300
+set cluster(MaxCPUMins)    100000
+set cluster(MaxCPUs)       100
+set cluster(MaxJobs)       500
+set cluster(MaxSubmitJobs) 500
+set cluster(MaxNodes)      300
+set cluster(MaxWall)       01:00:00
+set access_err  0
+
+print_header $test_id
+
+if { [test_account_storage] == 0 } {
+	send_user "\nWARNING: This test can't be run without a usable AccountStorageType\n"
+	exit 0
+}
+
+#
+# Verify if Administrator privileges
+#
+ if { [string compare [check_accounting_admin_level] "Administrator"] } {
+	send_user "\nWARNING: This test can't be run without being an Accounting administrator.\nUse: sacctmgr mod user \$USER set admin=admin.\n"
+	exit 0
+}
+
+#
+# Remove any vestigial clusters
+#
+remove_cluster "$tc1,$tc2,$tc3"
+
+
+#
+# Add a cluster to use for testing
+#
+add_cluster "$tc1,$tc2,$tc3" [array get cluster]
+
+if {$access_err != 0} {
+	send_user "\nWARNING: not authorized to perform this test\n"
+	exit $exit_code
+}
+
+#
+# Check cluster limits
+#
+check_assoc_limit 1 cluster $tc1 [array get cluster]
+check_assoc_limit 1 cluster $tc2 [array get cluster]
+check_assoc_limit 1 cluster $tc3 [array get cluster]
+
+#
+# Use sacctmgr to delete the test cluster
+#
+set sadel_pid [spawn $sacctmgr delete cluster $tc1,$tc2,$tc3]
+expect {
+	-re "Deleting clusters" {
+		incr dmatches
+		exp_continue
+	}
+	-re "$tc1" {
+		incr dmatches
+		exp_continue
+	}
+	-re "Would you like to commit changes\\\? \\\(You have 30 seconds to decide\\\)" {
+		incr dmatches
+		exp_continue
+	}
+	-re "\\\(N\\\/y\\\):" {
+		incr dmatches
+		send "Y"
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr delete not responding\n"
+		slow_kill $sadel_pid
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$dmatches != 4} {
+	send_user "\nFAILURE: sacctmgr had a problem deleting cluster\n"
+	set exit_code 1
+}
+if { ![check_acct_associations] } {
+	send_user "\nFAILURE:  Our associations don't line up\n"
+	set exit_code 1
+}
+
+if {$exit_code == 0} {
+print_success $test_id
+}
+
+exit $exit_code

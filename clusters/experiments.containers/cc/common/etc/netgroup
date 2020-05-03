@@ -1,0 +1,12 @@
+compute vc1 vc2
+
+fs vc-fs
+
+control vc0
+
+#all except for fs 
+all-xfs control compute
+
+most all-xfs
+
+all all-xfs fs

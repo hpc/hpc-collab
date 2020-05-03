@@ -1,0 +1,37 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../requires/vcsched/3.slurm-conf
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+# XXX @todo this should be a symlink to ${SLURMCONF}
+declare -x LOCAL_SLURMCONF=/etc/slurm/slurm.conf
+slurmconf_target=$(readlink ${LOCAL_SLURMCONF})
+
+# XXX @todo verify address of SlurmctldHost in slurm.conf is controller
+
+Rc ErrExit ${EX_CONFIG}  "[ -n \"${IPADDR}\" ] || false"
+Rc ErrExit ${EX_CONFIG}  "test -f ${SLURMCONF} && test -s ${SLURMCONF}"
+
+Rc ErrExit ${EX_CONFIG}  "test -L ${LOCAL_SLURMCONF}"
+Rc ErrExit ${EX_CONFIG}  "test -f ${slurmconf_target} && test -s ${slurmconf_target}"
+
+trap '' 0
+exit ${EX_OK}

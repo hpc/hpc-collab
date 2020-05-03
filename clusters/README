@@ -1,0 +1,2 @@
+Individual cluster recipes reside here. If they contain a Makefile and a Vagrantfile, they will attempt to be built.
+Makefiles assume that older versions of the xy cluster are in xy~, for example.

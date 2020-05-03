@@ -1,0 +1,91 @@
+if ( $?REMOTEHOST && $?TERM ) then
+	if ($TERM == "xterm" ) set NeedWindowSetup=true
+endif
+
+if ( $?DISPLAY || $?RDISPLAY || $?HOSTDISPLAY ) then
+	set NeedWindowSetup=true
+endif
+
+#XXX DBUS - if this isn't set, brasero may fail
+#XXX DBUS - if it is set, many dbus-clients cause a window hang
+#setenv DBUS_SESSION_BUS_ADDRESS ""
+
+# XXX see .login for duplication of this code to handle queueing system case
+if ( $?NeedWindowSetup ) then
+
+	# may need to set display
+	if ( ! $?DISPLAY ) then
+		# note the assumption of :0.0
+		if ( $?REMOTEHOST ) then
+			setenv DISPLAY ${REMOTEHOST}:0.0
+		else
+			set TTY=`tty|sed 's/\/dev\///p`
+			set REMOTE=`who am i | awk '{print $5}' | sed 's/(//' | sed 's/)//' `
+			setenv DISPLAY ${REMOTE}:0.0
+		endif
+	endif
+
+	# Paths of various types
+
+	setenv X6		/usr/X11R6
+	setenv XHOME		$X6
+	setenv CDEHOME		/usr/dt
+	#setenv STAROFFICE	$HOME/Office51
+
+	if ( $?SUNOS || $?SVR4 ) then
+		setenv OPENWINHOME	/usr/openwin
+	else
+		setenv OPENWINHOME	""
+	endif
+	
+	#setenv NOLOG	true
+	set winpath=()
+	set winman=()
+	
+	foreach d ($X6 $OPENWINHOME $CDEHOME)
+		if ( -d $d && -x $d && -d $d/bin && -x $d/bin ) then
+			set winpath=( $d $d/bin $winpath )
+			set winman=( $d/man )
+		endif
+	end
+	set path=($winpath $path)
+	
+	setenv PATH "`echo $path | sed 's/ /:/g'`"
+
+#	if ( ! $?MANPATH ) then
+#		setenv MANPATH "/usr/share/man:/usr/local/man:"
+#	endif
+	
+#	if ( ! $?manpath ) then
+#		set manpath=""
+#	endif
+
+#	foreach m ( $winman $manpath )
+#		if ( -d $m && -x $m ) then
+#			set manpath=( $manpath $m )
+#			setenv MANPATH "${m}:$MANPATH"
+#		endif
+#	end
+
+	if ( -r /etc/profile.d ) then
+
+		# allow for other packages to customize the shell environment
+		if (-e /etc/profile.d && `ls /etc/profile.d/*.csh |& grep -v 'No match'` != "") then
+			foreach FILE (`ls /etc/profile.d/*.csh`)
+				source $FILE;
+			end;
+		endif
+	endif
+
+#	#-- enlightenment doesn't integrate with gnome keyring without the following
+#	if ( $?DESKTOP_SESSION != 0 ) then
+#		if ( "$DESKTOP_SESSION" != "" ) then
+#			# No point to start gnome-keyring-daemon if ssh-agent is not up
+#			if ( $?SSH_AGENT_PID ) then
+#				eval `gnome-keyring-daemon --start`
+#			endif
+#		endif
+#	endif
+#	#-- enlightenment
+
+endif

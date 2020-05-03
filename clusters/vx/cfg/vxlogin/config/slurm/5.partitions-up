@@ -1,0 +1,36 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/config/slurm/5.partitions-up
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+partitions=$(echo $(sinfo -h -o "%R" | grep -v infrastructure))
+if [ -z "${partitions}" ] ; then
+  ErrExit 2 "no slurm partitions defined"
+fi 
+
+for p in ${partitions}
+do
+  Rc ErrExit ${EX_SOFTWARE} "scontrol update partition=${p} state=up"
+done
+
+Rc ErrExit ${EX_SOFTWARE} "scontrol update partition=infrastructure state=down"
+
+trap '' 0
+exit ${EX_OK}

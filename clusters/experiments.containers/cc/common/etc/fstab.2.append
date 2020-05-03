@@ -1,0 +1,3 @@
+where: swap
+what: vcfs:/home/vagrant/common /home/vagrant/common	nfs	defaults,nofail,_netdev,nfsvers=4.2,seclabel 0 0
+

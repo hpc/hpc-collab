@@ -1,0 +1,122 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc*/common/provision/config/ssh/3.merge-host-keys-to-common
+
+## @brief This merges our host keys into the cluster common area host keys (COMMONETC_SSH) files.
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x ETC=/etc
+declare -x ETCSSH=${ETC}/ssh
+declare -x ETC_NETWORKS=${ETC}/networks
+
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x COMMONETC_SSH=${COMMONETC}/ssh
+declare -x COMMONETC_SSHD_CONFIG=${COMMONETC_SSH}/sshd_config
+declare -x COMMONETC_SSHCONFIG=${COMMONETC_SSH}/ssh_config
+declare -x COMMONETC_SSH_HOST_PUBKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key.pub
+declare -x COMMONETC_SSH_HOST_PRIVKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key
+
+declare -x COMMONETC_SSH_KNOWNHOSTS=${COMMONETC_SSH}/ssh_known_hosts
+declare -x COMMONETC_SHOSTSEQUIV=${COMMONETC_SSH}/shosts.equiv
+
+declare -x ETCSSH_SSHCONFIG=${ETCSSH}/ssh_config
+declare -x ETCSSH_SSHDCONFIG=${ETCSSH}/sshd_config
+declare -x ETCSSH_KNOWNHOSTS=${ETCSSH}/ssh_known_hosts
+declare -x ETCSSH_SHOSTSEQUIV=${ETCSSH}/shosts.equiv
+declare -x ETCSSH_HOST_PUBKEYRSA=${ETCSSH}/ssh_host_rsa_key.pub
+declare -x ETCSSH_HOST_PRIVKEYRSA=${ETCSSH}/ssh_host_rsa_key
+
+declare -x COMMON_SLASHROOT=${COMMON}/root
+declare -x COMMON_SLASHROOT_DOTSSH=${COMMON_SLASHROOT}
+declare -x COMMON_SLASHROOT_DOTSSH_AUTHORIZEDKEYS=${COMMON_SLASHROOT_DOTSSH}/authorized_keys
+declare -x COMMON_SLASHROOT_DOTSSH_PRIVKEYRSA=${COMMON_SLASHROOT_DOTSSH}/id_rsa
+declare -x COMMON_SLASHROOT_DOTSSH_PUBKEYRSA=${COMMON_SLASHROOT_DOTSSH}/id_rsa.pub
+
+# create shosts.equiv, known_hosts for all hosts in cluster using our host keys
+
+cluster_hosts=$(echo $(ls ${CFG} | grep -v provision))
+privnetworkssh_knownhosts=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}')
+privnet=$(echo ${privnetworkssh_knownhosts} | sed 's/\.\0$//')
+privnetworksshconf=$(echo "${privnet}.?")
+privpattern=$(echo "${privnet}.*")
+
+if [ -f ${ETCSSH_SSHCONFIG} ] ; then
+  cat - <<-_EOF_SSHCONFIG_EOF_	>${ETCSSH_SSHCONFIG}
+###
+Host ${privnetworksshconf}
+        HostbasedAuthentication yes
+        EnableSSHKeysign yes
+###
+_EOF_SSHCONFIG_EOF_
+fi
+
+if [ ! -f ${COMMONETC_SSHCONFIG} ] ; then
+  Rc ErrExit ${EX_OSFILE} "cp ${ETCSSH_SSHCONFIG} ${COMMONETC_SSHCONFIG}"
+else
+  cat - <<-_EOF_SSHCONFIG_EOF_	>${COMMONETC_SSHCONFIG}
+Host ${privnetworksshconf}
+        HostbasedAuthentication yes
+        EnableSSHKeysign yes
+_EOF_SSHCONFIG_EOF_
+fi
+
+### XXX determine this from a more general cluster configurator (superset of /etc/networks, &c)
+private_ip=""
+for i in $(ip -o -4 addr | grep -v ' lo ' | awk '{print $4}')
+do
+  j=$(echo $i | sed 's/\/[0-9]*$//')
+  echo ${j} | grep -s ${privnet} >/dev/null 2>&1
+  rc=$?
+  if [ ${rc} -eq ${GREP_FOUND} ] ; then
+    private_ip=${j}
+    break
+  fi
+done
+
+if [ -z "${private_ip}" ] ; then
+  ErrExit ${EX_SOFTWARE} "empty private ip?"
+fi
+
+if [ ! -f ${ETCSSH_HOST_PUBKEYRSA} -o ! -f ${ETCSSH_HOST_PRIVKEYRSA} ] ; then
+  ErrExit ${EX_SOFTWARE} "! -f ${ETCSSH_HOSTPUBKEYRSA} -o ! -f ${ETCSSH_HOSTPRIVKEYRSA}"
+fi
+# Insert this host's keys to the common ssh known hosts, replacing previous entries.
+Rc ErrExit ${EX_SOFTWARE} "touch ${COMMONETC_SSH_KNOWNHOSTS}"
+Rc ErrExit ${EX_SOFTWARE} "sed -i~ -e \"/${HOSTNAME}/d\" ${COMMONETC_SSH_KNOWNHOSTS} ; "
+Rc ErrExit ${EX_SOFTWARE} "sed -i~ -e "/${private_ip}/d" ${COMMONETC_SSH_KNOWNHOSTS} ; "
+
+thishosts_hostkey_pubkeyrsa=$(cat ${ETCSSH_HOST_PUBKEYRSA})
+thishosts_ssh_knownhosts_entry="${HOSTNAME},${private_ip} ${thishosts_hostkey_pubkeyrsa}"
+echo "${thishosts_ssh_knownhosts_entry}" >> ${COMMONETC_SSH_KNOWNHOSTS}
+
+for h in ${cluster_hosts}
+do
+  for f in ${COMMONETC_SHOSTSEQUIV}
+  do
+    grep -s ${h} ${f} >/dev/null 2>&1
+    rc=$?
+    if [ ${rc} -ne ${GREP_FOUND} ] ; then
+      echo ${h} >> ${f}
+    fi
+  done
+done
+
+trap '' 0
+exit ${EX_OK}

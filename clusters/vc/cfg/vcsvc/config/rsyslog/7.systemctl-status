@@ -1,0 +1,30 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc*/config/rsyslog/3.systemctl-status
+
+## @brief This rsyslog configuration script enables tcp access.
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+
+Rc ErrExit 20  "systemctl start rsyslog"
+Rc ErrExit 21  "systemctl status rsyslog"
+
+trap '' 0
+exit ${EX_OK}

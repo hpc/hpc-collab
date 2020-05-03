@@ -1,0 +1,44 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/config/slurm/6.set-nodes-up
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+nodes=$(echo $(scontrol show nodes -o | awk '{print $1}' | sed 's/NodeName=//'))
+if [ -z "${nodes}" ] ; then
+  ErrExit 2 "no slurm partitions defined"
+fi 
+
+for n in ${nodes}
+do
+  slurmd_state=$(scontrol show node ${n} -o | sed 's/^.* SlurmdStartTime=//' | sed 's/ .*$//')
+  if [ "${slurmd_state}" != "none" ] ; then
+    state=$(echo $(scontrol show node ${n} -o | sed 's/^.*State=//' | sed 's/ .*//' | sed 's/\*//'))
+    case "${state}" in
+      "IDLE")
+	;;
+      *)
+	Rc ErrExit ${EX_SOFTWARE} "scontrol update nodename=${n} state=resume"
+	;;
+    esac
+  fi
+done
+
+trap '' 0
+exit ${EX_OK}

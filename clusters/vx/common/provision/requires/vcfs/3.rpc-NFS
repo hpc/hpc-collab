@@ -1,0 +1,33 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../requires/vcfs/3.rpc-NFS
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x _d=${COMMON}/${HOSTNAME}.$$d
+declare -x _f=${COMMON}/${HOSTNAME}.$$f
+
+Rc ErrExit ${EX_OSERR} "[ -n \"${IPADDR}\" ] || false"
+
+Rc ErrExit ${EX_OSERR} "timeout ${TIMEOUT} rpcinfo -p ${IPADDR}"
+Rc ErrExit ${EX_OSERR} "timeout ${TIMEOUT} rpcinfo -p ${IPADDR} 2>&1 | grep nfs"
+
+trap '' 0
+exit ${EX_OK}

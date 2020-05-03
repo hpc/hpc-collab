@@ -1,0 +1,5 @@
+setenv TERM ansi
+set path=(~/hpc-collab/bin/ $path)
+source ~/.cshrc
+cd.
+gsettings set org.gnome.mutter draggable-border-width 60

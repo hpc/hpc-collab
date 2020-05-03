@@ -1,0 +1,105 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file common/provision/useradd/root/verify/provisioned/vclogin/slashcluster/4.install-slashcluster-other-nodes
+
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CLUSTERNAME=${HOSTNAME:0:2}
+VCLOAD=/${CLUSTERNAME}/cfg/provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+pwd=$(pwd)
+declare -x PRODUCT=$(basename ${pwd})
+
+declare -x COMMON=${HOMEVAGRANT}/common
+declare -x COMMON_TMP=${COMMON}/tmp
+declare -x TMP=${COMMON_TMP}
+declare -x TMPDIR=${COMMON_TMP}
+
+declare -x ARCH=$(uname -m)
+declare -x RPMBUILD=${BUILDWHERE}/rpmbuild
+declare -x RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+
+_rpm=$(ls ${RPMS_ARCH}/${PRODUCT}*)
+if [ ! -f "${_rpm}" ] ; then
+  ErrExit 20 "no rpms? ${_rpm}"
+fi
+
+if [ -z "${COMMON_LOCALREPO}" ] ; then
+  ErrExit ${EX_SOFTWARE} "COMMON_LOCALREPO empty"
+fi
+
+if [ ! -d ${COMMON_LOCALREPO} ] ; then
+  ErrExit ${EX_OSFILE} "COMMON_LOCALREPO:${COMMON_LOCALREPO} not a directory"
+fi
+
+nodes=$(sinfo -N -h --format "%N %t" | sed 's/\*//' | sort | uniq | awk '{print $1}')
+nodes_skip=$(echo $(sinfo -d -N -h --format "%N"))
+nodes_skip_re=$(echo ${nodes_skip} | sed 's/^/(/' | sed 's/$/)/' | sed 's/ /|/g')
+
+nodes_installable=""
+for _n in ${nodes}
+do
+  node_features=$(echo $(scontrol show node ${_n} -o | sed 's/^.*ActiveFeatures=//' | sed 's/ .*$//') | sed 's/,/ /g')
+
+  case "${node_features}" in
+  *controller*)
+    nodes_installable="${nodes_installable} ${_n}" ;;
+  *)
+    if ! [[ ${_n} =~ ${nodes_skip_re} ]] ; then
+      nodes_installable="${nodes_installable} ${_n}"
+    fi
+    ;;
+  esac
+
+done
+
+#Assert host keys are working within the cluster
+#
+agent_running=$(env | grep SSH_AGENT)
+if [ -z "${agent_running}" ] ; then
+  eval `ssh-agent -s`
+  rc=$?
+  if [ ${rc} -ne ${EX_OK} ] ; then
+    ErrExit ${EX_SOFTWARE} "ssh-agent failed eval, rc=${rc}"
+  fi
+fi
+ssh-add
+
+if [ -z "${nodes_installable}" ] ; then
+  ErrExit ${EX_CONFIG} "no nodes to install slash cluster"
+fi
+
+Verbose " install slashcluster: ${nodes_installable}"
+
+for _n in ${nodes_installable}
+do
+  Rc ErrExit 10 "ssh -oStrictHostKeyChecking=no ${_n} true"
+done
+
+for _n in ${nodes_installable}
+do
+  Rc ErrExit 20 "ssh -oStrictHostKeyChecking=no ${_n} createrepo --update ${COMMON_LOCALREPO}"
+  Rc ErrExit 21 "ssh -oStrictHostKeyChecking=no ${_n} yum clean expire-cache"
+  Rc ErrExit 22 "ssh -oStrictHostKeyChecking=no ${_n} yum info slashcluster"
+done
+for _n in ${nodes_installable}
+do
+  Rc ErrExit 30 "ssh -oStrictHostKeyChecking=no ${_n} yum -y install slashcluster"
+done
+
+exit ${EX_OK}

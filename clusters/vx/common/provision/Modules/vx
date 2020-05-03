@@ -1,0 +1,24 @@
+#!%Module1.0
+## hpc-collab/vx modulefile
+##
+
+proc ModulesHelp { } {
+    puts stderr "This module loads the path for the 'vx' virtual extended cluster."
+}
+
+module-whatis "Loads the 'vx' virtual extended cluster hpc-collab commands into the path."
+module-whatis "(Category_______) HPC"
+module-whatis "(Name___________) hpc-collab"
+module-whatis "(Version________) 0.1"
+
+set curMod [module-info name]
+
+set hpc_collab		${HOME}/hpc-collab
+set hpc_collab_vx	$(hpc_collab)/vx
+
+if { [ module-info mode load ] } {
+    puts stderr "Note: '$curMod' is not available for [uname sysname]."
+}
+
+append-path	PATH	$hpc_collab_vx/cfg/provision/bin
+append-path	MANPATH	$hpc_collab/man

@@ -1,0 +1,1 @@
+VBoxManage --version | sed 's/r[0-9]*//g'

@@ -1,0 +1,2 @@
+where: build
+what: vcfs:/home/vagrant/common/var/log/rsyslog /var/log/rsyslog nfs defaults,nofail,_netdev,nosharecache,rw,seclabel,context=unconfined_u:object_r:var_log_t:s0 0 0

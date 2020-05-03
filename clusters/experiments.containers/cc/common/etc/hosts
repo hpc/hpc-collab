@@ -1,0 +1,45 @@
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+127.0.0.1 centos7.localdomain
+
+
+## hostonly network: 
+192.168.56.0   hostonly.tc hostonly hostonly.test-cluster hostonly.testcluster
+
+192.168.56.1   gw.tc gw gw.test-cluster gw.testcluster
+
+192.168.56.128 tc0 tc0.test-cluster tc0.testcluster tc0.tc
+192.168.56.129 tc1 tc1.test-cluster tc1.testcluster tc1.tc
+192.168.56.130 tc2 tc2.test-cluster tc2.testcluster tc2.tc
+192.168.56.140 tc-db tc-db.testcluster tc-db.tctcdb.testcluster tcdb.tc
+192.168.56.142 tc-fs tcfs tc-fs.test-cluster tcfs.test-cluster tc-fs.tc tcfs.tc
+
+192.168.56.99  test0
+
+192.168.56.64 vcsched.tc vcsched vcsched.test-cluster vcsched.testcluster
+192.168.56.65 vc1.tc vc1 vc1.test-cluster vc1.testcluster
+192.168.56.66 vc2.tc vc2 vc2.test-cluster vc2.testcluster
+
+192.168.56.69 vcgate.tc vcgate vcgate.test-cluster vcgate.testcluster vc-gate.tc vc-gate vc-gate.test-cluster vc-gate.testcluster gate.tc gate.test-cluster gate.testcluster
+192.168.56.71 vcsvc.tc vcsvc vcsvc.test-cluster vcsvc.testcluster vcloghost vcloghost.tc vcloghost.test-cluster vcloghost.testcluster
+192.168.56.73 vclogin.tc vclogin vclogin.test-cluster vclogin.testcluster
+192.168.56.75 vcbuild.tc vcbuild vcbuild.test-cluster vcbuild.testcluster
+192.168.56.77 vcdb.tc vcdb vcdb.test-cluster vcdb.testcluster
+192.168.56.79 vcfs.tc vcfs vcfs.test-cluster vcfs.testcluster
+
+192.168.57.32 ccfs.tc ccfs ccfs.test-cluster ccfs.testcluster
+192.168.57.33 ccsvc.tc ccsvc ccsvc.test-cluster ccsvc.testcluster ccloghost ccloghost.tc ccloghost.test-cluster ccloghost.testcluster
+192.168.57.34 ccbuild.tc ccbuild ccbuild.test-cluster ccbuild.testcluster
+192.168.57.35 ccdb.tc ccdb ccdb.test-cluster ccdb.testcluster
+192.168.57.36 ccsched.tc ccsched ccsched.test-cluster ccsched.testcluster
+192.168.57.37 cclogin.tc cclogin cclogin.test-cluster cclogin.testcluster
+192.168.57.38 ccgate.tc ccgate ccgate.test-cluster ccgate.testcluster cc-gate.tc cc-gate cc-gate.test-cluster cc-gate.testcluster gate.tc gate.test-cluster gate.testcluster
+192.168.57.41 cc1.tc cc1 cc1.test-cluster cc1.testcluster
+192.168.57.42 cc2.tc cc2 cc2.test-cluster cc2.testcluster
+
+
+# LANL public services
+128.165.4.4	ns1 ns1.lanl.gov ntp1 ntp.lanl.gov ntp dns1.lanl.gov dns1
+128.165.4.33	ns2 ns2.lanl.gov ntp2 ntp.lanl.gov ntp dns2.lanl.gov dns2
+192.12.184.19	proxyout proxyout.lanl.gov proxybal proxybal.lanl.gov

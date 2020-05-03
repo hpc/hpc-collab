@@ -1,0 +1,56 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/lustre/1.install-zfs-on-linux
+
+VCLOAD=/vagrant/cfg/provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+PRODUCT=$(basename $(pwd))
+
+BUILDWHERE=${VC}/build
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDLUSTRE=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDLUSTRE}/RPMS.Manifest
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=$(uname -m)
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+LOCALREPO=${VAGRANT}/etc/localrepo
+
+if [ -z "${BUILD_LUSTRE_FLAG}" ] ; then
+  Verbose " [BUILD_LUSTRE_FLAG empty: skipped]"
+  exit ${EX_OK}
+fi
+
+ZFSONLINUX=${BUILDLUSTRE}/zfs-on-linux
+VERSION=${ZFSONLINUX}/version
+ZFSONLINUX_ENABLEREPO=${ZFSONLINUX}/enable.repo
+ZFSONLINUX_REPOS=$(cat ${ZFSONLINUX_ENABLEREPO})
+ZFSONLINUX_RPMS_PREREQ_LIST=${ZFSONLINUX}/RPMS.prereq
+ZFSONLINUX_RPMS_PREREQ=$(cat ${ZFSONLINUX_RPMS_PREREQ_LIST})
+ZFSONLINUX_VERSION=$(cat ${VERSION})
+ZFSONLINUX_REPO_HOST="http://download.zfsonlinux.org"
+ZFSONLINUX_REPO_URL="${ZFSONLINUX_REPO_HOST}/epel/zfs-release.el${ZFSONLINUX_VERSION}.noarch.rpm"
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+# This has the annoying effect of updating the virtualbox driver, which involves a dkms build
+Rc ErrExit ${EX_SOFTWARE} "yum -y update"
+
+exit ${EX_OK}

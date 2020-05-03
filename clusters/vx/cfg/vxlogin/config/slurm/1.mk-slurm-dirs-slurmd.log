@@ -1,0 +1,28 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/config/slurm/1.mk-slurm-dirs-slurmd.log
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+Rc ErrExit 2 "mkdir -p /var/spool/slurm /var/run/slurm"
+Rc ErrExit 2 "mkdir -p /home/vx/common/var/log/slurm"
+Rc ErrExit 3 "touch /home/vx/common/var/log/slurm/slurmd.log"
+
+trap '' 0
+exit ${EX_OK}

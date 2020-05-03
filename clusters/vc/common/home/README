@@ -1,0 +1,16 @@
+assuming pwd = clusters/vc or clusters/vx
+
+To add an additional user:
+ cp -prv provision/useradd/<old-user> provision/useradd/<new-user>
+ mv provision/useradd/<new-user>/uid/# provision/useradd/<new-user>/uid/<uid>
+ mv provision/useradd/<new-user>/gid/# provision/useradd/<new-user>/gid/<gid>
+ mkdir common/home/<new-user>
+
+Possibly:
+ mv provision/useradd/<new-user>/shell/zsh provision/useradd/<new-user>/shell/bash
+ sed -i 's/<old-user>/<new-user/' provision/useradd/<new-user>/sudoers.d/<old-user> provision/useradd/<new-user>/sudoers.d/<old-user>
+ mv provision/useradd/<new-user>/sudoers.d/<old-user> provision/useradd/<new-user>/sudoers.d/<new-user>
+
+To Do:
+ move this outside of an individual cluster recipe, into a top-most common useradd area
+

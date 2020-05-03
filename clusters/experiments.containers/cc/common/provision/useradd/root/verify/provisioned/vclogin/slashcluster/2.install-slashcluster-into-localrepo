@@ -1,0 +1,64 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file common/provision/useradd/root/verify/provisioned/vclogin/slashcluster/2.install-slashcluster-into-localrepo
+
+VCLOAD=/vagrant/cfg/provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+pwd=$(pwd)
+declare -x PRODUCT=$(basename ${pwd})
+
+declare -x COMMON=${HOMEVAGRANT}/common
+declare -x COMMON_TMP=${COMMON}/tmp
+declare -x TMP=${COMMON_TMP}
+declare -x TMPDIR=${COMMON_TMP}
+
+declare -x ARCH=${ARCH:-$(uname -m)}
+declare -x RPMBUILD=${BUILDWHERE}/rpmbuild
+declare -x RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+
+declare -x ARCH=${ARCH:-$(uname -m)}
+declare -x REPO_ARCH=${COMMON_LOCALREPO}/${ARCH}
+
+if [ -z "${COMMON_LOCALREPO}" ] ; then
+  ErrExit ${EX_CONFIG} "COMMON_LOCALREPO empty"
+fi
+
+if [ ! -d ${COMMON_LOCALREPO} ] ; then
+  ErrExit ${EX_OSFILE} "COMMON_LOCALREPO: ${COMMON_LOCALREPO} not a directory"
+fi
+
+rpms=$(echo $(ls ${RPMS_ARCH}/${PRODUCT}*))
+Rc ErrExit 10 "ls ${RPMS_ARCH}/${PRODUCT}* 2>&1"
+
+if [ -z "${rpms}" ] ; then
+  ErrExit 11 "no rpms? (${RPMS_ARCH}/${PRODUCT}*)"
+fi
+
+if [ ! -d ${REPO_ARCH} ] ; then
+  ErrExit 21 "REPO_ARCH:${REPO_ARCH} not a directory"
+fi
+
+Rc ErrExit 22 "cp -puv ${RPMS_ARCH}/${PRODUCT}* ${REPO_ARCH}"
+Rc ErrExit 23 "createrepo --update ${COMMON_LOCALREPO}"
+Rc ErrExit 24 "yum search ${PRODUCT}"
+
+Rc ErrExit 30 "yum -y install slashcluster"
+
+exit ${EX_OK}

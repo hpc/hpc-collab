@@ -1,0 +1,51 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../common/requires/vcfs/4.nfs-mounts
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+
+declare -x _d=${COMMON}/${HOSTNAME}.$$d
+declare -x _f=${COMMON}/${HOSTNAME}.$$f
+declare -x MNTTAB=/proc/self/mountinfo
+
+if [ -s /etc/exports ] ; then
+  Rc ErrExit ${EX_OSFILE}  "timeout ${TIMEOUT} showmount -e ${IPADDR}"
+fi
+
+_nfs_mntpoints=$(findmnt -t nfs -F /etc/fstab -n | awk '{print $1}' | sort -d)
+
+for _m in ${_nfs_mntpoints}
+do
+  fstyp=$(stat -f "${_m}" --format="%T")
+  if [ ! -f ${MNTTAB} ] ; then
+    ErrExit ${EX_SOFTWARE} "MNTTAB: ${MNTTAB} not readable"
+  fi
+  grep -s "${_m}" ${MNTTAB} >/dev/null 2>&1
+  rc=$?
+  if [ ${rc} -eq ${GREP_FOUND} ] ; then
+    continue
+  fi
+  Rc ErrExit ${EX_OSFILE} "mount ${_m}"
+done
+
+trap '' 0
+exit ${EX_OK}
+

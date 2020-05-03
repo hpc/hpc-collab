@@ -1,0 +1,85 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../requires/vcfs/6.enable-nfs-local-yum-repo
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x COMMON_TMP=${COMMON}/tmp
+
+declare -x _d=${COMMON_TMP}/${HOSTNAME}
+declare -x _f=${_d}/$$f
+
+declare -x COMMON_YUM_REPOS_D=${VC_COMMON}/${YUM_REPOS_D}
+declare -x YUM_CENTOS_REPO_LOCAL=CentOS-Base-local.repo
+
+SetFlags >/dev/null 2>&1
+
+Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
+
+if [ -n "${ONLY_REMOTE_REPOS}" ] ; then
+  echo -n "    ONLY_REMOTE_REPOS "
+  exit ${EX_OK}
+fi
+
+for d in COMMON_YUM_REPOS_D COMMON_TMP
+do
+  if [ ! -d "${!d}" ] ; then
+    ErrExit ${EX_OSFILE} "${d}:${!d} not a directory"
+  fi
+done
+
+local_repo=${COMMON_YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL}
+
+if [ -L "${local_repo}" ] ; then
+  target=$(readlink ${local_repo})
+  local_repo=${target}
+fi
+
+if [ ! -f "${local_repo}" ] ; then
+  ErrExit ${EX_OSFILE} "${local_repo} does not exist"
+fi
+
+# this disables the centos repo located off-cluster and enables the one provided within the cluster
+Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^enabled=0/s/=0/=1/ ${COMMON_YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL} ;"
+Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^gpgcheck=1/s/=1/=0/ ${COMMON_YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL};"
+
+if [ -n "${SKIP_UPDATERPMS}" ] ; then
+  Verbose "   SKIP_UPDATERPMS"
+else
+
+  # This can be expensive, especially if the virtualbox additions rpms are not the latest, as it will trigger a dkms rebuild
+  disable_localrepo_arg=""
+  ARCH=${ARCH:-$(uname -m)}
+  if [ -z "${ARCH}" ] ; then
+    ErrExit ${EX_CONFIG} " ARCH empty"
+  fi
+  if [ -z "${COMMON_LOCALREPO}" ] ; then
+    ErrExit ${EX_CONFIG} " COMMON_LOCALREPO empty"
+  fi
+  if [ ! -d ${COMMON_LOCALREPO} -o ! -d ${COMMON_LOCALREPO}/repodata ] ; then
+    disable_localrepo_arg="--disablerepo=local-vcbuild"
+  fi
+  Rc Warn ${EX_OSFILE} "timeout ${YUM_TIMEOUT_UPDATE} yum ${disable_localrepo_arg} -y update"
+  rc=$?
+  Rc ErrExit ${EX_OSFILE} "timeout ${YUM_TIMEOUT_UPDATE} yum-complete-transaction ${disable_localrepo_arg}"
+fi
+
+trap '' 0
+exit ${EX_OK}

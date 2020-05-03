@@ -1,0 +1,60 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../common/config/rsyslog/3.semanage-permissive-syslogd_t
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x ETC=/etc
+declare -x ETC_RSYSLOG_CONF=${ETC}/rsyslog.conf
+declare -x VAR_LOG_RSYSLOG=/var/log/rsyslog
+declare -x VAR_LOG_RSYSLOG_HOSTNAME=${VAR_LOG_RSYSLOG}/${HOSTNAME}
+declare -x COMMON_VAR_LOG_RSYSLOG=${COMMON}${VAR_LOG_RSYSLOG}
+
+FixRsyslogSELinuxFailure() {
+  if [ ! -f "${ETC_RSYSLOG_CONF}" ] ; then
+    ErrExit ${EX_SOFTWARE} "${ETC_RSYSLOG_CONF} does not exist"
+  fi
+
+  for _f in ${VAR_LOG_RSYSLOG} ${COMMON_VAR_LOG_RSYSLOG} ${COMMON_VAR_LOG_RSYSLOG}/*
+  do
+    orig_secontext=$(ls -lZ ${_f} | awk '{print $4}')
+    setype=var_log_t
+    varlog_secontext="unconfined_u:object_r:${setype}:s0"
+    fstyp=$(stat -f --format="%T" ${_f})
+    if [ "${fstyp}" = "nfs" -a -d ${_f} ] ; then
+      Verbose " Warning: skipping directory: ${_f}"
+      continue
+    fi
+    if [ "${orig_secontext}" != "${varlog_secontext}" ] ; then
+      Rc ErrExit ${EX_OSERR} "chcon ${varlog_secontext} ${_f}"
+      Rc ErrExit ${EX_OSERR} "semanage fcontext -a -t ${setype} ${_f}\(/.*\)\?"
+    fi
+
+    secontext=$(ls -lZ ${_f} | awk '{print $4}')
+    if [ "${secontext}" != "${varlog_secontext}" ] ; then
+      Verbose " Warning: ${_f}: secontext mismatch"
+      Verbose "          \"${secontext}\" != \"${varlog_secontext}\""
+    fi
+  done
+  return
+}
+Rc ErrExit ${EX_CONFIG} "semanage permissive -a syslogd_t"
+
+trap '' 0
+exit ${EX_OK}

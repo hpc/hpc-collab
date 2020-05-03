@@ -1,0 +1,331 @@
+.TH sstat "1" "Slurm Commands" "June 2018" "Slurm Commands"
+
+.SH "NAME"
+sstat \- Display various status information
+of a running job/step.
+
+.SH "SYNOPSIS"
+.BR "sstat "
+[\fIOPTIONS\fR...]
+
+.SH "DESCRIPTION"
+.PP
+Status information for running jobs invoked with Slurm.
+.PP
+The
+.BR "sstat "
+command displays job status information for your analysis.
+The
+.BR "sstat "
+command displays information pertaining to CPU, Task, Node, Resident
+Set Size (RSS) and Virtual Memory (VM).
+You can tailor the output with the use of the
+\f3\-\-fields=\fP
+option to specify the fields to be shown.
+.PP
+For the root user, the
+.BR "sstat "
+command displays job status data for any job running on the system.
+.PP
+For the non\-root user, the
+.BR "sstat "
+output is limited to the user's jobs.
+
+.PP
+NOTE:  The
+.BR "sstat "
+command requires that the \f3jobacct_gather\fP plugin be installed and
+operational.
+.PP
+NOTE:  The
+.BR "sstat "
+command is not supported on Cray ALPS.
+
+.TP
+\f3\-a\fP\f3,\fP \f3\-\-allsteps\fP
+Print all steps for the given job(s) when no step is specified.
+
+.TP
+\f3\-e\fP\f3,\fP \f3\-\-helpformat\fP
+Print a list of fields that can be specified with the '\-\-format' option.
+
+.TP
+\f3\-h\fP\f3,\fP \f3\-\-help\fP
+Displays a general help message.
+
+.TP
+\f3\-i\fP\f3,\fP \f3\-\-pidformat\fP
+Predefined format to list the pids running for each job step.
+(JobId,Nodes,Pids)
+
+.TP
+\f3\-j\fP\f3,\fP \f3\-\-jobs\fP
+Format is <job(.step)>. Stat this job step or comma-separated list of
+job steps. This option is required.  The step portion will default to
+lowest step running if not specified, unless the \-\-allsteps flag is
+set where not specifying a step will result in all running steps to be
+displayed.
+NOTE: A step id of 'batch' will display the information about the batch step.
+NOTE: A step id of 'extern' will display the information about the
+extern step.  This step is only available when using PrologFlags=contain
+
+.TP
+\f3\-n\fP\f3,\fP \f3\-\-noheader\fP
+No heading will be added to the output. The default action is to
+display a header.
+
+.TP
+\f3\-\-noconvert\fP
+Don't convert units from their original type (e.g. 2048M won't be converted to
+2G).
+
+.TP
+\f3\-o\fP\f3,\fP \f3\-\-format\fP,\fP \f3\-\-fields\fP
+Comma separated list of fields.
+(use '\-\-helpformat' for a list of available fields).
+
+NOTE: When using the format option for listing various fields you can put a
+%NUMBER afterwards to specify how many characters should be printed.
+
+i.e. format=name%30 will print 30 characters of field name right
+justified.  A \-30 will print 30 characters left justified.
+
+.TP
+\f3\-p\fP\f3,\fP \f3\-\-parsable\fP
+output will be '|' delimited with a '|' at the end
+
+.TP
+\f3\-P\fP\f3,\fP \f3\-\-parsable2\fP
+output will be '|' delimited without a '|' at the end
+
+.TP
+\f3\-\-usage\fP
+Display a command usage summary.
+
+.TP
+\f3\-v\fP\f3,\fP \f3\-\-verbose\fP
+Primarily for debugging purposes, report the state of various
+variables during processing.
+
+.TP
+\f3\-V\fP\f3,\fP \f3\-\-version\fP
+Print version.
+
+
+.SS "Job Status Fields"
+The following are the field options:
+.RS
+.TP
+\f3AveCPU\fP
+Average (system + user) CPU time of all tasks in job.
+
+.TP
+\f3AveCPUFreq\fP
+Average weighted CPU frequency of all tasks in job, in kHz.
+
+.TP
+\f3AveDiskRead\fP
+Average number of bytes read by all tasks in job.
+
+.TP
+\f3AveDiskWrite\fP
+Average number of bytes written by all tasks in job.
+
+.TP
+\f3AvePages\fP
+Average number of page faults of all tasks in job.
+
+.TP
+\f3AveRSS\fP
+Average resident set size of all tasks in job.
+
+.TP
+\f3AveVMSize\fP
+Average Virtual Memory size of all tasks in job.
+
+.TP
+\f3ConsumedEnergy\fP
+Total energy consumed by all tasks in job, in joules.
+Note: Only in case of exclusive job allocation this value 
+reflects the jobs' real energy consumption. 
+
+.TP
+\f3JobID\fP
+The number of the job or job step.
+It is in the form:
+\f2job.jobstep\fP\c
+\&.
+
+.TP
+\f3MaxDiskRead\fP
+Maximum number of bytes read by all tasks in job.
+
+.TP
+\f3MaxDiskReadNode\fP
+The node on which the maxdiskread occurred.
+
+.TP
+\f3MaxDiskReadTask\fP
+The task ID where the maxdiskread occurred.
+
+.TP
+\f3MaxDiskWrite\fP
+Maximum number of bytes written by all tasks in job.
+
+.TP
+\f3MaxDiskWriteNode\fP
+The node on which the maxdiskwrite occurred.
+
+.TP
+\f3MaxDiskWriteTask\fP
+The task ID where the maxdiskwrite occurred.
+
+.TP
+\f3MaxPages\fP
+Maximum number of page faults of all tasks in job.
+
+.TP
+\f3MaxPagesNode\fP
+The node on which the maxpages occurred.
+
+.TP
+\f3MaxPagesTask\fP
+The task ID where the maxpages occurred.
+
+.TP
+\f3MaxRSS\fP
+Maximum resident set size of all tasks in job.
+
+.TP
+\f3MaxRSSNode\fP
+The node on which the maxrss occurred.
+
+.TP
+\f3MaxRSSTask\fP
+The task ID where the maxrss occurred.
+
+.TP
+\f3MaxVMSize\fP
+Maximum Virtual Memory size of all tasks in job.
+
+.TP
+\f3MaxVMSizeNode\fP
+The node on which the maxvsize occurred.
+
+.TP
+\f3MaxVMSizeTask\fP
+The task ID where the maxvsize occurred.
+
+.TP
+\f3MinCPU\fP
+Minimum (system + user) CPU time of all tasks in job.
+
+.TP
+\f3MinCPUNode\fP
+The node on which the mincpu occurred.
+
+.TP
+\f3MinCPUTask\fP
+The task ID where the mincpu occurred.
+
+.TP
+\f3NTasks\fP
+Total number of tasks in a job or step.
+
+.TP
+\f3ReqCPUFreq\fP
+Requested CPU frequency for the step, in kHz.
+
+.TP
+\f3TresUsageInAve\fP
+Tres average usage in by all tasks in job.
+NOTE: If corresponding TresUsageInMaxTask is -1 the metric is node centric
+instead of task.
+
+.TP
+\f3TresUsageInMax\fP
+Tres maximum usage in by all tasks in job.
+NOTE: If corresponding TresUsageInMaxTask is -1 the metric is node centric
+instead of task.
+
+.TP
+\f3TresUsageInMaxNode\fP
+Node for which each maximum TRES usage out occurred.
+
+.TP
+\f3TresUsageInMaxTask\fP
+Task for which each maximum TRES usage out occurred.
+
+.TP
+\f3TresUsageOutAve\fP
+Tres average usage out by all tasks in job.
+NOTE: If corresponding TresUsageOutMaxTask is -1 the metric is node centric
+instead of task.
+
+.TP
+\f3TresUsageOutMax\fP
+Tres maximum usage out by all tasks in job.
+NOTE: If corresponding TresUsageOutMaxTask is -1 the metric is node centric
+instead of task.
+
+.TP
+\f3TresUsageOutMaxNode\fP
+Node for which each maximum TRES usage out occurred.
+
+.TP
+\f3TresUsageOutMaxTask\fP
+Task for which each maximum TRES usage out occurred.
+
+.SH "PERFORMANCE"
+.PP
+Executing \fBsstat\fR sends a remote procedure call to \fBslurmctld\fR. If
+enough calls from \fBsstat\fR or other Slurm client commands that send remote
+procedure calls to the \fBslurmctld\fR daemon come in at once, it can result in
+a degradation of performance of the \fBslurmctld\fR daemon, possibly resulting
+in a denial of service.
+.PP
+Do not run \fBsstat\fR or other Slurm client commands that send remote procedure
+calls to \fBslurmctld\fR from loops in shell scripts or other programs. Ensure
+that programs limit calls to \fBsstat\fR to the minimum necessary for the
+information you are trying to gather.
+
+.SH "ENVIRONMENT VARIABLES"
+.PP
+Some \fBsstat\fR options may be set via environment variables. These
+environment variables, along with their corresponding options, are listed below.
+(Note: commandline options will always override these settings)
+.TP 20
+\fBSLURM_CONF\fR
+The location of the Slurm configuration file.
+
+.SH "EXAMPLES"
+
+.TP
+\f3sstat \-\-format=AveCPU,AvePages,AveRSS,AveVMSize,JobID \-j 11\fP
+25:02.000  0K         1.37M      5.93M      9.0
+
+.TP
+\f3sstat \-p \-\-format=AveCPU,AvePages,AveRSS,AveVMSize,JobID \-j 11\fP
+25:02.000|0K|1.37M|5.93M|9.0|
+
+.SH "COPYING"
+Copyright (C) 2009 Lawrence Livermore National Security.
+Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+.br
+Copyright (C) 2010\-2013 SchedMD LLC.
+.LP
+This file is part of Slurm, a resource management program.
+For details, see <https://slurm.schedmd.com/>.
+.LP
+Slurm is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your option)
+any later version.
+.LP
+Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+.SH "SEE ALSO"
+\fBsacct\fR(1)

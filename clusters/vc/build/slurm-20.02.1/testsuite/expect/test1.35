@@ -1,0 +1,166 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Test of batch job with multiple concurrent job steps
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2002-2006 The Regents of the University of California.
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Morris Jette <jette1@llnl.gov>
+# CODE-OCEC-09-009. All rights reserved.
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+
+set test_id     "1.35"
+set file_in     "test$test_id.input"
+set file_out    "test$test_id.output"
+set file_err    "test$test_id.error"
+
+set exit_code            0
+set job_id               0
+set steps_started        30
+
+print_header $test_id
+
+log_user 0
+set job_mem_opt  "--comment=no_mem"
+set step_mem_opt "--comment=no_mem"
+spawn -noecho $bin_bash -c "exec $scontrol show config | $bin_grep SelectTypeParameters"
+expect {
+	-re "MEMORY" {
+		set job_mem_opt  "--mem-per-cpu=64"
+		set step_mem_opt "--mem-per-cpu=2"
+		exp_continue
+	}
+	eof {
+		wait
+	}
+}
+log_user 1
+
+#
+# Delete left-over input script plus stdout/err files
+# Build input script file
+# Sleep between initiation of job steps to avoid overwhelming slurmd
+#
+# NOTE: Explicitly set a small memory limit. Without explicitly setting the step
+#   memory limit, it will use the system default (same as the job) which may
+#   prevent the level of parallelism desired.
+#
+exec $bin_rm -f $file_in $file_out $file_err
+make_bash_script $file_in "
+  for ((i = 0; i < $steps_started; i++)); do
+    j=`expr $steps_started + 15 - \$i`
+    $srun -N1 -n1 $step_mem_opt $bin_sleep \$j &
+    $bin_sleep 1
+  done
+  $bin_sleep 2
+  $squeue -s
+  wait
+"
+
+#
+# Spawn a srun batch job that uses stdout/err and confirm their contents
+#
+set node_cnt 1-4
+set timeout $max_job_delay
+
+set srun_pid [eval spawn $sbatch -N$node_cnt --output=$file_out --error=$file_err -t1 --gres=craynetwork:0 $job_mem_opt $file_in]
+expect {
+	-re "Requested node configuration is not available" {
+		send_user "\nFAILURE: Memory is allocated, but your nodes don't have even 256MB configured\n"
+		set exit_code 1
+	}
+	-re "Submitted batch job ($number)" {
+		set job_id $expect_out(1,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: srun not responding\n"
+		slow_kill $srun_pid
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$job_id == 0} {
+	send_user "\nFAILURE: batch submit failure\n"
+	exit 1
+}
+
+#
+# Wait for job to complete
+#
+sleep 30
+if {[wait_for_job $job_id "DONE"] != 0} {
+	send_user "\nFAILURE: waiting for job to complete\n"
+	cancel_job $job_id
+	set exit_code 1
+}
+
+#
+# Check steps in stdout
+#
+set step_cnt 0
+if {[wait_for_file $file_out] == 0} {
+	spawn $bin_cat $file_out
+	expect {
+		-re "($job_id).($number)" {
+			incr step_cnt
+			exp_continue
+		}
+		eof {
+			wait
+		}
+	}
+}
+if {$step_cnt != $steps_started} {
+	set mem_err 0
+	if {[wait_for_file $file_err] == 0} {
+		spawn $bin_cat $file_err
+		expect {
+			-re "memory limit" {
+				set mem_err 1
+			}
+			eof {
+				wait
+			}
+		}
+	}
+	if {$mem_err == 1} {
+		send_user "\nWARNING: Test could not complete due to memory limit\n"
+		set step_cnt $steps_started
+	} else {
+		send_user "\nFAILURE: not all steps reported by squeue\n"
+		set exit_code 1
+	}
+}
+
+if {$exit_code == 0} {
+	send_user "\nSUCCESS\n"
+	exec $bin_rm -f $file_in $file_out $file_err
+}
+exit $exit_code

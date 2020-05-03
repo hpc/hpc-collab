@@ -1,0 +1,38 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../common/config/rsyslog/2.reread-rsyslog.conf
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+declare -x LOGROTATE_D=/etc/logrotate.d
+declare -x LOGROTATE_SYSLOG=${LOGROTATE_D}/syslog
+declare -x RSYSLOG_D=/var/log/rsyslog
+declare -x RSYSLOG=${RSYSLOG_D}/${HOSTNAME}
+
+if [ ! -f ${RSYSLOG} ] ; then
+  ErrExit ${EX_OSFILE} "RSYSLOG:${RSYSLOG} nonexistent file"
+fi
+grep "${RSYSLOG}" ${LOGROTATE_SYSLOG} >/dev/null 2>&1
+rc=$?
+if [ ${rc} -ne ${GREP_FOUND} ] ; then
+  sed -i -e "/var\/log\/messages/a\
+${RSYSLOG}" ${LOGROTATE_SYSLOG}
+fi
+
+trap '' 0
+exit ${EX_OK}

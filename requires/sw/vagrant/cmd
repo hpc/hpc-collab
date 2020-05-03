@@ -1,0 +1,1 @@
+vagrant --version | awk '{print $2}'

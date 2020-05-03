@@ -1,0 +1,77 @@
+.TH "common/provision/lib/traptidy.sh" 3 "Wed Apr 15 2020" "HPC Collaboratory" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+common/provision/lib/traptidy.sh
+.SH SYNOPSIS
+.br
+.PP
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBTidyUp\fP (\&.\&.\&. file list \&.\&.\&., \fBLEAVE_BREADCRUMB_PROCS\fP, LEAVE_BREADCRUMBS, RM_DISABLED)"
+.br
+.RI "This library file contains signal trap handlers and cleanup routines\&. "
+.ti -1c
+.RI "\fBTrap\fP ()"
+.br
+.RI "This library file contains signal trap handlers\&. "
+.ti -1c
+.RI "\fBTrapCleanup\fP (\fBTRAP_NOISY\fP, \fBDEBUG\fP)"
+.br
+.in -1c
+.SH "Function Documentation"
+.PP 
+.SS "TidyUp (\&.\&.\&. file list \&.\&.\&., \fBLEAVE_BREADCRUMB_PROCS\fP, LEAVE_BREADCRUMBS, RM_DISABLED)"
+
+.PP
+This library file contains signal trap handlers and cleanup routines\&. remove state that was created or is stale 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfilelist\fP 
+.br
+\fILEAVE_BREADCRUMB_PROCS\fP 
+.br
+\fILEAVE_BREADCRUMBS\fP 
+.br
+\fIRM_DISABLED\fP 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+void 
+.RE
+.PP
+
+.SS "Trap ()"
+
+.PP
+This library file contains signal trap handlers\&. 
+.SS "TrapCleanup (\fBTRAP_NOISY\fP, \fBDEBUG\fP)"
+declares an exit and interrupt trap, calls TidyUp with its arguments 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIfileName\fP 
+.br
+\fITRAP_NOISY\fP 
+.br
+\fIDEBUG\fP 
+.RE
+.PP
+\fBTodo\fP
+.RS 4
+return (SIGBASE + <signal number>) when != EX_OK 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+void 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for HPC Collaboratory from the source code\&.

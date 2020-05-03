@@ -1,0 +1,6 @@
+%bcond_without debug
+%bcond_without hdf5
+%bcond_without hwloc
+%bcond_without lua
+%bcond_without mysql
+%bcond_without ucx

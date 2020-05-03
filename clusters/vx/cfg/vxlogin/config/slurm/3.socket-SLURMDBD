@@ -1,0 +1,43 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/config/slurm/3.socket-SLURMDBD
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr-slurmdbd)
+
+dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//' | tr -d '\n')
+if [ -z "${dbdport}" ] ; then
+  dbdport=$(grep -i AccountingStoragePort ${SLURMCONF} | tr '[:upper:]' '[:lower:]' | sed 's/accountingstorageport=//')
+fi
+numeric='^[0-9]+$'
+if ! [[ ${dbdport} =~ $numeric ]] ; then
+  echo "  Warning: dbdport:\"${dbdport}\" is not numeric, using DEFAULT_DBDPORT:${DEFAULT_DBDPORT}"
+  dbdport=${DEFAULT_DBDPORT}
+fi
+if [ -z "${dbdport}" -o '#' = "${dbdport}" ] ; then
+  echo "  Warning: dbdport:\"${dbdport}\" is empty or broken, using DEFAULT_DBDPORT:${DEFAULT_DBDPORT}"
+  dbdport=${DEFAULT_DBDPORT}
+fi
+
+Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
+Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1 -v ${IPADDR} ${dbdport} </dev/null"
+
+trap '' 0
+exit ${EX_OK}

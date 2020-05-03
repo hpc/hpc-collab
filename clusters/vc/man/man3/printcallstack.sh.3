@@ -1,0 +1,40 @@
+.TH "common/provision/lib/printcallstack.sh" 3 "Wed Apr 15 2020" "HPC Collaboratory" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+common/provision/lib/printcallstack.sh
+.SH SYNOPSIS
+.br
+.PP
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBprintCallStack\fP (void, BASH_LINENO, BASH_SOURCE)"
+.br
+.in -1c
+.SH "Function Documentation"
+.PP 
+.SS "printCallStack (void, BASH_LINENO, BASH_SOURCE)"
+prints the bash function call stack\&. It is not re-entrant\&. It must not call other functions that could then call itself\&. (ie\&. \fBErrExit()\fP)
+.PP
+Much of this function is adapted from a wide variety of bash shell debugging sites and programming fora\&.
+.PP
+\fBNote:\fP
+.RS 4
+Non-copyright: This function is separable, was not authored by a Triad or LANL employee and is not copyrightten Triad nor by Los Alamos National Lab\&.
+.RE
+.PP
+\fBParameters:\fP
+.RS 4
+\fIORIGPWD\fP 
+.br
+\fIBASH_LINENO\fP 
+.br
+\fIBASH_SOURCE\fP 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for HPC Collaboratory from the source code\&.

@@ -1,0 +1,4 @@
+nfs-server
+libsemanage-python
+policycoreutils-python
+setools-console

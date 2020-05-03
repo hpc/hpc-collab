@@ -1,0 +1,9 @@
+This directory is used for configuration and common storage among this cluster's nodes and the host system.
+
+To Do:
+
+1. convert nodes structure into nodes.YAML, so that each cluster only has a unique driver table and a common Vagrantfile
+2. refactor provision/{bin,lib,loader,env}/{*,bin/*} separately so that it is not within the cluster definition
+3. combine linked clusters into linked Vagrantfiles, one upper-level which refers to the lower-level ones
+
+# vim: background=dark expandtab shiftwidth=2 softtabstop=2 tabstop=2

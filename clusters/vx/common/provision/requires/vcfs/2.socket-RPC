@@ -1,0 +1,30 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file .../requires/vcfs/2.socket-RPC
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x RPC_PORT=111
+
+Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
+Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1 -v -z ${IPADDR} ${RPC_PORT} </dev/null"
+
+trap '' 0
+exit ${EX_OK}

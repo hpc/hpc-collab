@@ -1,0 +1,230 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+
+ENV["LC_ALL"] = "en_US.UTF-8"
+ENV["TZ"] = "MST7MDT"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/centos7"
+
+  config.ssh.forward_env = ["TZ", "LC_ALL"]
+  config.ssh.forward_agent = true
+  config.ssh.forward_x11 = true
+#  Don't enable this without debugging the delay in initial connection
+#  config.ssh.keys_only = false
+
+  config.vm.provision "shell", path:  "./cfg/provision/bin/provision.sh"
+
+  config.vm.define "vcfs", primary: true do |vcfs|
+    vcfs.vm.hostname = "vcfs"
+    vcfs.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vcfs.vm.network # eth0 will always be NAT
+    vcfs.vm.network "private_network", ip: "192.168.56.79", :mac => "5CA1AB1E00F5", nic_type: "virtio"
+
+    vcfs.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vcfs" }
+    end
+
+    vcfs.trigger.before [:up] do |ingestfromhost|
+      ingestfromhost.run = {path: "./cfg/provision/bin/ingestfromhost.sh", args: "vcfs :DOTFILES :DOTSSH" }
+    end
+
+# insufficiently tested to accommodate the range of uid/gid differences from outside the cluster to the inside
+#		vcfs.trigger.before [:up] do |collectinvokinguserinfo|
+#			collectinvokinguserinfo.run = {path: "./cfg/provision/bin/collectinvokinguserinfo.sh" }
+#		end
+
+    vcfs.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vcfs" }
+    end
+
+    vcfs_repodisk = 'tarballs/vcfs_repodisk.vdi'
+    vcfs.vm.provider "virtualbox" do |vcfsvb|
+      vcfsvb.default_nic_type = "virtio"
+      vcfsvb.memory = "4352"
+      vcfsvb.cpus = 2
+      unless File.exist?(vcfs_repodisk)
+        vcfsvb.customize ['createhd', '--filename', vcfs_repodisk, '--variant', 'Fixed', '--size', 20 * 1024]
+      end
+      vcfsvb.customize ['storageattach', :id,  '--storagectl', 'IDE Controller', '--port', 1, '--device', 0,
+													'--type', 'hdd', '--medium', vcfs_repodisk]
+    end
+  end
+
+  config.vm.define "vcsvc", primary: true do |vcsvc|
+    vcsvc.vm.hostname = "vcsvc"
+    vcsvc.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vcsvc.vm.network # eth0 will always be NAT
+    vcsvc.vm.network "private_network", ip: "192.168.56.71", :mac => "5CA1AB1E051C", nic_type: "virtio"
+
+    vcsvc.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vcsvc" }
+    end
+
+    vcsvc.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vcsvc" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "1024"
+      vb.cpus = 2
+    end
+  end
+
+  config.vm.define "vcbuild" do |vcbuild|
+    vcbuild.vm.hostname = "vcbuild"
+    vcbuild.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vcbuild.vm.network # eth0 will always be NAT
+    vcbuild.vm.network "private_network", ip: "192.168.56.75", :mac => "5CA1AB1E00B1", nic_type: "virtio"
+
+    vcbuild.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vcbuild" }
+    end
+
+    vcbuild.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vcbuild" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "10496"
+      vb.cpus = 2
+    end
+  end
+
+  config.vm.define "vcdb" do |vcdb|
+    vcdb.vm.hostname = "vcdb"
+    vcdb.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vcdb.vm.network # eth0 will always be NAT
+    vcdb.vm.network "private_network", ip: "192.168.56.77", :mac => "5CA1AB1E00DB", nic_type: "virtio"
+
+    vcdb.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vcdb" }
+    end
+
+    vcdb.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vcdb" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "2304"
+      vb.cpus = 2
+    end
+  end
+
+  config.vm.define "vcsched" do |vcsched|
+    vcsched.vm.hostname = "vcsched"
+    vcsched.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vcsched.vm.network # eth0 will always be NAT
+    vcsched.vm.network "private_network", ip: "192.168.56.64", :mac => "5CA1AB1E0000", nic_type: "virtio"
+
+    vcsched.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vcsched" }
+    end
+
+    vcsched.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vcsched" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "2304"
+      vb.cpus = 2
+    end
+  end
+
+  config.vm.define "vc1" do |vc1|
+    vc1.vm.hostname = "vc1"
+    vc1.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vc1.vm.network # eth0 will always be NAT
+    vc1.vm.network "private_network", ip: "192.168.56.65", :mac => "5CA1AB1E0001", nic_type: "virtio"
+
+    vc1.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vc1" }
+    end
+
+    vc1.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vc1" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "1280"
+      vb.cpus = 1
+    end
+  end
+
+  config.ssh.insert_key = false
+  config.vm.define "vc2" do |vc2|
+    vc2.vm.hostname = "vc2"
+    vc2.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vc2.vm.network # eth0 will always be NAT
+    vc2.vm.network "private_network", ip: "192.168.56.66", :mac => "5CA1AB1E0002", nic_type: "virtio"
+
+    vc2.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vc2" }
+    end
+
+    vc2.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vc2" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "1280"
+      vb.cpus = 1
+    end
+  end
+
+  # this needs to be after other compute nodes for final configuration once all other nodes are up
+  # Vagrant ordering or dependency keyword?
+
+  config.vm.define "vclogin" do |vclogin|
+    vclogin.vm.hostname = "vclogin"
+    vclogin.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vclogin.vm.network # eth0 will always be NAT
+    vclogin.vm.network "private_network", ip: "192.168.56.73", :mac => "5CA1AB1E0106", nic_type: "virtio"
+
+    vclogin.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vclogin" }
+    end
+
+    vclogin.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vclogin" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "1280"
+      vb.cpus = 1
+    end
+  end
+
+  config.vm.define "vcgate" do |vcgate|
+    vcgate.vm.hostname = "vcgate"
+    vcgate.vm.synced_folder ".", "/vagrant", create: true, type: "virtualbox"
+#   vcgate.vm.network # eth0 will always be NAT
+    vcgate.vm.network "private_network",  ip: "192.168.56.69", :mac => "5CA1AB1E005A", nic_type: "virtio"
+# the bridge: "..." command is collecting the name of the external interface to attach to the bridge in the host (not the guest)
+    vcgate.vm.network "public_network", nic_type: "virtio",
+																				bridge: `/sbin/ip route | grep default | awk '{printf "%s", $5}'`,
+																				ip: "0.0.0.0"
+
+    vcgate.trigger.before [:up] do |noduplicate|
+      noduplicate.run = {path: "./cfg/provision/bin/nodup.sh", args: "vcgate" }
+    end
+
+    vcgate.trigger.before [:destroy] do |unprovision|
+      unprovision.run = {path: "./cfg/provision/bin/unprovision.sh", args: "vcgate" }
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+      vb.default_nic_type = "virtio"
+      vb.memory = "1280"
+      vb.cpus = 1
+    end
+  end
+
+end

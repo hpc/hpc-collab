@@ -1,0 +1,18 @@
+#!/bin/bash
+
+export COMMONETC_SSH_KNOWNHOSTS=/home/vagrant/common/etc/ssh//ssh_known_hosts
+export ETCSSH_KNOWNHOSTS=/etc/ssh/ssh_known_hosts
+export CROND=/etc/cron.d
+export CROND_MON_KNOWNHOSTS=${CROND}/mon_knownhosts
+
+cat - << __CRON_HOURLY_ENTRY_EOF__ > ${CROND_MON_KNOWNHOSTS}
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+
+*/3 * * * * root rsync -b -c ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}
+__CRON_HOURLY_ENTRY_EOF__
+
+systemctl restart crond
+exit $?
+

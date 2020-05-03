@@ -1,0 +1,22 @@
+sched: [2019-10-25T17:48:42.070] Backfill scheduler plugin loaded
+sched: [2019-10-25T17:48:50.690] slurmctld terminating
+sched: [2019-10-25T17:49:20.366] Backfill scheduler plugin loaded
+sched: [2019-10-25T17:49:27.775] slurmctld terminating
+sched: [2019-10-25T17:49:36.259] slurmctld starting
+sched: [2019-10-25T17:49:36.823] Backfill scheduler plugin loaded
+sched: [2019-10-25T17:50:37.634] Running job scheduler
+sched: [2019-10-25T17:51:37.247] Running job scheduler
+sched: [2019-10-25T17:52:07.598] begin reconfiguration
+sched: [2019-10-25T17:52:08.655] Running job scheduler
+sched: [2019-10-25T17:52:38.008] Running job scheduler
+sched: [2019-10-25T17:53:38.790] Running job scheduler
+sched: [2019-10-25T17:54:08.910] begin reconfiguration
+sched: [2019-10-25T17:54:09.165] Running job scheduler
+sched: [2019-10-25T17:54:38.745] Running job scheduler
+sched: [2019-10-25T17:55:20.139] begin reconfiguration
+sched: [2019-10-25T17:55:21.243] Running job scheduler
+sched: [2019-10-25T17:55:38.455] Running job scheduler
+sched: [2019-10-25T17:56:38.214] Running job scheduler
+sched: [2019-10-25T17:57:38.961] Running job scheduler
+sched: [2019-10-25T17:58:38.678] Running job scheduler
+sched: [2019-10-25T17:58:59.588] slurmctld terminating

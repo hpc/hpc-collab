@@ -1,0 +1,63 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/lustre/4.git-clone-lustre
+
+VCLOAD=/vc/cfg/provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+PRODUCT=$(basename $(pwd))
+
+BUILDWHERE=${VC}/build
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDLUSTRE=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDLUSTRE}/RPMS.Manifest
+VERSION=${BUILDLUSTRE}/version
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=$(uname -m)
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+LOCALREPO=${VAGRANT}/etc/localrepo
+LUSTRE_RELEASE="lustre-release"
+
+if [ -z "${BUILD_LUSTRE_FLAG}" ] ; then
+  Verbose " [BUILD_LUSTRE_FLAG empty: skipped]"
+  exit ${EX_OK}
+fi
+
+#LUSTRE_GIT_HOST="git://git.hpdd.intel.com"
+LUSTRE_GIT_HOST="git://git.whamcloud.com"
+LUSTRE_GIT_HOST_URL=${LUSTRE_GIT_HOST}/fs/${LUSTRE_RELEASE}.git
+
+LUSTRE_VERSION=$(cat ${VERSION})
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
+  ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} is not a directory"
+fi
+cd ${BUILDWHERE}/${PRODUCT}
+
+if [ ! -d "${LUSTRE_RELEASE}" ] ; then
+  Rc ErrExit ${EX_SOFTWARE} "git clone ${LUSTRE_GIT_HOST_URL}"
+fi
+if [ ! -d ${BUILDWHERE_PRODUCT}/${LUSTRE_RELEASE} ] ; then
+  ErrExit ${EX_CONFIG} "${BUILDWHERE_PRODUCT}/${LUSTRE_RELEASE} is not a directory"
+fi
+cd ${LUSTRE_RELEASE} || ErrExit ${EX_CONFIG} "cd ${LUSTRE_RELEASE} failed"
+
+exit ${EX_OK}

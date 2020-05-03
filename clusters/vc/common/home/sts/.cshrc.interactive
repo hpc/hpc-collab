@@ -1,0 +1,242 @@
+# do nothing gracefully
+if ( $?SGE_O_SHELL || $?PBS_ENVIRONMENT || $?Not_Interactive ) then
+	:
+else
+	
+	# misc
+	set autologout=0
+	set cdpath=(. .. $home)
+	set history=256
+	set filec
+	set fignore=( .o )
+	set lineedit
+	set notify
+	set savestack=~sts/.csh_dirstack
+	set savews=~sts/.csh_ws
+	set timeout=900
+
+	set H=$HOST
+	foreach h ( `grep search /etc/resolv.conf | sed 's/search //'` local localdomain)
+		set H=(`basename $H .${h}`)
+	end
+	unset h
+	if ( "${H}" != "" ) then
+		set HOST=${H}
+	endif
+	unset H
+	
+	# set up tty
+	if ( $?tty ) then
+		if ( _"$tty" == _"" ) then
+			set tty=(`tty`)
+		endif
+	else
+		set tty=(`tty`)
+	endif
+	if ( _"$tty" == _"/dev/console" || _"$tty" == _"/dev/ttyv?" ) then
+		set On_Console
+	endif
+	
+	set stty_opt=""
+	if ( $?SVR4 || $?SOLARIS ) then
+		set stty_opt=(echoe istrip)
+	endif
+	if ( $?SUNOS ) then
+		set stty_opt="sistrip"
+	endif
+	if ( $?FREEBSD ) then
+		set stty_opt="sistrip"
+	endif
+	if ( $?LINUX ) then
+		set stty_popt="istrip"
+	endif
+	
+	if ( $?TERM ) then
+		if ( $?remote ) then
+			echo TERM is $TERM
+		endif
+	
+	 	if ( $TERM == emacs ) then
+			set stty_opt=( $stty_opt nl -echo -onlcr )
+		endif
+	endif
+	stty $stty_opt sane erase '' intr  >& /dev/null 
+	
+	# directory manipulation
+	alias convhome 'echo "\!*"|sed s=\/tmp_mnt==|sed s=$HOME=\~=|sed s=$HOMEDIR=\~='
+	alias Convdir	convhome
+	alias back	'set back=$old; set old=$cwd; cd $back; unset back; dirs'
+	alias po	popd
+	alias pu	pushd
+	alias pushd	'pushd \!* ; cd .'
+	alias popd	'popd  \!* ; cd .'
+	#alias cd	'set old=$cwd; chdir \!* '
+	
+	set   		sstack=(~sts/bin/save_dirstack)
+	set   		rstack=(~sts/bin/restore_dirstack)
+	alias sstak	source $sstack
+	alias rstak	source $rstack
+	
+	# common typos
+	alias sl	ls
+	alias ll 	ls -l
+	alias ls-l 	ls -l
+	alias lsl 	ls -l
+	alias lt	ls -t
+	alias llt	ls -lt
+	alias m	more
+	alias mroe	more
+	alias moer	more
+	alias lsse	more
+	alias mk	make
+	alias mkae	make
+	alias amke	make
+	alias grpe	grep
+	alias cd.	cd .
+	alias c		'cd \!*'
+	alias grpe	grep
+	alias gerp	grep
+	alias netstat-i	netstat -i
+	alias ns	netstat
+	alias .s	sudo
+	alias .S	'grep --silent rootc /etc/passwd && sudo -s su - rootc || sudo -s -u root'
+	alias hsotname	hostname
+
+	# emacs
+	alias ec	'emacsclient -c \!* &'
+	alias et	'emacsclient -t \!* &'
+	alias emacs     'emacsclient -c \!* &'
+	
+	# misc
+	alias h		'history 22'
+	alias rm	'mv -f \!* ~sts/.Trash/ |& grep -v dentical'
+	alias j		jobs
+	alias s.	.s
+
+	alias ssh	'ssh \!* ; cd.' #to reset window title bar
+
+        unalias ls
+        unalias ll
+        alias   ll      'ls -lF'
+	
+	alias	bindvers 'dig @\!* version.bind txt chaos'
+	
+	# Mail
+	set maildir=( $home/4/lib/Mail )
+	set spooldir=( $home/lib/procmail/spool )
+	
+	set mail=(15 /var/mail/sts /var/mail/sts-fax /var/mail/sts4 /var/mail/sts-spam)
+	alias M		Mail
+	alias f		'from | tail -22'
+	
+	# other commands
+	if ( $OS == SunOS ) then
+		alias	ping	'/usr/sbin/ping -v -s \!* 56 5'
+	else if ( $OS != Linux ) then
+		alias	ping	'/sbin/ping -c 5 \!*'
+	endif
+	
+	# prompt
+	set endprompt = "\!% "
+	if ( -w /etc/passwd ) then
+		set endprompt = "\!# "
+		set Root
+	endif
+	set	prompt=("$endprompt")
+	
+	# will be used for window titles
+	# which may be embedded within the prompt
+	if ( $?TITLE ) then
+		set	title=($TITLE)
+	else
+		set	title=($HOST)
+		setenv	TITLE $title
+	endif
+	
+	if ( $?Root ) then
+		set title=${TITLE}
+	endif
+	set	starttitle=""
+	set	endtitle=""
+	set	starticontitle=""
+	set	endicontitle=""
+	alias	settitle	'echo -n "${starttitle}\!* ${endtitle}"'
+	alias	setititle	'echo -n "${starticontitle}\!* ${endicontitle}"'
+	alias	setTitle	'settitle \!*; setititle \!*'
+
+	
+	if ( $?TERM ) then
+		switch ( _"$TERM" )
+		case _"xterm-color":
+		case _"xterm-256color":
+			if ( $?SOLARIS || $?LINUX ) then
+				setenv TERM xterm
+			endif
+			# Normal
+			set Black='\e[0;30m'        # Black
+			set Red='\e[0;31m'          # Red
+			set Green='\e[0;32m'        # Green
+			set Yellow='\e[0;33m'       # Yellow
+			set Blue='\e[0;34m'         # Blue
+			set Purple='\e[0;35m'       # Purple
+			set Cyan='\e[0;36m'         # Cyan
+			set White='\e[0;37m'        # White
+
+			# Bold
+			set BBlack='\e[1;30m'       # Black
+			set BRed='\e[1;31m'         # Red
+			set BGreen='\e[1;32m'       # Green
+			set BYellow='\e[1;33m'      # Yellow
+			set BBlue='\e[1;34m'        # Blue
+			set BPurple='\e[1;35m'      # Purple
+			set BCyan='\e[1;36m'        # Cyan
+			set BWhite='\e[1;37m'       # White
+
+			# Background
+			set On_Black='\e[40m'       # Black
+			set On_Red='\e[41m'         # Red
+			set On_Green='\e[42m'       # Green
+			set On_Yellow='\e[43m'      # Yellow
+			set On_Blue='\e[44m'        # Blue
+			set On_Purple='\e[45m'      # Purple
+			set On_Cyan='\e[46m'        # Cyan
+			set On_White='\e[47m'       # White
+
+			set NC="\e[m"               # Color Reset
+
+		case _"ansi":
+		case _"iris-ansi":
+		case _"xterm":
+		case _"xterms":
+		#case _"vt220":
+		case _"vt100":
+		case _"vs100":
+		case _"vs100s":
+			set starttitle="]2;"
+			set endtitle=""
+			alias	cd	'set old=$cwd; chdir \!* ;echo -n "${starttitle} ${title}  `Convdir ${cwd}`                [${OS} ${RELEASE}] ${endtitle}"'
+	
+			breaksw
+	
+		case _"sun":
+		case _"sun-cmd":
+			if ( ! $?On_Console && $?DISPLAY ) then
+				set starttitle="]l"
+				set endtitle="\"
+				set starticontitle="]L"
+				set endicontitle="\"
+				alias	cd	'set old=$cwd; chdir \!* ;echo -n "${starttitle} [${OS} ${RELEASE}]     ${title} `Convdir ${cwd}`${endtitle}"; echo -n "${starticontitle}${title}${endicontitle}"'
+			endif
+			breaksw
+	
+		default:
+			if ( _"$HOST" != _"$HOMEHOST" ) then
+				set prompt = ("${HOST} ${endprompt}")
+			else
+				set prompt = ("${endprompt}")
+			endif
+		endsw
+	endif
+	cd.
+endif
+

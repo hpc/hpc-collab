@@ -1,0 +1,109 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/slurm/1.setup-prereqs
+
+_d=$(dirname $0)
+provision_d=${_d}/../../../provision
+loader_d=${provision_d}/loader
+build_d=${provision_d}/../../build
+
+VCLOAD=$(cd ${loader_d}; pwd)/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CLUSTERNAME=${HOSTNAME:0:2}
+XFR=/${CLUSTERNAME}/xfr
+
+PRODUCT=$(basename ${PWD})
+BUILDWHERE=$(cd ${build_d}; pwd)
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDSLURM=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDSLURM}/RPMS.Manifest
+VERSION_FILE=${BUILDSLURM}/version
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=$(uname -m)
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+PREREQ_RPMS_F=${BUILDSLURM}/prerequisite.rpms
+
+if [ ! -f "${PREREQ_RPMS_F}" ] ; then
+  ErrExit ${EX_CONFIG} "unreadable: ${PREREQ_RPMS_F}"
+fi
+
+PREREQ_RPMS=$(echo $(cat ${PREREQ_RPMS_F}))
+SLURM_VERSION=$(cat ${VERSION_FILE})
+TAR_SUFFIX=".tar.bz2"
+SLURM_TARBALL=slurm-${SLURM_VERSION}${TAR_SUFFIX}
+SLURM_SPEC=${BUILDWHERE_PRODUCT}/${PRODUCT}.spec
+
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+SetFlags >/dev/null 2>&1
+
+sleep 10
+
+if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
+  ErrExit ${EX_CONFIG}  "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} not a directory"
+fi
+
+if [ ! -r "${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}" ] ; then
+  if [ ! -r ${XFR}/${SLURM_TARBALL} ] ; then
+    ## @todo could check that there's a newer version indicated in ${BUILDWHERE_PRODUCT} with symlink,
+    ##       but shouldn't just use that in case the build area is in transition
+    ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURM_TARBALL:${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} missing"
+  fi
+  Rc Warn ${EX_OSFILE} "ln -f ${XFR}/${SLURM_TARBALL} ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}"
+  if [ ! -f ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ] ; then
+    Rc ErrExit ${EX_OSFILE} "cp -cpruv ${XFR}/${SLURM_TARBALL} ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}"
+  fi
+fi
+
+if [ ! -r "${SLURM_SPEC}" ] ; then
+  Rc ErrExit ${EX_OSFILE} "tar -xjvf ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} -C ${BUILDWHERE}"
+fi
+
+if [ ! -r "${SLURM_SPEC}" ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURM_SPEC:${SLURM_SPEC} unreadable"
+fi
+
+SPECFILE_VERSION=$(grep -i '^Version:' ${SLURM_SPEC} | grep -v '%{version}' | sed 's/Version:\t//')
+rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
+
+if [ -n "${PREREQ_RPMS}" ] ; then
+  Rc ErrExit ${EX_OSFILE}   "yum -y install ${PREREQ_RPMS}"
+fi
+
+if [ ! -r ${SOURCES}/${SLURM_TARBALL} ] ; then
+  Verbose " cp -buv ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ${SOURCES}/${SLURM_TARBALL}"
+  Rc ErrExit ${EX_OSFILE} "cp -buv ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ${SOURCES}/${SLURM_TARBALL}"
+fi
+
+# this little dance is necessary so that the tarball internal structure contains the HOSTNAME
+slurm_vers=slurm-${SLURM_VERSION}
+slurm_vershost=${slurm_vers}-1.${HOSTNAME}
+
+if [ ! -L ${BUILDWHERE}/${slurm_vershost} ] ; then
+  Rc ErrExit ${EX_OSFILE} "ln -s ${BUILDWHERE}/${slurm_vers} ${BUILDWHERE}/${slurm_vershost}"
+fi
+if [ ! -f ${RPMBUILD}/SOURCES/${slurm_vershost}${TAR_SUFFIX} ] ; then
+  Rc ErrExit ${EX_OSFILE} "tar --exclude=\*${TAR_SUFFIX} -h -cjvf ${RPMBUILD}/SOURCES/${slurm_vershost}${TAR_SUFFIX} -C ${BUILDWHERE} ${slurm_vershost}"
+fi
+Rc ErrExit ${EX_OSFILE} "rm -f ${BUILDWHERE}/${slurm_vershost}"
+
+exit ${EX_OK}

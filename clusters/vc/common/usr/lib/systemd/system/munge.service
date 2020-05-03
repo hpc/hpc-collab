@@ -1,0 +1,22 @@
+[Unit]
+Description=MUNGE authentication service
+Documentation=man:munged(8)
+After=network.target
+After=syslog.target
+After=time-sync.target
+After=remote-fs.target
+After=nfs-client.target
+RequiresMountsFor=/home/vagrant/common
+ConditionPathIsMountPoint=/home/vagrant/common
+
+[Service]
+Type=forking
+ExecStart=/usr/sbin/munged
+PIDFile=/var/run/munge/munged.pid
+User=munge
+Group=munge
+Restart=on-failure
+#Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target

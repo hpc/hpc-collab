@@ -1,0 +1,581 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          sacctmgr +=, -= modify QoS test
+#
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2009-2010 Lawrence Livermore National Security.
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Joseph Donaghy <donaghy1@llnl.gov>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals_accounting
+
+set test_id     "21.26"
+set exit_code   0
+set tc1		"test$test_id\_cluster"
+set ta1		"test$test_id-account.1"
+set ta2		"test$test_id-account.2"
+set qos1	qqostest
+set tu1         "test$test_id-user.1"
+set access_err  0
+
+# Cluster
+array set clus_req {}
+set clus_req(qos) "''"
+
+# Accounts
+array set acct_req1 {}
+set acct_req1(cluster) $tc1
+
+array set acct_req2 {}
+set acct_req2(parent) $ta1
+set acct_req2(cluster) $tc1
+
+# User
+array set user_req {}
+set user_req(cluster) $tc1
+set user_req(account) $ta1,$ta2
+set user_req(defaultaccount) $ta1
+
+# Mod Account for ta1 and ta2
+array set mod_acct_desc3 {}
+set mod_acct_desc3(cluster) $tc1
+array set mod_acct_vals3 {}
+array set mod_assoc_vals3 {}
+set mod_assoc_vals3(qos) "+$qos1"
+
+# Mod Account for ta1 and ta2
+array set mod_acct_desc4 {}
+set mod_acct_desc4(cluster) $tc1
+array set mod_acct_vals4 {}
+array set mod_assoc_vals4 {}
+set mod_assoc_vals4(qos) "-$qos1"
+
+print_header $test_id
+
+set timeout 60
+
+#
+# Check accounting config and bail if not found
+#
+if { [test_account_storage] == 0 } {
+	send_user "\nWARNING: This test can't be run without a usable AccountStorageType\n"
+	exit 0
+}
+
+#
+# Make sure we have permission to do this work
+#
+if { [string compare [check_accounting_admin_level] "Administrator"] } {
+	send_user "\nWARNING: This test can't be run without being an Accounting administrator.\nUse: sacctmgr mod user \$USER set admin=admin.\n"
+	exit 0
+}
+
+proc end_test { } {
+	global tu1 ta1 ta2 tc1 qos1 mod_acct_desc1 mod_acct_vals1 mod_assoc_vals1
+	set exit_code 0
+	incr exit_code [remove_cluster $tc1]
+	incr exit_code [remove_user "" "" "$tu1"]
+	incr exit_code [remove_acct "" "$ta1,$ta2"]
+	incr exit_code [remove_qos "$qos1"]
+	return $exit_code
+}
+
+#
+# Remove any residual clusters and
+# Add a test cluster for testing
+#
+remove_cluster $tc1
+add_cluster $tc1 ""
+
+#
+# remove test associations to make sure we have a clean system
+#
+remove_user "" "" "$tu1"
+remove_acct "" "$ta1,$ta2"
+remove_qos "$qos1"
+
+# get the qos of root on the cluster since we are going to set it to
+# nothing here.  And put it back at the end of the test.
+set match 0
+set my_pid [eval spawn $sacctmgr list cluster $tc1 format=cluster,qos -np]
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	-re "$tc1.(\[a-z,\]*)." {
+		set mod_assoc_vals1(qoslevel) $expect_out(1,string)
+		set match 1
+		exp_continue
+	}
+
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+
+if { !$match } {
+	send_user "\nFAILURE: couldn't query qos\n"
+	exit 1
+}
+
+#now set default for cluster to ""
+incr exit_code [mod_cluster $tc1 [array get clus_req]]
+if { $exit_code } {
+	remove_qos "$qos1"
+	exit $exit_code
+}
+
+# send_user "moded the cluster to qos = ''"
+# exit
+
+#add qos
+incr exit_code [add_qos "$qos1" ""]
+if { $exit_code } {
+	remove_qos "$qos1"
+	exit $exit_code
+}
+#====Done Add QoS===========Begin Add First Account========
+#add default account
+incr exit_code [add_acct $ta1 [array get acct_req1]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+#====Done Add First Account====Begin Add Second Account====
+#add account
+incr exit_code [add_acct $ta2 [array get acct_req2]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+#=====Done Add Second Account========Begin Add User=========
+#add user
+incr exit_code [add_user $tu1 [array get user_req]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#====Done add user====Done building test associations===Begin test section=======
+
+# Verify initial associations
+# NOTE: We do not use regular expressions below due to it's inability to test
+# for a literal "|"
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: Initial sacctmgr add failed ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+#======Begin Modification to Add $qos1 to $ta1=======
+#modify test1 account to add test QoS
+incr exit_code [mod_acct $ta1 [array get mod_acct_desc3] [array get mod_acct_vals3] [array get mod_assoc_vals3]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#=======Done Modifying Account=======Next is Verify=======
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: failed on verify of +$qos1 to account $ta1 ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+#======Begin Modification to Subtract $qos1 from $account2=======
+#modify test2 account to remove test QoS
+incr exit_code [mod_acct $ta2 [array get mod_acct_desc4] [array get mod_acct_vals4] [array get mod_assoc_vals4]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#=======Done Modifying Account=======Next is Verify=======
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: verify of -$qos1 from account $ta2 ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+
+#======Begin Modification to Subtract $qos1 from $ta1=======
+#modify test1 account to remove test QoS
+incr exit_code [mod_acct $ta1 [array get mod_acct_desc4] [array get mod_acct_vals4] [array get mod_assoc_vals4]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#=======Done Modifying Account=======Next is Verify=======
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: verify of -$qos1 from account $ta1 ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+#=====Begin Modification to Add $qos1 from $ta2=======
+#modify test2 account to add test QoS
+incr exit_code [mod_acct $ta2 [array get mod_acct_desc3] [array get mod_acct_vals3] [array get mod_assoc_vals3]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#=======Done Modifying Account=======Next is Verify=======
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: failed on verify of +$qos1 to account $ta2 ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+#=======Begin Modification to Add $qos1 from $account2=======
+#modify root account to add test QoS
+incr exit_code [mod_acct "root" [array get mod_acct_desc3] [array get mod_acct_vals3] [array get mod_assoc_vals3]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#=======Done Modifying Account=======Next Is Verify=======
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n$qos1|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: failed on verify of +$qos1 to account root ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+#======Begin Modification to Add $qos1 from $account2=======
+incr exit_code [mod_acct $ta2 [array get mod_acct_desc4] [array get mod_acct_vals4] [array get mod_assoc_vals4]]
+if { $exit_code } {
+	end_test
+	exit $exit_code
+}
+
+#=======Done Modifying Account=======Next is Verify=======
+set matches 0
+set my_pid [eval spawn $sacctmgr list assoc cluster=$tc1 format=qos,acct,user -p]
+
+expect {
+	-re "There was a problem" {
+		send_user "FAILURE: there was a problem with the sacctmgr command\n"
+		exit 1
+	}
+	"\n$qos1|root||" {
+		incr matches
+		exp_continue
+	}
+	"\n$qos1|root|root|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta1|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2||" {
+		incr matches
+		exp_continue
+	}
+	"\n|$ta2|$tu1|" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		exit 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 6} {
+	send_user "\nFAILURE: failed on verify of -$qos1 to account $ta2 ($matches != 6)\n"
+	end_test
+	exit 1
+}
+
+#======Done With List====== Ending=======
+# This is the end below here
+#
+incr exit_code [end_test]
+if {$exit_code == 0} {
+	print_success $test_id
+} else {
+	send_user "\nFAILURE: $test_id\n"
+}
+exit $exit_code

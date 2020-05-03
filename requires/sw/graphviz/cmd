@@ -1,0 +1,1 @@
+dot -V |& awk '{print $5}'

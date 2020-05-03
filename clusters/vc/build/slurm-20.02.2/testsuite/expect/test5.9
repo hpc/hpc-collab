@@ -1,0 +1,471 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          Validate that squeue -O (--Format) option displays the
+#          correct user specified values.
+#
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2014 SchedMD LLC
+# Written by Nathan Yee <nyee32@schedmd.com>
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals
+source ./globals_accounting
+
+set test_id      "5.9"
+set cwd           "[$bin_pwd]"
+set exit_code     0
+set test_node     ""
+set job_id        0
+set step_id       0
+set file_err      "${cwd}/test${test_id}_err"
+set file_in       "test${test_id}_script"
+set file_out      "${cwd}/test${test_id}_out"
+set test_acct     "test${test_id}_acct"
+
+############################Job Format Test############################
+
+#######################
+# Format value
+#######################
+# stderr
+set sq_format(stderr)        $file_err
+# stdout
+set sq_format(stdout)        $file_out
+# stdin
+set sq_format(stdin)         /dev/null
+# numcpus
+set sq_format(numcpus)       1
+# numtasks
+set sq_format(numtasks)      "DUMMY"
+# numnodes
+set sq_format(numnodes)      1
+# timelimit
+set sq_format(timelimit)     2
+# job
+set sq_format(name)          $file_in
+# account
+set sq_format(account)       $test_acct
+# cpus-per-task
+set sq_format(cpuspertask)   2
+# network
+set sq_format(network)       "ip"
+# requeue
+set sq_format(requeue)       1
+# profile
+set sq_format(profile)       Energy
+# ntasks-per-socket
+set sq_format(ntpersocket)   2
+# ntasks-per-node
+set sq_format(ntpernode)     2
+# state compact
+set sq_format(statecompact)  PD|R|CA|CR|CG|CD|F|TO|NF|SE
+# jobid
+set sq_format(jobid)         0
+# user
+set sq_format(username)      "DUMMY"
+# switches
+set sq_format(reqswitch)     1
+# partition
+set sq_format(partition)     [default_partition]
+# comment
+set sq_format(comment)       1234567890
+
+print_header $test_id
+
+if { [test_using_slurmdbd] == 0 } {
+	send_user "\nWARNING: This test can't be run without AccountStorageType=slurmdbd\n"
+	exit $exit_code
+}
+if {[string compare [check_accounting_admin_level] "Administrator"]} {
+	send_user "\nThis test can't be run without being an Accounting administrator.\n"
+	exit $exit_code
+}
+set available [available_nodes $partition idle]
+if {$available < 2} {
+    send_user "\nWARNING: not enough nodes currently available ($available avail, 2 needed)\n"
+    exit $exit_code
+}
+
+remove_acct [get_cluster_name] $test_acct
+
+# Run a job to get a usable node to test
+set tmp_sc  "tmp_sc"
+set tmp_job 0
+
+make_bash_script $tmp_sc "sleep 2"
+
+spawn $sbatch -o/dev/null -N1 --exclusive $tmp_sc
+expect {
+	-re "Submitted batch job ($number)" {
+		set tmp_job $expect_out(1,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sbatch is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$tmp_job == 0} {
+	send_user "\nFAILURE: job was not submitted\n"
+	exit 0
+}
+
+if {[wait_for_job $tmp_job "RUNNING"] != 0} {
+	send_user "\nFAILURE: error waiting for job $tmp_job to start\n"
+	cancel_job $tmp_job
+	set exit_code 1
+}
+
+set got_node 0
+spawn $scontrol show job $tmp_job
+expect {
+	-re "NodeList=($alpha_numeric_under)" {
+		set test_node $expect_out(1,string)
+		set got_node 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$got_node != 1} {
+	send_user "\nFAILURE: was not able to get usable node\n"
+	exit 0
+}
+
+
+lassign [get_node_cpus $test_node] cpu_tot sq_format(cpuspertask)
+
+set socket_cnt 1
+spawn $scontrol show node $test_node
+expect {
+	-re "CoresPerSocket=($number)" {
+		set sq_format(ntpersocket) $expect_out(1,string)
+		exp_continue
+	}
+	-re "Sockets=($number)" {
+		set socket_cnt $expect_out(1,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol is not responding\n"
+		exp_continue
+	}
+	eof {
+		wait
+	}
+}
+
+set core_cnt [expr $socket_cnt * $sq_format(ntpersocket)]
+if {$sq_format(ntpernode) > $core_cnt} {
+	set sq_format(ntpernode) $core_cnt
+}
+
+if {$sq_format(ntpersocket) == 0 || $sq_format(cpuspertask) == 0} {
+	send_user "\nFAILURE: failed to get number of threads or cores "
+	send_user "ThreadsPerCore=$sq_format(cpuspertask) & "
+	send_user "CoresPerSocket=$sq_format(ntpersocket)\n"
+	exit 0
+}
+
+# Remove the tmp script and cancel tmp job
+exec $bin_rm $tmp_sc
+cancel_job $tmp_job
+
+set sq_format(username) [get_my_user_name]
+
+set match 0
+spawn $sacctmgr add -i account $test_acct
+expect {
+	-re "Associations" {
+		set match 1
+		exp_continue
+	}
+	timeout {
+		send_user "FAILURE: sacctmgr is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$match != 1} {
+	send_user "\nFAILURE: account was not added\n"
+	set exit_code 1
+}
+
+set match 0
+spawn $sacctmgr add -i user $sq_format(username) account=$sq_format(account)
+expect {
+	-re "Association" {
+		set match 1
+		exp_continue
+	}
+	timeout {
+		send_user "FAILURE: sacctmgr is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$match != 1} {
+	send_user "\nFAILURE: account was not added\n"
+	set exit_code 1
+}
+
+#
+# Make a bash script
+#
+make_bash_script $file_in "$srun $bin_sleep 10000
+$srun $bin_sleep 200
+$srun $bin_sleep 100"
+
+spawn $sbatch -A$sq_format(account) -N$sq_format(numnodes) \
+    -n$sq_format(numcpus) -t$sq_format(timelimit) -c$sq_format(cpuspertask) \
+    --switch=$sq_format(reqswitch) --network=$sq_format(network) --requeue \
+    --profile=$sq_format(profile) --ntasks-per-socket=$sq_format(ntpersocket) \
+    --ntasks-per-node=$sq_format(ntpernode) -o$sq_format(stdout) \
+    --comment=$sq_format(comment) -e$sq_format(stderr) --exclusive \
+    -w$test_node $sq_format(name)
+expect {
+	-re "Submitted batch job ($number)" {
+		set job_id $expect_out(1,string)
+		set sq_format(jobid) $expect_out(1,string)
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sbatch is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {[wait_for_job $job_id "RUNNING"] != 0} {
+	send_user "\nFAILURE: error waiting for job $job_id to start\n"
+	cancel_job $job_id
+	set exit_code 1
+}
+# Wait for steps to start too
+sleep 5
+
+# The number of allocated CPUs can vary depending upon the allocation unit
+set match 0
+spawn $scontrol show job $job_id
+expect {
+	-re "NumCPUs=($number)" {
+		set sq_format(numcpus) $expect_out(1,string)
+		incr match 1
+		exp_continue
+	}
+	-re "Tasks=($number)" {
+		set sq_format(numtasks) $expect_out(1,string)
+		incr match 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$match != 2} {
+	send_user "\nFAILURE: scontrol did not provide correct job values ($match != 1)\n"
+	set exit_code 1
+}
+
+set match 0
+set cpu_match 0
+set cnt 0
+foreach option [array names sq_format] {
+	incr cnt 1
+	set this_match 0
+	spawn $squeue --job=$job_id --noheader -O$option:99
+	expect {
+		-re "$sq_format($option)" {
+			incr match 1
+			incr this_match 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: squeue is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+	if {$this_match == 0} {
+		send_user "\nFAILURE: failed to match $option with $sq_format($option)\n"
+		set exit_code 1
+	}
+}
+if {$match != $cnt} {
+	send_user "\nFAILURE: not all squeue outputs match ($match != $cnt)\n"
+	set exit_code 1
+}
+
+set match 0
+spawn $squeue --job=$job_id --noheader -Ocomment:4
+expect {
+	-re "12345" {
+		send_user "\nFAILURE: field width control failure\n"
+		set exit_code 1
+		exp_continue
+	}
+	-re "1234" {
+		incr match 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: squeue is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$match != 1} {
+	send_user "\nFAILURE: not all squeue outputs match ($match != 1)\n"
+	set exit_code 1
+}
+############################Step Format Test############################
+
+#####################
+# Format value
+#####################
+# jobid
+set sq_step_format(jobid)       $job_id
+# stepid
+set sq_step_format(stepid)      $job_id.$step_id
+# stepname
+set sq_step_format(stepname)    "sleep"
+# state
+set sq_step_format(stepstate)   "DUMMY"
+# network
+set sq_step_format(network)     "DUMMY"
+# numcpus
+set sq_step_format(numcpus)     $sq_format(numcpus)
+# numtasks
+set sq_step_format(numtasks)    "DUMMY"
+# username
+set sq_step_format(username)    $sq_format(username)
+
+set match 0
+spawn $scontrol show step $sq_step_format(stepid)
+expect {
+	-re "State=($alpha_under)" {
+		set sq_step_format(stepstate) $expect_out(1,string)
+		incr match 1
+		exp_continue
+	}
+	-re "CPUs=($number)" {
+		set sq_step_format(numcpus) $expect_out(1,string)
+		incr match 1
+		exp_continue
+	}
+	-re "Tasks=($number)" {
+		set sq_step_format(numtasks) $expect_out(1,string)
+		incr match 1
+		exp_continue
+	}
+	-re "Network=($alpha_numeric_under)" {
+		set sq_step_format(network) $expect_out(1,string)
+		incr match 1
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol is not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$match != 4} {
+	send_user "\nFAILURE: scontrol did not provide correct step values ($match != 4)\n"
+	set exit_code 1
+}
+
+set match 0
+set cpu_match 0
+set cnt 0
+foreach option [array names sq_step_format] {
+	incr cnt 1
+	set this_match 0
+	spawn $squeue --step=$sq_step_format(stepid) --noheader -O$option
+	expect {
+		-re "$sq_step_format($option)" {
+			incr match 1
+			incr this_match 1
+			exp_continue
+		}
+		timeout {
+			send_user "\nFAILURE: squeue is not responding\n"
+			set exit_code 1
+		}
+		eof {
+			wait
+		}
+	}
+	if {$this_match == 0} {
+		send_user "\nFAILURE: failed to match $option with $sq_step_format($option)\n"
+		set exit_code 1
+	}
+}
+
+if {$match != $cnt} {
+	send_user "\nFAILURE: not all squeue outputs match ($match != $cnt)\n"
+	set exit_code 1
+}
+
+cancel_job $job_id
+if {[wait_for_job $job_id "DONE"] != 0} {
+	send_user "\nFAILURE: error waiting for job $job_id to complete\n"
+	set exit_code 1
+}
+
+remove_acct "" $test_acct
+
+if {$exit_code == 0} {
+	exec $bin_rm -f $file_err $file_out $file_in
+	send_user "\nSUCCESS\n"
+} else {
+	send_user "\nFAILURE\n"
+}
+exit $exit_code

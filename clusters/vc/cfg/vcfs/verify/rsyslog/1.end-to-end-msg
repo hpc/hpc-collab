@@ -1,0 +1,51 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcfs/verify/rsyslog/1.rsyslog-end-to-end-test
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x COMMON_TMP=${COMMON}${TMP}
+declare -x _d=${COMMON_TMP}/${HOSTNAME}
+declare -x _f=${COMMON_TMP}/${HOSTNAME}/$$f
+declare -x VAR_LOG_RSYSLOG_D=/var/log/rsyslog
+declare -x RSYSLOG=${VAR_LOG_RSYSLOG_D}/${HOSTNAME}
+
+TSTAMP=$(date +%Y-%m-%d:%H:%M)
+UNIQ_SYSLOG_MSG="syslog-test-${HOSTNAME}-${IAM}-${TSTAMP}"
+
+if [ ! -f "${RSYSLOG}" ] ; then
+  ErrExit ${EX_OSFILE} "RSYSLOG:${RSYSLOG} does not exist"
+fi
+if [ ! -s "${RSYSLOG}" ] ; then
+  ErrExit ${EX_OSFILE} "RSYSLOG:${RSYSLOG} has no size, is zero length"
+fi
+
+TIMEOUT=5
+Rc ErrExit ${EX_OSERR} "timeout ${TIMEOUT} logger -t ${HOSTNAME}-${IAM} ${UNIQ_SYSLOG_MSG}"
+sleep ${TIMEOUT}
+
+grep "${UNIQ_SYSLOG_MSG}" ${RSYSLOG} >/dev/null 2>&1
+rc=$?
+
+if [ ${rc} -ne ${GREP_FOUND} ] ; then
+  ErrExit ${EX_SOFTWARE} "UNIQ_SYSLOG_MSG:${UNIQ_SYSLOG_MSG} not found in RSYSLOG:${RSYSLOG}"
+fi
+
+trap '' 0
+exit ${EX_OK}

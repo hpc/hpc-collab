@@ -1,0 +1,93 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/slurm/1.build-rpms
+
+_d=$(dirname $0)
+provision_d=${_d}/../../../provision
+loader_d=${provision_d}/loader
+build_d=${provision_d}/../../build
+
+VCLOAD=$(cd ${loader_d}; pwd)/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+PRODUCT=$(basename $(pwd))
+
+BUILDWHERE=$(cd ${build_d}; pwd)
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDSLURM=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDSLURM}/RPMS.Manifest
+VERSION_FILE=${BUILDSLURM}/version
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=$(uname -m)
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+need_build="true"
+
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+SetFlags
+
+if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
+  ErrExit ${EX_CONFIG}  "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} not a directory"
+fi
+
+#SLURM_VERSION=$(readlink ${BUILDWHERE_PRODUCT} | sed "s/${PRODUCT}-//")
+SLURM_VERSION=$(cat ${VERSION_FILE})
+
+SLURM_TARBALL=slurm-${SLURM_VERSION}.tar.bz2
+SLURM_SPEC=${BUILDWHERE_PRODUCT}/${PRODUCT}.spec
+
+if [ -z "${COMMON_LOCALREPO}" ] ; then
+  ErrExit ${EX_CONFIG} "COMMON_LOCALREPO empty"
+fi
+
+if [ ! -r "${SLURM_SPEC}" ] ; then
+  opwd=$(pwd)
+  cd ${BUILDWHERE}
+  if [ ! -r ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ] ; then
+    ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURM_TARBALL:${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} missing"
+  fi
+  tar -xjvf ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}
+  cd ${opwd}
+fi
+if [ ! -r ${SLURM_SPEC} ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURM_SPEC:${SLURM_SPEC} unreadable"
+fi
+
+SPECFILE_VERSION=$(grep -i '^Version:' ${SLURM_SPEC} | grep -v '%{version}' | sed 's/Version:\t//')
+#SPECFILE_VERSION=$(rpm -q --qf '%{VERSION}\n' --specfile ${SLURM_SPEC} 2>&1 | sort | uniq | grep -v -i Warning)
+
+rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm)
+if [ "${SPECFILE_VERSION}" = "${SLURM_VERSION}" ] ; then
+  if [ -n "${rpms}" ] ; then
+    echo " [skipped] ${PRODUCT} ${SLURM_VERSION} rpms already built"
+    need_build=""
+  fi
+fi
+
+what_needed=$(echo $(cat ${RPMS}))
+
+if [ -n "${need_build}" ] ; then
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${RPMBUILD} ${SOURCES}"
+  Rc ErrExit ${EX_OSFILE} "cp -bv ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ${SOURCES}/${SLURM_TARBALL}"
+  Rc ErrExit ${EX_SOFTWARE} "rpmbuild -ba ${SLURM_SPEC} --define \"_topdir ${RPMBUILD}\""
+fi
+
+exit ${EX_OK}

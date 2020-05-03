@@ -1,0 +1,118 @@
+This directory is used for configuration and common storage among the cluster nodes and the host system.
+
+[This directory is a containerized-cluster variation.]
+- OverlayRootFS => AppendorReplaceOverlayRootFS
+
+
+To Do:
+[Still Needed for initial release]
+1. a. [ ] LANL approval to proceed
+   b. push to LANL git repo
+      move (much of this technical debt etc) into git issues, including philosophy of file system
+        as a consistent instance of a dynamic CI/CD infrastructure
+      version 1.0: Convert to a known provisioner: terraform, ansible, chef, puppet, etc.
+   c. collaborative outreach use case, showing a configuration or slurm algorithm comparison case study
+
+---
+[Technical debt, good hygiene & future issues for the git repo]
+A. i. use-case cluster recipe to construct a cluster snapshot to reproduce user problems
+   ii. Use a lighter weight vagrant provider (lxc?) rather than virtualbox
+   iii. *run as an HPC job on production cluster* (probably requires lightweight container provider, !virtualbox)
+   [above (i) and (ii): ndebard feedback]
+   iv. move data base onto vcfs storage and out of vcdb local storage, or possibly 2nd vcdb disk (selinux tagging)
+B. preserve some state (home directories) between versions
+C. use SSHFS or NFS for initial /vagrant rather than vboxsf
+D. i. TOSS rather than CentOS, fully replace test environment, ideally, create vagrant TOSS box
+   ii. consider how to deploy from a central source of truth/config mgmt server, rather than a local library & script 
+   [sanchez feedback: (i) and (ii)]
+E. bounce a node (shutdown, vagrant halt): howto
+   determine & document process for quick-start users
+   freeze/thaw has low overhead, possibly distribute "frozen" images?
+   suspend/resume (suspend:vcfs, vcdb?, destroy for others)
+F. Makefile/Autoconf/Ansible-glue to generate Vagrantfile for a meta-make cluster recipe (using above templates)
+   - constructs other shared views into common data such as:
+     /etc/ethers, /etc/networks, /etc/hosts and Vagrantfile IP and MAC addresses dynamically
+   - Use this instantiation of a file system import into the cluster as a consistent set checkout to interface
+     with an external configuration management system (ex. ansible)
+     populate user data, slurmdb, full node config? from HESIOD, or construct HESIOD from file system configuration
+   - Ruby-based parser to generate Vagrantfile from fs structure or equivalent yaml 
+   - howto document re- create a new node & its hierarchy
+     dom0:/etc/hosts, Vagrantfile, common:/etc/*
+G. graphviz & doxygen
+   - node state diagram
+   - the annotated cfg directory structure
+   - node dependency diagram (using sdedit.jar?)
+   - self-documenting Makefile rules
+H. consolidate RPM's in each node's load list into localrepo and an index file table, for space reduction
+       may require a secondary local_repo.tgz tarball
+I. vcsvc service node adds the service: SMTP-outbound
+J. vclustre combined node (MST, MDT, OST, ODT) or preferably, a separate lustre-cluster recipe
+K. common template for all nodes in Makefile / dynamic Makefile construction based on external data authority
+   - implement <node-type>/<node-class> lighterweight file system structure
+   - node data from HESIOD? yaml config file?
+   - Makefile per virtual cluster? or per typed-hierarchy of nodes? (part of gitification?)
+L. Makefile hierarchy?
+   README(s),
+   execution scripts move into per-node/node-type
+   Makefile target rules (build, install, configure, verify) rather than in provision.sh driver
+   - create a hierarchy of services in sub-directories of {build,config,install,verify} so ordering may be precisely specified
+   - this includes the inc/*.sh headers which should not be loaded in alphabetic order (ex. dynamic before cfgfs)
+M. update/replace this Notes file with README/INSTALL guidance, ideally auto-generated (doxygen)
+   tie closely with open issues from git repository (import with git pull?)
+N. Additional in-built software:
+    i. slurm lua plugin ii. (ldms?) spank plugin, iii. epilog framework iv. node health check v. reboot framework vi. pmix
+    vii. use "configless slurm" slurm.conf viii. LDMS/OVID (on all schedulable nodes) ix. yeti
+O. trigger on job events to generate data traces for monitoring, vizualization and analysis
+P. refactor Vagrantfile unprovision.sh so it takes a #{machine.id} rather than needing to duplicate in each vm block
+Q. common/etc/yum.repos.d/local-vcbuild.repo starting with 'enabled=0'; only enable it in requires/{build,fs}
+R. PREFERRED_REPO modifies 'CentOS-Base.repo' baseurl to its contents
+S. in-cluster local repo key
+T. nodes define their own "requires/provides" test scripts that subsequent nodes use to validate requires/ hierarchy
+U. flags per-node or node-type, not global for provision environment
+V. Virtualbox v. 6.<latest>, when vagrant supports it
+W. rework links to common to be relative rather than via /vagrant or /home/vagrant (works inside & outside cluster)
+X. sshd complaints about /etc/hosts.allow being a symlink, how best to address (& still keep in sync across all nodes)?
+Y. Modulefile to set env, path, etc
+Z. verify on i686 hosts?
+a. network-UNconnected repo ingestion, may require rework of local/remote repo flags
+b. community mysql v.5.7 or greater, mariadb v.10.0.2 or greater (to include GTID feature) [select with a flag?]
+c. reimplement as a service mesh orchestrated by Istio, provisioned by Kubernetes 
+d. review scripts for commonality that are presently duplicated(?) between nodes
+e. Use a lighter weight linux distribution (alpine?) rather than centos
+f. Terraform implementation, possibly with minimal ruby extensions as needed
+g. Doxygen dependencies generated dynamically in Makefile, incorporated into Doxyfile
+h. Prerequisite checking in Makefile: doxygen, graphviz installed, vagrant versions known to be good, vagrant-plugins(?)
+---
+
+This directory's structure:
+/hpc-collab/vc/ external directory === /vagrant/ (inside the cluster)
+        Notes           this file
+    vc    +
+    +--  build ----+    common sw build area
+    |              +--- slurm
+    |              +--- cedet
+    |              +--- slash-cluster
+    |
+    +---cfg             skeleton of changes from a stock OS install for each node, organized by hostname
+                + <node-names> | <node-type>
+                        [+Type -> <node-type>] if present, a symlink to a node-type (ex. "compute", "db", "scheduler", "fs")
+                        [+--- Nodes         ]  if this is a <node-type> directory rather than a <node-name>, this file contains node-names of this node-type
+
+                        +--- rpm             flag files which are rpm names to be installed on machine creation, ex "ed", "tcsh"
+                        +--- build     flag hierarchy which are directory names in the common build area to build
+                        +--- install   contains flag hierarchy which are directory names in the common install area to be installed on this node
+                        +--- rootfs      sparse image of overlay files for the cluster nodes
+                        +--- services
+                                +--- on services to be turned on, early in the provisioning cycle
+                                +--- off        services to be turned off
+                                +--- install::on services to be turned on after the installation of all software
+
+        common                  files that are actively shared between test cluster nodes, such as /etc/slurm/slurm.conf
+                +--- home       shared home directories within the cluster
+
+        provision       master and common provisioning mechanism
+
+	tarballs
+
+
+# vim: background=dark expandtab shiftwidth=2 softtabstop=2 tabstop=2

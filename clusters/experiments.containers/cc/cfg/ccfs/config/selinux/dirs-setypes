@@ -1,0 +1,25 @@
+# order matters in this file, as types are applied recursively to contained objects
+
+/home/vagrant				unconfined_u:object_r:public_content_rw_t:s0
+
+/home/vagrant/common/var/log/rsyslog	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/mariadb	system_u:object_r:mysqld_log_t:s0
+
+/home/vagrant/common/var/lib		system_u:object_r:var_lib_nfs_t:s0
+/home/vagrant/common/var/lib/mysql	system_u:object_r:mysqld_db_t:s0
+/home/vagrant/common/var/lib/mariadb	system_u:object_r:mysqld_db_t:s0
+
+/home/vagrant/common/home		system_u:object_r:home_root_t:s0
+
+/home/vagrant/common/var/log/rsyslog/vcfs	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vcsvc	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vcdb	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vcsched	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vcbuild	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vc1	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vc2	system_u:object_r:var_log_t:s0
+/home/vagrant/common/var/log/rsyslog/vclogin	system_u:object_r:var_log_t:s0
+
+/home/vagrant/common/repos		unconfined_u:object_r:public_content_rw_t:s0
+
+#/var/log/mariadb			system_u:object_r:mysqld_log_t:s0

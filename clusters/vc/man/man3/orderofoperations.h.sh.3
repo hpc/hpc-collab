@@ -1,0 +1,36 @@
+.TH "vc/common/provision/inc/orderofoperations.h.sh" 3 "Fri Jan 10 2020" "HPC Collaboratory" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+vc/common/provision/inc/orderofoperations.h.sh
+.SH SYNOPSIS
+.br
+.PP
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "Exported String \fBCORE_ORDER_OF_OPERATIONS\fP"
+.br
+.RI "This header file defines order of operations\&. In some cases, especially those requiring custom configuration, it may be appropriate to rearrange the provisioning order of operations\&. "
+.in -1c
+.SH "Variable Documentation"
+.PP 
+.SS "Exported String CORE_ORDER_OF_OPERATIONS"
+\fBInitial value:\fP
+.PP
+.nf
+= "SetFlags TimeStamp VerifyEnv                   \;
+
+
+
+
+
+
+Exported String DEBUG_DEFAULT_ORDER_OF_OPERATIONS = "DebugNote VerbosePWD ClearSELinuxEnforce  \
+.fi
+.PP
+This header file defines order of operations\&. In some cases, especially those requiring custom configuration, it may be appropriate to rearrange the provisioning order of operations\&. 
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for HPC Collaboratory from the source code\&.

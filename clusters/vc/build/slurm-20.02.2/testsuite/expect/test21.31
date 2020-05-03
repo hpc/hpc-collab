@@ -1,0 +1,285 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          sacctmgr clear (modify) resource values
+#
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Written by Bill Brophy <bill.brophy@bull.com>
+#  Copyright (C) 2012 Bull S. A. S.
+#		Bull, Rue Jean Jaures, B.P.68, 78340, Les Clayes-sous-Bois.
+#  This program is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU General Public License as published by
+#  the Free Software Foundation version 2 of the License.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#  See the GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License along
+#  with this program; if not, write to the Free Software Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+############################################################################
+source ./globals_accounting
+
+set test_id     "test21.31"
+set exit_code   0
+set tc2		"$test_id-cluster-2"
+set sr1		[format "%s%s" $test_id "res_1"]
+set sr2		[format "%s%s" $test_id "res_2"]
+set sr3		[format "%s%s" $test_id "res_3"]
+
+set res1_desc   sr1
+set res1_cnt    80
+set res1_srvtyp server_type_1
+set res1_srv    server_1
+set res1_type   license
+set res1_allw   50
+
+set res2_desc   "sr2&sr3"
+set res2_cnt    100
+set res2_srvtyp server_type_2
+set res2_srv    server_2
+set res2_type   license
+
+set ser		server
+set ect1	40
+set ect1a	25
+set access_err  0
+
+# First test resource
+array set resource1 {}
+set resource1(description)           $res1_desc
+set resource1(count)                 $res1_cnt
+set resource1(ServerType)            $res1_srvtyp
+set resource1(Server)                $res1_srv
+set resource1(type)                  $res1_type
+set resource1(percentallowed)        $res1_allw
+
+# First check test resources
+array set resource1_chck {}
+set resource1_chck(description)      $res1_desc
+set resource1_chck(count)            $res1_cnt
+set resource1_chck(ServerType)       $res1_srvtyp
+set resource1_chck(Server)           $res1_srv
+
+# Limit changes to the first resource
+array set resource1_chng {}
+set resource1_chng(count)            50
+
+# Second and thrid test resources
+array set resource2 {}
+set resource2(description)           $res2_desc
+set resource2(count)                 $res2_cnt
+set resource2(ServerType)            $res2_srvtyp
+set resource2(Server)                $res2_srv
+set resource2(type)                  $res2_type
+
+array set resource2_chck {}
+set resource2_chck(description)      $res2_desc
+set resource2_chck(count)            $res2_cnt
+set resource2_chck(ServerType)       $res2_srvtyp
+set resource2_chck(Server)           $res2_srv
+
+# Cluster
+array set clus_req {}
+
+print_header $test_id
+
+set timeout 60
+
+#
+# Check accounting config and bail if not found.
+#
+if { [test_account_storage] == 0 } {
+	send_user "\nWARNING: This test can't be run without a usable AccountStorageType\n"
+	exit 0
+}
+
+#
+# Check that current user is root or SlurmUser
+#
+if {[test_super_user] == 0} {
+	send_user "\nWARNING: Test can only be ran as SlurmUser\n"
+	exit 0
+}
+
+#if { [string compare [check_accounting_admin_level] "Administrator"] } {
+#	send_user "\nWARNING: This test can't be run without being an Accounting administrator.\nUse: sacctmgr mod user \$USER set admin=admin.\n"
+#	exit 0
+#}
+
+# verify a clean system and permission to do this work
+remove_cluster "$tc2"
+remove_res "$sr1"
+if {$access_err != 0} {
+	send_user "\nWARNING: not authorized to perform this test\n"
+	exit $exit_code
+}
+
+#
+# add cluster
+#
+incr exit_code [add_cluster "$tc2" [array get clus_req]]
+if { $exit_code } {
+	exit $exit_code
+}
+
+#
+# get name of this cluster
+#
+set cluster [get_cluster_name]
+set resource1(cluster) "$cluster,$tc2"
+
+#
+# add a global resource designating multiple clusters
+#
+add_resource $sr1 [array get resource1]
+
+#
+# Use sacctmgr list to verify the test global resource fields
+#
+if {[check_resource_limits $sr1 [array get resource1_chck]] == 1} {
+	send_user "\nFAILURE: list resource output is incorrect. \n"
+	incr exit_code 1
+}
+
+#
+# use scontrol show license to verify the cluster license was created
+#
+set matches 0
+set my_pid [eval spawn $scontrol show license]
+expect {
+	-re "LicenseName=($sr1@$resource1(Server))" {
+		incr matches
+		exp_continue
+	}
+	-re "Total=$ect1 Used=0 Free=$ect1 Remote=yes" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 2} {
+	send_user "\nFAILURE: license output is incorrect ($matches != 2).\n"
+	send_user "  Expected: LicenseName=$sr1@$resource1(Server)\n"
+	send_user "  Expected: Total=$ect1 Used=0 Free=$ect1 Remote=yes\n\n\n"
+	incr exit_code 1
+}
+
+#
+# modify resources
+#
+if {[mod_resource $sr1 [array get resource1_chng]] == 1} {
+	send_user "\nFAILURE: Resource modify not working ($matches != 1).\n"
+	incr exit_code 1
+}
+
+#
+# Use sacctmgr to list the test resource modifications
+#
+# Use sacctmgr list to verify the test resource fields
+#
+set resource1_chck(count) $resource1_chng(count)
+if {[check_resource_limits $sr1 [array get resource1_chck]] == 1} {
+	send_user "\nFAILURE: list resource output is incorrect.\n"
+	incr exit_code 1
+}
+
+#
+# use scontrol to verify the modified cluster license
+#
+set matches 0
+set my_pid [eval spawn $scontrol show license $sr1@$resource1(Server)]
+expect {
+	-re "LicenseName=$sr1@$resource1(Server)" {
+		incr matches
+		exp_continue
+	}
+	-re "Total=$ect1a Used=0 Free=$ect1a Remote=yes" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 2} {
+	send_user "\nFAILURE: license output is incorrect ($matches != 2).\n"
+	send_user "  Expected: LicenseName=$sr1@$resource1(Server)\n"
+	send_user "  Expected: Total=$ect1 Used=0 Free=$ect1 Remote=yes\n\n\n"
+	incr exit_code 1
+}
+
+#
+# remove resource
+#
+incr exit_code [remove_res $sr1]
+
+#
+# use scontrol to verify cluster license was removed
+#
+set matches 0
+set my_pid [eval spawn $scontrol show license]
+expect {
+	-re "LicenseName=$sr1@$resource1(Server)" {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: scontrol not responding\n"
+		set exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+if {$matches != 0} {
+	send_user "\nFAILURE: scontrol failed to remove license $sr1@$resource1(Server).\n"
+	incr exit_code 1
+}
+
+#
+# add multiple global resources in a single call
+#
+add_resource "$sr2,$sr3" [array get resource2]
+
+#
+# Use sacctmgr list to verify both global resources were added
+#
+# Check resource 2
+if {[check_resource_limits $sr2 [array get resource2_chck]] == 1} {
+	send_user "\nFAILURE: list resource output is incorrect.\n"
+	incr exit_code 1
+}
+
+# Check resource 3
+if {[check_resource_limits $sr3 [array get resource2_chck]] == 1} {
+	send_user "\nFAILURE: list resource output is incorrect.\n"
+	incr exit_code 1
+}
+
+#
+# Clean up and exit
+#
+incr exit_code [remove_res $sr2,$sr3]
+incr exit_code [remove_cluster $tc2]
+
+if {$exit_code == 0} {
+	send_user "\nSUCCESS\n"
+} else {
+	send_user "\nFAILURE\n"
+}
+exit $exit_code

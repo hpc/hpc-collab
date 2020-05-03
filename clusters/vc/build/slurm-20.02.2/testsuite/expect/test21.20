@@ -1,0 +1,357 @@
+#!/usr/bin/env expect
+############################################################################
+# Purpose: Test of Slurm functionality
+#          sacctmgr QoS modify test
+#
+#
+# Output:  "TEST: #.#" followed by "SUCCESS" if test was successful, OR
+#          "FAILURE: ..." otherwise with an explanation of the failure, OR
+#          anything else indicates a failure mode that must be investigated.
+############################################################################
+# Copyright (C) 2008-2010 Lawrence Livermore National Security.
+# Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+# Written by Joseph Donaghy <donaghy1@llnl.gov>
+# CODE-OCEC-09-009. All rights reserved.
+#
+# This file is part of Slurm, a resource management program.
+# For details, see <https://slurm.schedmd.com/>.
+# Please also read the included file: DISCLAIMER.
+#
+# Slurm is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# Slurm is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along
+# with Slurm; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
+############################################################################
+source ./globals_accounting
+
+set test_id     "test21.20"
+set exit_code   0
+set tc1		"$test_id-cluster-1"
+set tc2		"$test_id-cluster-2"
+set tc3		"$test_id-cluster-3"
+set ta1		"$test_id-account.1"
+set ta2		"$test_id-account.2"
+set ta3		"$test_id-account.3"
+set qs		QosLevel
+set qs1		tnormal
+set qs2		texpedite
+set qs3		tstandby
+set tu1         "$test_id-user.1"
+set tu2         "$test_id-user.2"
+set tu3         "$test_id-user.3"
+set alo		Operator
+set access_err  0
+
+# Cluster
+array set clus_req {}
+
+# Accounts
+array set acct_req {}
+set acct_req(cluster) $tc1,$tc2,$tc3
+
+# User
+array set user_req {}
+set user_req(defaultaccount) $ta2
+set user_req(cluster) $tc1,$tc2,$tc3
+set user_req(account) $ta1,$ta2,$ta3
+set user_req(qos) $qs1,$qs2
+
+# Mod User 1
+array set user_mod_info {}
+set user_mod_info(cluster) $tc1,$tc2,$tc3
+set user_mod_info(account) "'$ta2'"
+array set user_mod_acct {}
+array set user_mod_assoc {}
+set user_mod_assoc(qoslevel) $qs3
+
+# Mod User 2
+array set user_mod_info2 {}
+set user_mod_info2(cluster) $tc1,$tc2,$tc3
+set user_mod_info2(account) "'$ta2'"
+array set user_mod_acct2 {}
+array set user_mod_assoc2 {}
+set user_mod_assoc2(qoslevel) "+$qs3"
+
+# Mod User 3
+array set user_mod_info3 {}
+set user_mod_info3(cluster) $tc1,$tc2,$tc3
+set user_mod_info3(account) "'$ta2'"
+array set user_mod_acct3 {}
+array set user_mod_assoc3 {}
+set user_mod_assoc3(qoslevel) "'-$qs2'"
+
+print_header $test_id
+
+set timeout 60
+
+#
+# Check accounting config and bail if not found.
+#
+if { [test_account_storage] == 0 } {
+	send_user "\nWARNING: This test can't be run without a usable AccountStorageType\n"
+	exit 0
+}
+
+if { [string compare [check_accounting_admin_level] "Administrator"] } {
+	send_user "\nWARNING: This test can't be run without being an Accounting administrator.\nUse: sacctmgr mod user \$USER set admin=admin.\n"
+	exit 0
+}
+
+#make sure we have a clean system and permission to do this work
+remove_user "" "" "$tu1,$tu2,$tu3"
+remove_acct "" "$ta1,$ta2,$ta3"
+remove_qos "$qs1,$qs2,$qs3"
+remove_cluster "$tc1,$tc2,$tc3"
+if {$access_err != 0} {
+	send_user "\nWARNING: not authorized to perform this test\n"
+	exit $exit_code
+}
+
+#add cluster
+incr exit_code [add_cluster "$tc1,$tc2,$tc3" [array get clus_req]]
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#add qos
+incr exit_code [add_qos "$qs1,$qs2,$qs3" ""]
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#add accounts
+incr exit_code [add_acct "$ta1,$ta2,$ta3" [array get acct_req]]
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#add users
+# cluster account name part admin dacct dwckey wckey qos fairshare grpcpumin grpcpu grpjob grpnode grpsubmit grpwall maxcpumin maxcpu maxjob maxnode maxsubmit maxwall
+incr exit_code [add_user "$tu1,$tu2,$tu3" [array get user_req]]
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#
+# Use sacctmgr to list the test qos additions
+#
+set matches 0
+set my_pid [spawn $sacctmgr -n -p list user format="User,QosLevel" names=$tu1,$tu2,$tu3 withassoc]
+expect {
+	-re "There was a problem" {
+	        send_user "FAILURE: there was a problem with the sacctmgr command\n"
+	    	incr exit_code 1
+	}
+	-re "(($tu1|$tu2|$tu3).($qs1|$qs2))." {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		incr exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$matches != 27} {
+	send_user "\nFAILURE:  Account addition 27 incorrect with only $matches.\n"
+	incr exit_code 1
+}
+
+#modify user1 QoS
+
+# First array: information about user (ie. cluster,account,partition...)
+# Second array: account information about user (ie. adminlevel, default account, ...)
+# Third array: association information about user (ie. fairshare, grpcpumins, grpcpu...)
+
+incr exit_code [mod_user $tu1 [array get user_mod_info] [array get user_mod_acct] [array get user_mod_assoc]]
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#
+# Use sacctmgr to list the test qos modifications
+#
+set matches 0
+set my_pid [spawn $sacctmgr -n -p list user format="User,QosLevel" names=$tu1,$tu2,$tu3 withassoc]
+expect {
+	-re "There was a problem" {
+	        send_user "FAILURE: there was a problem with the sacctmgr command\n"
+	    	incr exit_code 1
+	}
+	-re "$tu1.$qs3." {
+		incr matches
+		exp_continue
+	}
+	-re "($tu2|$tu3).$qs2.$qs1." {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		incr exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$matches != 21} {
+	send_user "\nFAILURE:  Account addition 21 incorrect with only $matches.\n"
+	incr exit_code 1
+}
+
+#modify user2 QoS
+
+# First array: information about user (ie. cluster,account,partition...)
+# Second array: account information about user (ie. adminlevel, default account, ...)
+# Third array: association information about user (ie. fairshare, grpcpumins, grpcpu...)
+
+incr exit_code [mod_user $tu2 [array get user_mod_info2] [array get user_mod_acct2] [array get user_mod_assoc2]]
+
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#
+# Use sacctmgr to list the test qos modifications
+#
+set matches 0
+set my_pid [spawn $sacctmgr -n -p list user format="User,QosLevel" names=$tu1,$tu2,$tu3 withassoc]
+expect {
+	-re "There was a problem" {
+	        send_user "FAILURE: there was a problem with the sacctmgr command\n"
+	    	incr exit_code 1
+	}
+	-re "$tu1.$qs3." {
+		incr matches
+		exp_continue
+	}
+	-re "$tu2.$qs2.$qs1.$qs3." {
+		incr matches
+		exp_continue
+	}
+	-re "$tu3.$qs2.$qs1." {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		incr exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$matches != 15} {
+	send_user "\nFAILURE:  Account addition 15 incorrect with only $matches.\n"
+	incr exit_code 1
+}
+
+
+#modify user3 QoS
+
+# First array: information about user (ie. cluster,account,partition...)
+# Second array: account information about user (ie. adminlevel, default account, ...)
+# Third array: association information about user (ie. fairshare, grpcpumins, grpcpu...)
+
+incr exit_code [mod_user $tu3 [array get user_mod_info3] [array get user_mod_acct3] [array get user_mod_assoc3]]
+
+if { $exit_code } {
+	remove_user "" "" "$tu1,$tu2,$tu3"
+	remove_acct "" "$ta1,$ta2,$ta3"
+	remove_qos "$qs1,$qs2,$qs3"
+	remove_cluster "$tc1,$tc2,$tc3"
+	exit $exit_code
+}
+
+#
+# Use sacctmgr to list the test qos modifications
+#
+set matches 0
+set my_pid [spawn $sacctmgr -n -p list user format="User,QosLevel" names=$tu1,$tu2,$tu3 withassoc]
+expect {
+	-re "There was a problem" {
+	        send_user "FAILURE: there was a problem with the sacctmgr command\n"
+	    	incr exit_code 1
+	}
+	-re "$tu1.$qs3." {
+		incr matches
+		exp_continue
+	}
+	-re "$tu2.$qs2.$qs1.$qs3." {
+		incr matches
+		exp_continue
+	}
+	-re "$tu3.$qs1." {
+		incr matches
+		exp_continue
+	}
+	timeout {
+		send_user "\nFAILURE: sacctmgr list associations not responding\n"
+		slow_kill $my_pid
+		incr exit_code 1
+	}
+	eof {
+		wait
+	}
+}
+
+if {$matches != 9} {
+	send_user "\nFAILURE:  Account addition 9 incorrect with only $matches.\n"
+	incr exit_code 1
+}
+
+# This is the end below here
+
+incr exit_code [remove_user "" "" "$tu1,$tu2,$tu3"]
+incr exit_code [remove_acct "" "$ta1,$ta2,$ta3"]
+incr exit_code [remove_qos "$qs1,$qs2,$qs3"]
+incr exit_code [remove_cluster "$tc1,$tc2,$tc3"]
+
+if {$exit_code == 0} {
+	print_success $test_id
+} else {
+	send_user "\nFAILURE\n"
+}
+exit $exit_code
+

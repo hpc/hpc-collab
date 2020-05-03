@@ -1,0 +1,63 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc*/common/provision/config/ssh/4.copy-host-keys-to-local-node
+
+## @brief This copies the merged host keys for the cluster back to the local node.
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+declare -x ETC=/etc
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x COMMONETC_SSH=${COMMONETC}/ssh
+declare -x COMMONETC_SSHD_CONFIG=${COMMONETC_SSH}/sshd_config
+declare -x COMMONETC_SSHCONFIG=${COMMONETC_SSH}/ssh_config
+declare -x COMMONETC_SSH_HOSTPUBKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key.pub
+declare -x COMMONETC_SSH_HOSTPRIVKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key
+
+declare -x COMMONETC_SSH_KNOWNHOSTS=${COMMONETC_SSH}/ssh_known_hosts
+declare -x COMMONETC_SHOSTSEQUIV=${COMMONETC_SSH}/shosts.equiv
+
+declare -x ETCSSH=${ETC}/ssh
+declare -x ETCSSH_SSHCONFIG=${ETCSSH}/ssh_config
+declare -x ETCSSH_KNOWNHOSTS=${ETCSSH}/ssh_known_hosts
+declare -x ETCSSH_SHOSTSEQUIV=${ETCSSH}/shosts.equiv
+declare -x SLASHROOT_DOTSHOSTS=/root/.shosts
+
+declare -x COMMON_SLASHROOT=${COMMON}/root
+declare -x COMMON_SLASHROOT_DOTSSH=${COMMON_SLASHROOT}/.ssh
+declare -x COMMON_SLASHROOT_DOTSSH_AUTHORIZEDKEYS=${COMMON_SLASHROOT_DOTSSH}/authorized_keys
+declare -x COMMON_SLASHROOT_DOTSSH_PRIVKEYRSA=${COMMON_SLASHROOT_DOTSSH}/id_rsa
+declare -x COMMON_SLASHROOT_DOTSSH_PUBKEYRSA=${COMMON_SLASHROOT_DOTSSH}/id_rsa.pub
+
+if [ ! -f ${COMMONETC_SHOSTSEQUIV} ] ; then
+  ErrExit ${EX_OSFILE} "${COMMONETC_SHOSTSEQUIV} does not exist"
+fi
+
+Rc ErrExit ${EX_OSFILE}	"cp -b ${COMMONETC_SHOSTSEQUIV} ${ETCSSH_SHOSTSEQUIV}"
+Rc ErrExit ${EX_OSFILE}	"cp -b ${COMMONETC_SHOSTSEQUIV} ${SLASHROOT_DOTSHOSTS}"
+Rc ErrExit ${EX_OSFILE}	"cp -b ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}"
+
+Rc ErrExit ${EX_OSFILE}	"cp -bpr ${COMMON_SLASHROOT_DOTSSH} /root/.ssh"
+
+Rc ErrExit ${EX_OSFILE}	"cp -b ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH}"
+Rc ErrExit ${EX_OSFILE}	"cp -b ${COMMONETC_SHOSTSEQUIV} ${ETCSSH}"
+
+trap '' 0
+exit ${EX_OK}
