@@ -16,7 +16,7 @@ foreach e ( ${provision_bin} ${clusters_bin} )
   set present=""
   foreach p ($path)
     if ( "${p}" == "${e}" )  then
-      present=true
+      set present=true
     endif
   end
   if ( "${present}" != "true" ) then
