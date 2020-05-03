@@ -1,4 +1,4 @@
-# hpc-collab (somtimes: hpc-colab)
+# hpc-collab (sometimes: hpc-colab)
 
 This project provides provisioned HPC cluster models using underlying virtualization mechanisms.
 
