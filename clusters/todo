@@ -12,7 +12,7 @@ A. refactor more of the provisioning tools outside of each virtual cluster defin
 B. i. use-case cluster recipe (template?) to construct a cluster snapshot to reproduce user problems
    ii. Use a lighter weight vagrant provider (lxc? kvm/ovirt? docker or equiv?) rather than virtualbox
    iii. *run as an HPC job on production cluster* (probably requires lightweight container provider, !virtualbox)
-    --- run on multiple nodes?  [above (i) and (ii): ndebard feedback]
+    --- run on multiple nodes?  [above (i) and (ii): resilience feedback]
    iv. collaborative outreach use case, showing a configuration or slurm algorithm comparison case study
 C. move data base onto vcfs storage and out of vcdb local storage, or possibly 2nd vcdb disk (requires selinux tagging)
 D. preserve some state (home directories) between versions
@@ -24,7 +24,7 @@ G. i. TOSS rather than CentOS, fully replace test environment, ideally, create v
    ii. refactor into a model where the control system may not be the host system
     possible enabler for "run on multiple nodes/deply within an HPC allocation"
     consider how to deploy from a central source of truth/config mgmt server, rather than a local library & script 
-   [sanchez feedback: (i) and (ii)]
+   [production feedback: (i) and (ii)]
 H. bounce a node (shutdown, 'vagrant halt' becomes 'vagrant suspend'): howto
    determine & document process for quick-start users
    freeze/thaw has low overhead, possibly distribute "frozen" images?
