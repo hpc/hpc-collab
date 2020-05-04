@@ -1,5 +1,13 @@
 This file is here for historical reasons. git is now the approved distribution and installation mechanism.
 
+Even with the git repository:
+(1) is still useful to set command aliases.
+(3) is still required. A tarball containing a recent centos repository tree (os, updates) is needed.
+    For convenience, here's one: 
+      repos.tgz:   https://drive.google.com/open?id=1pMM79r_UiEQDv6GmZZQ_AxssxQl9rei-
+      repos.cksum: https://drive.google.com/open?id=1F_jSe0dZHXG3Rl8L3QtjHN55EoHpVIT9
+
+----
 1. Create a work directory, usually $HOME/hpc-collab
    cd $HOME/hpc-collab
    If not in this directory, update bin/setpath.{c}sh with the installation root.
