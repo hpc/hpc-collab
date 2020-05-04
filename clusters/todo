@@ -1,15 +1,11 @@
-To Do:
-
+In progress:
 1. a. move (much of this technical debt etc) into git issues, including philosophy of file system
         as a consistent instance of a dynamic CI/CD infrastructure
    b. vc: vcdb => vcdb-prime, vcdb-alternate,
           communitySQL or mariadb10.0.3
-
 2.  Fault-insertion framework
-
 3.  a. Queue-loading scenarios
     b. job-allocation signatures
-
 ---
 [Technical debt, good hygiene & issues for the git repo]
 A. refactor more of the provisioning tools outside of each virtual cluster definition, to common: useradd, etc
