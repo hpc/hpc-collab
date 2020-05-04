@@ -20,16 +20,10 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-_cluster=$(scontrol show config | grep -i ClusterName | awk '{print $3}')
-if [ -z "${_cluster}" ] ; then
-  ErrExit 7 "clustername empty (\"show config\")"
-fi
-
 qos=$(echo $(sacctmgr show qos -n format=name))
 if [ -z "${qos}" ] ; then
   ErrExit 2 "no slurm qos specified"
 fi
-
 partitions=$(echo $(sinfo -h -o "%R"))
 if [ -z "${partitions}" ] ; then
   ErrExit 3 "no slurm partitions defined"
@@ -43,12 +37,18 @@ if [ -z "${users}" ] ; then
   ErrExit 5 "no slurm users defined"
 fi
 
-sacctmgr add account cluster=${_cluster} default -n -iQ | grep -v 'Nothing new added'
-
-#account_exists=$(sacctmgr show account cluster="${_cluster}" default -n -iQ | awk '{print $1}')
-#if [[ ${account_exists} != default ]] ; then
-#  Rc ErrExit 6 "sacctmgr -iQ add account cluster=${_cluster} name=default parent=root"
-#fi
+clustername=$(scontrol show config | grep -i clustername | awk '{print $3}')
+if [ -z "${clustername}" ] ; then
+  ErrExit 6 "clustername not defined in slurm configuration"
+fi
+account_exists=$(sacctmgr -iQ show account default -n cluster=${clustername} withassoc | grep "${clustername}" | awk '{print $1}' | head -1)
+if [ -z "${account_exists}" ] ; then
+  Rc ErrExit 7 "sacctmgr -iQ add account name=default parent=root cluster=${clustername}"
+else 
+  if [[ ${account_exists} != default ]] ; then
+    Rc ErrExit 8 "sacctmgr -iQ add account name=default parent=root cluster=${clustername}"
+  fi
+fi
 
 for u in ${users} vagrant
 do
@@ -87,13 +87,14 @@ do
     _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
     _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
 
-    exists=$(sacctmgr show user withassoc -n name=${u} partition=${_p} qos=${_q} account=${_a} cluster=${_cluster} | egrep "${_a}.*${_p}")
+    exists=$(sacctmgr show user withassoc -n name=${u} partition=${_p} qos=${_q} account=${_a} cluster=${clustername} \
+	    	| egrep "${clustername}.*${_a}.*${_p}.*${qos}")
     if [ -z "${exists}" ] ; then
       def_arg=""
       if [ -n "${DefaultAccount}" ] ; then
         def_arg="defaultaccount=${DefaultAccount}"
       fi
-      Rc ErrExit 7 "sacctmgr -iQ add user name=${u} partition=${_p} qos=${_q} account=${_a} cluster=${_cluster} ${def_arg}"
+      Rc ErrExit 9 "sacctmgr -iQ add user name=${u} partition=${_p} qos=${_q} account=${_a} cluster=${clustername} ${def_arg}"
     fi
   done
 
@@ -101,18 +102,16 @@ do
     _adminlevel=$(echo $(ls ${slurm_adminlevel}))
     case "${_adminlevel}" in
       *"perator"|*"dministrator")
-        Rc ErrExit 8 "sacctmgr -iQ update user name=${u} cluster=${_cluster} set AdminLevel=${_adminlevel}"
+        Rc ErrExit 10 "sacctmgr -iQ update user name=${u} cluster=${clustername} set AdminLevel=${_adminlevel}"
         ;;
       "")
         ;;
       *)
-        ErrExit 9 "${u}: unknown AdminLevel ${_adminlevel}"
+        ErrExit 11 "${u}: unknown AdminLevel ${_adminlevel}"
         ;;
       esac
   fi
 done
-
-sacctmgr show user cluster=${_cluster} withassoc
 
 trap '' 0
 exit ${EX_OK}
