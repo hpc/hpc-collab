@@ -1,0 +1,79 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/mariadb/4.verify-mysql-config
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+MY_CONF=/etc/my.cnf
+tstamp=`date +%Y.%m.%d.%H:%M`
+MIN_BUFFER_POOL_SIZE_MB=1048576
+
+DESIRED_MYSQL_MIN_VERSION_ALPHA=5.7
+DESIRED_MYSQL_MIN_VERSION_MAJOR=5
+DESIRED_MYSQL_MIN_VERSION_MINOR=7
+
+MB=1024
+innodb_buffer_pool_size_mycnf_numeric=0
+numeric="^-?[0-9]+$"
+
+innodb_buffer_pool_size_mycnf_raw=$(echo $(grep innodb_buffer_pool_size ${MY_CONF} | sed 's/innodb_buffer_pool_size=//'))
+if [[ ${innodb_buffer_pool_size_mycnf_raw} =~ M$ ]] ; then
+  innodb_buffer_pool_size_mycnf_numeric=$((${innodb_buffer_pool_size_mycnf_raw%M} * ${MB}))
+fi
+
+innodb_buffer_pool_size_running_raw=$(echo $(mysql -e "SELECT @@innodb_buffer_pool_size / ${MB} ;" -s))
+innodb_buffer_pool_size_running_integral=$(echo ${innodb_buffer_pool_size_running_raw} | sed 's/.0000//')
+
+if ! [[ ${innodb_buffer_pool_size_running_integral} =~ ${numeric} ]] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} is non-integral"
+fi
+
+if [ "${innodb_buffer_pool_size_running_integral}" -lt "${MIN_BUFFER_POOL_SIZE_MB}" ] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} < MIN_BUFFER_POOL_SIZE_MB:${MIN_BUFFER_POOL_SIZE_MB}"
+fi
+
+if [ ${innodb_buffer_pool_size_mycnf_numeric} != ${innodb_buffer_pool_size_running_integral} ] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_mycnf:${innodb_buffer_pool_size_mycnf} != innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral}"
+fi
+
+mysql_version_db=$(echo $(mysql -e 'select @@version;' -s))
+mysql_version_numeric=$(echo ${mysql_version_db} | sed 's/[-][a-zA-Z]*//')
+mysql_version_major=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{print $1}')
+mysql_version_minor=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{print $2}')
+for _v in mysql_version_major mysql_version_minor
+do
+  if ! [[  ${!_v} =~ ${numeric} ]] ; then
+    ErrExit ${EX_CONFIG} "mysql misconfiguration: ${_v}:${!_v} is non-numeric"
+  fi
+done
+
+mysql_version=$(( ( ${mysql_version_major} * 100 ) + ${mysql_version_minor}  ))
+mysql_version_minimum=$(( ( ${DESIRED_MYSQL_MIN_VERSION_MAJOR} * 100 ) + ${DESIRED_MYSQL_MIN_VERSION_MINOR} ))
+
+if [ ${mysql_version} -lt ${mysql_version_minimum} ] ; then
+  Warn ${EX_CONFIG} "undesirable mysql version: desired=${DESIRED_MYSQL_MIN_VERSION_ALPHA} actual=${mysql_version_numeric}"
+fi
+
+mysql_engines=$(echo $(mysql -e 'show engines;' -s))
+if ! [[ ${mysql_engines} =~ InnoDB ]] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: mysql engines does not appear to include InnoDB"
+fi
+
+trap '' 0
+exit ${EX_OK}
