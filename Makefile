@@ -17,8 +17,10 @@ TARGETS				= all clean clean-state show up down unprovision provision savelogs
 
 REQUIRES_D			= requires
 PREREQ_SW_D			= $(REQUIRES_D)/sw
+PREREQ_INGEST_D			= $(REQUIRES_D)/ingest
 
 PREREQ_SW			= $(wildcard $(PREREQ_SW_D)/*)
+PREREQ_INGEST			= $(wildcard $(PREREQ_INGEST_D)/*)
 PREREQ_LIST			= $(notdir $(PREREQ_SW))
 PREREQ				= $(PREREQ_LIST)
 
@@ -54,7 +56,9 @@ pkg:
 	
 
 # @todo => gmake function, also fuzzier match
+# @todo move to subsidiary Makefile
 prerequisites prereq: $(PREREQ_LIST)
+	$(MAKE) -C requires/ingest
 	$(HUSH)set first=""											; \
 	for f in $(sort $^)											; \
         do													  \

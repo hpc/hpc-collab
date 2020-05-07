@@ -17,20 +17,31 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
-
-exec > >(tee -a "${OUT}") 2>&1
 
 declare -x ETCSLURM=${COMMON}/etc/slurm
 declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 declare -x SLURMDBDCONF=${ETCSLURM}/slurmdbd.conf
 
+if [ ! -f ${SLURMCONF} ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURMCONF:${SLURMCONF} file not found"
+fi
+
 CLUSTERNAME=$(grep ClusterName ${SLURMCONF} | sed 's/ClusterName=//')
 rc=$?
-echo "CLUSTERNAME: \"${CLUSTERNAME}\""
+echo "slurm.conf: ClusterName=\"${CLUSTERNAME}\""
 if [ ${rc} -ne ${GREP_FOUND} ] ; then
-  ErrExit ${EX_SOFTWARE} "ClusterName not found in ${SLURMCONF}"
+  ErrExit ${EX_SOFTWARE} "SLURMCONF:${SLURMCONF} ClusterName not found"
 fi
+
+if [ ! -f ${SLURMDBDCONF} ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURMDBDCONF:${SLURMDBDCONF} file not found"
+fi
+
+STORAGEUSER=$(grep StorageUser ${SLURMDBDCONF} | sed 's/StorageUser=//')
+STORAGEPASS=$(grep StoragePass ${SLURMDBDCONF} | sed 's/StoragePass=//')
+MYSQL_AUTH="--user=${STORAGEUSER} --password=${STORAGEPASS}"
 
 export dbdhost=$(grep -i dbdhost ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdhost=//')
 export dbdaddr=$(grep -i dbdaddr ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdaddr=//')
@@ -42,18 +53,22 @@ if [ -z "${dbdaddr}" ] ; then
   ErrExit ${EX_SOFTWARE} "empty dbdaddr"
 fi
 
+MYSQL_CMD="mysql ${MYSQL_AUTH} --host=${dbdhost} --batch"
+
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 1 -n ${dbdhost}"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 1 -n ${dbdaddr}"
 
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} mysql --host=${dbdhost} --batch --execute 'show databases;'"
+grep StorageUser ${SLURMDBDCONF}
 
-clustername=$(timeout ${TIMEOUT} mysql --database=slurm_acct_db --host=${dbdhost} --batch --skip-column-names --execute 'select name from cluster_table;' )
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --execute 'show databases;'"
+
+clustername=$(timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'select name from cluster_table;' )
 
 if [[ ${clustername} != ${CLUSTERNAME} ]] ; then
   ErrExit ${EX_SOFTWARE} "select name from cluster_table => ${clustername} != ${CLUSTERNAME}"
 fi
 
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} mysql --database=slurm_acct_db --host=${dbdhost} --batch --execute 'show tables;' --skip-column-names | grep ${CLUSTERNAME}_last_ran"
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran"
 
 trap '' 0
 exit ${EX_OK}

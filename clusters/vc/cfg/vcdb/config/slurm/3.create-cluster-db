@@ -17,9 +17,8 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
-
-exec > >(tee -a "${OUT}") 2>&1
 
 declare -x COMMON_ETCSLURM=${COMMON}/etc/slurm
 declare -x SLURMCONF=${COMMON_ETCSLURM}/slurm.conf
@@ -73,8 +72,11 @@ done
 
 exists=$(sacctmgr show cluster ${CLUSTERNAME} -n -P)
 if [ -z "${exists}" ] ; then
+  Verbose " creating cluster: ${CLUSTERNAME}"
   db_cluster=$(echo $(sacctmgr -iQ create cluster ${CLUSTERNAME}))
   # "Adding Cluster(s) Name = ${CLUSTERNAME}"
+else
+  Verbose " preexisting cluster: ${CLUSTERNAME}"
 fi
 
 db_cluster=$(sacctmgr show cluster ${CLUSTERNAME} -p -n | tail -1 | awk -F\| '{print $1}')

@@ -49,7 +49,7 @@ J. graphviz & doxygen
    - self-documenting Makefile rules
 K. consolidate RPM's in each node's load list into localrepo and an index file table, for space reduction
        may require a secondary local_repo.tgz tarball
-L. vcsvc service node adds the service: SMTP-outbound
+L. vcgate service node adds the externally-connected service: SMTP-outbound
 M. vclustre combined node (MST, MDT, OST, ODT) or preferably, a separate lustre-cluster recipe
 N. common template for all nodes in Makefile / dynamic Makefile construction based on external data templates
    - implement <node-type>/<node-class> lighterweight file system structure
@@ -109,3 +109,4 @@ x. when rpms are downloaded (not SKIP_YUMDOWNLOAD) emplace them in the (eventual
 y. fix names in vx*/common that refer to vc* but should refer to vx* (ex. vcsched => vxsched), even though the IP reference is correct
 z. provisioning repodata.xml complaints (updaterepo earlier?)
 aa. clean up clusters/vc/build & create proper (dynamic?) dependency hierarchy
+bb. aliases: if node is provisioned, <nodename> => 'ssh <nodename', otherwise <nodename> => 'make <nodename>'

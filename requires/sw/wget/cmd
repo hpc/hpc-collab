@@ -1,0 +1,1 @@
+wget --version | head | grep 'GNU Wget' | awk '{print $3}'

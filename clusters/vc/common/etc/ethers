@@ -17,6 +17,7 @@
 5C:A1:AB:1E:05:1C	vcsvc.tc
 5C:A1:AB:1E:01:06	vclogin.tc
 5C:A1:AB:1E:00:B1	vcbuild.tc
+5C:A1:AB:1E:A1:DB	vcaltdb.tc
 5C:A1:AB:1E:00:DB	vcdb.tc
 5C:A1:AB:1E:00:F5	vcfs.tc
 

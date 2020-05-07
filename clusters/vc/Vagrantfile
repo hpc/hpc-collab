@@ -77,6 +77,15 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
+  "vcaltdb" => {  :ip             => `grep vcaltdb #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcaltdb #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcaltdb/attributes/memory],
+									:cpus           => %x[ls ./cfg/vcaltdb/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
   "vcsched" => {  :ip             => `grep vcsched #{hosts}  | awk '{printf "%s",$1}'`,
 									:mac            => `grep vcsched #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,

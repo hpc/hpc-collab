@@ -16,12 +16,8 @@
 ## is granted for itself and others acting on its behalf a nonexclusive, paid-up, irrevocable
 ## worldwide license in this material to reproduce, prepare derivative works, distribute copies
 ## to the public, perform publicly and display publicly, and to permit others to do so.</p>
-## <p>The public may copy and use this information without charge, provided that this Notice
-## and any statement of authorship are reproduced on all copies. Neither the Government
-## nor Triad National Security, LLC makes any warranty, express or implied, or assumes any
-## liability or responsibility for the use of this information.</p>
-## <p>This program is covered by LA-UR-20-20057 and has been approved for open source release
-## from Triad by DoE 20-20057 under the terms of the BSD 3-clause license, as below.</p>
+## <p>This program is covered by LANL LA-UR-20-20057 and has been approved for open source release
+## from Triad, LLC by DoE 20-20057 under the terms of the BSD 3-clause license, as below.</p>
 ## <br>&nbsp;<br>
 ## Redistribution and use in source and binary forms, with or without modification, are
 ## permitted provided that the following conditions are met:<br>
@@ -45,7 +41,8 @@
 ## OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ## SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
 ## &nbsp;
+## <p>This header defines the copyright for all of the functions, documentation and copackaged
+## files, whether or not it is explicitly incorporated into any or all of them.</p>
 ## &nbsp;
-## @brief This header defines the copyright for all of the functions, documentation and copackaged files,
-## whether or not it is explicitly incorporated into any or all of them.
+## @brief Copyright Notice
 

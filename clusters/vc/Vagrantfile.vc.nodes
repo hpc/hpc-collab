@@ -37,11 +37,20 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vcdb" 		=> {  :ip             => `grep vcdb #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcdb #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcdb" 		=> {  :ip             => `grep vcdba #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcdba #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcdb/attributes/memory],
 									:cpus           => %x[ls ./cfg/vcdb/attributes/procs],
+									:ingestfromhost => nil,
+									:adddiskpath    => nil
+								},
+
+  "vcaltdb" => {  :ip             => `grep vcaltdb #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep vcaltdb #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+									:bridge         => nil,
+									:memory         => %x[ls ./cfg/vcaltdb/attributes/memory],
+									:cpus           => %x[ls ./cfg/vcaltdb/attributes/procs],
 									:ingestfromhost => nil,
 									:adddiskpath    => nil
 								},

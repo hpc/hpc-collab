@@ -19,11 +19,20 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
 
-exec > >(tee -a "${OUT}") 2>&1
-
 Rc ErrExit 2 "systemctl start slurmdbd"
+isactive=$(systemctl status slurmdbd | grep Active: | awk '{print $2}')
+if [ "${isactive}" != "active" ] ; then
+  ErrExit ${EX_CONFIG} "slurmdbd failed to start correctly: ${isactive}"
+fi
+
+# slurmdbd isn't ready immediately to start servicing requests
+# if seeing "Connection refused" messages in slurmdbd status, may need to increase this
+sleep 2
+
+Rc ErrExit 3 "sacctmgr show cluster -n"
 
 trap '' 0
 exit ${EX_OK}

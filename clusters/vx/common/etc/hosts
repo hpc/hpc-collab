@@ -38,6 +38,7 @@
 192.168.56.71 vcsvc.tc vcsvc vcsvc.test-cluster vcsvc.testcluster vcloghost vcloghost.tc vcloghost.test-cluster vcloghost.testcluster
 192.168.56.73 vclogin.tc vclogin vclogin.test-cluster vclogin.testcluster
 192.168.56.75 vcbuild.tc vcbuild vcbuild.test-cluster vcbuild.testcluster
+192.168.56.76 vcaltdb.tc vcaltdb vcaltdb.test-cluster vcaltdb.testcluster
 192.168.56.77 vcdb.tc vcdb vcdb.test-cluster vcdb.testcluster
 192.168.56.79 vcfs.tc vcfs vcfs.test-cluster vcfs.testcluster
 ### vc

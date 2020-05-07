@@ -11,7 +11,7 @@ Two representative HPC cluster recipes are included. At present, recipes generat
  <b>vc</b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
  <LI><EM>vcfs</EM>		- provides file storage to other cluster nodes, including common configuration and logs (slurm, rsyslog)</LI>
- <LI><EM>vcsvc</EM>		- provides common services such as DNS, NTP, SYSLOG</LI>
+ <LI><EM>vcsvc</EM>		- provides common in-bound services such as DNS, NTP, SYSLOG</LI>
  <LI><EM>vcbuild</EM>	- configured with a larger share of RAM and cpu cores,
   		  compilation HPC partition
   builds software as it is brought up, if necessary</LI>
