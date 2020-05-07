@@ -169,6 +169,7 @@ $(PKG_TARGETS):	 $(TAR_ADDITIONAL_FILES)
 	$(HUSH)ls -ltL $^
 
 $(TARBALL_REPOS_TGZ): $(TARBALLS_D)
+	$(MAKE) -C ../requires/ingest
 	$(HUSH)for _f in $@				;\
 	do						 \
 	  if [ ! -f $${_f} ] ; then			 \

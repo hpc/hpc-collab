@@ -466,6 +466,7 @@ $(TARBALLS_D):
 	$(HUSH)mkdir -p $@
 
 $(TARBALL_REPOS_TGZ) $(TARBALL_VBOXADD_ISO): $(TARBALLS_D)
+	$(MAKE) -C ../../requires/ingest
 	$(HUSH)for _f in $@				;\
 	do						 \
 	  if [ ! -f $${_f} ] ; then			 \
