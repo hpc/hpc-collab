@@ -89,7 +89,8 @@ prerequisites prereq: $(PREREQ_LIST)
 		    first=" "											; \
 	          fi												; \
 	        fi												; \
-	done
+	done													; \
+	echo ''
 
 $(SUBDIRS): $(PREREQ)
 	$(HUSH)$(MAKE) -s -C $@ $(MAKECMDGOALS)
