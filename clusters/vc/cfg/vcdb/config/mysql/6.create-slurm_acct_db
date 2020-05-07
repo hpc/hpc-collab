@@ -1,0 +1,47 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/mariadb/1.configure-mariadb
+
+VCLOAD=../../../provision/loader/shload.sh
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+
+if [ ! -f "${RESET_ALREADY_FLAG}" ] ; then
+  ErrExit ${EX_CONFIG} "Cannot find mysql password file"
+fi
+AUTH="--user=root --password=$(cat ${RESET_ALREADY_FLAG})"
+
+Rc ErrExit ${EX_OSERR} "mysql ${AUTH} -e \"exit\" 2>&1"
+
+db=$(echo $(mysql -rBs ${AUTH} -e "show databases"))
+case "${db}" in
+  *slurm_acct_db*)
+    Verbose " slurm_acct_db already exists"
+    ;;
+  *)
+    Rc ErrExit ${EX_OSERR} "mysql --force ${AUTH} -e \"create database slurm_acct_db;\""
+
+    ;;
+esac
+
+Rc ErrExit ${EX_OSERR} "mysql ${AUTH} -e \"show tables;\" slurm_acct_db"
+
+trap '' 0
+exit ${EX_OK}

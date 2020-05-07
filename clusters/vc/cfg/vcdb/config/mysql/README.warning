@@ -1,0 +1,4 @@
+
+The permissions defined in these scripts are *only* appropriate for test clusters, experiments and scenario validation.
+They are configured for automated and convenient cluster construction. They are not configured for any security-related
+scenario validation.

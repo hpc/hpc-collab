@@ -1,0 +1,1 @@
+MYSQLD_OPTS="--skip-slave-start"

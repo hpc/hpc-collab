@@ -1,0 +1,108 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/mariadb/4.verify-mysql-config
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+MY_CONF=/etc/my.cnf
+
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+
+if [ ! -f "${RESET_ALREADY_FLAG}" ] ; then
+  ErrExit ${EX_CONFIG} "mysql password does not appear to have been reset"
+fi
+INITIAL_AUTH=$(cat ${RESET_ALREADY_FLAG})
+AUTH="--user=root --password=${INITIAL_AUTH}"
+
+MYSQL_PORT=3306
+addrs=$(grep bind_address ${MY_CONF} | sed 's/bind_address=//' | sed 's/,/ /')
+
+for p in `seq 0 1`
+do
+  for a in ${addrs}
+  do
+    case ${p} in
+    0) f=Warn    ;;
+    *) f=ErrExit ;;
+    esac
+    Rc ${f} ${EX_CONFIG}  "timeout ${TIMEOUT} ncat -4 -w1 -v -z ${a} ${MYSQL_PORT} </dev/null"
+    rc=$?
+    if [ ${rc} -ne ${EX_OK} ] ; then
+      Rc ErrExit ${EX_OSERR} "systemctl restart mysqld"
+      TIMEOUT=2
+      Rc ErrExit ${EX_CONFIG}  "timeout ${TIMEOUT} ncat -4 -w${TIMEOUT} -v -z ${a} ${MYSQL_PORT} </dev/null"
+    fi
+  done
+done
+
+MIN_BUFFER_POOL_SIZE_MB=1048576
+
+DESIRED_MYSQL_MIN_VERSION_ALPHA=5.7
+DESIRED_MYSQL_MIN_VERSION_MAJOR=$(echo ${DESIRED_MYSQL_MIN_VERSION_ALPHA} | awk -F. '{print $1}')
+DESIRED_MYSQL_MIN_VERSION_MINOR=$(echo ${DESIRED_MYSQL_MIN_VERSION_ALPHA} | awk -F. '{print $2}')
+
+MB=1024
+innodb_buffer_pool_size_mycnf_numeric=0
+numeric="^-?[0-9]+$"
+
+innodb_buffer_pool_size_mycnf_raw=$(echo $(grep innodb_buffer_pool_size ${MY_CONF} | sed 's/innodb_buffer_pool_size=//'))
+if [[ ${innodb_buffer_pool_size_mycnf_raw} =~ M$ ]] ; then
+  innodb_buffer_pool_size_mycnf_numeric=$((${innodb_buffer_pool_size_mycnf_raw%M} * ${MB}))
+fi
+
+innodb_buffer_pool_size_running_raw=$(echo $(mysql ${AUTH} -e "SELECT @@innodb_buffer_pool_size / ${MB} ;" -s))
+innodb_buffer_pool_size_running_integral=$(echo ${innodb_buffer_pool_size_running_raw} | sed 's/.0000//')
+
+if ! [[ ${innodb_buffer_pool_size_running_integral} =~ ${numeric} ]] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} is non-integral"
+fi
+
+if [ "${innodb_buffer_pool_size_running_integral}" -lt "${MIN_BUFFER_POOL_SIZE_MB}" ] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} < MIN_BUFFER_POOL_SIZE_MB:${MIN_BUFFER_POOL_SIZE_MB}"
+fi
+
+if [ ${innodb_buffer_pool_size_mycnf_numeric} != ${innodb_buffer_pool_size_running_integral} ] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_mycnf:${innodb_buffer_pool_size_mycnf} != innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral}"
+fi
+
+mysql_version_db=$(echo $(mysql ${AUTH} -e 'select @@version;' -s))
+mysql_version_numeric=$(echo ${mysql_version_db} | sed 's/[-][a-zA-Z]*//')
+mysql_version_major=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{print $1}')
+mysql_version_minor=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{print $2}')
+for _v in mysql_version_major mysql_version_minor
+do
+  if ! [[  ${!_v} =~ ${numeric} ]] ; then
+    ErrExit ${EX_CONFIG} "mysql misconfiguration: ${_v}:${!_v} is non-numeric"
+  fi
+done
+
+mysql_version=$(( ( ${mysql_version_major} * 100 ) + ${mysql_version_minor}  ))
+mysql_version_minimum=$(( ( ${DESIRED_MYSQL_MIN_VERSION_MAJOR} * 100 ) + ${DESIRED_MYSQL_MIN_VERSION_MINOR} ))
+
+if [ ${mysql_version} -lt ${mysql_version_minimum} ] ; then
+  Warn ${EX_CONFIG} "undesirable mysql version: desired=${DESIRED_MYSQL_MIN_VERSION_ALPHA} actual=${mysql_version_numeric}"
+fi
+
+mysql_engines=$(echo $(mysql ${AUTH} -e 'show engines;' -s))
+if ! [[ ${mysql_engines} =~ InnoDB ]] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: mysql engines does not appear to include InnoDB"
+fi
+
+trap '' 0
+exit ${EX_OK}

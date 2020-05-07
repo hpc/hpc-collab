@@ -1,0 +1,78 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/install/slurm/4.mysqld-service-on-early
+
+## @brief start mysqld service early, as required by slurm configurator
+
+VCLOAD=../../../provision/loader/shload.sh
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+MY_CONF=/etc/my.cnf
+tstamp=`date +%Y.%m.%d.%H:%M`
+
+socket=$(grep socket ${MY_CONF} | sed 's/socket=//')
+
+iam=$(id -n -u)
+if [ ${iam} != "root" ] ; then
+  ErrExit ${EX_NOPERM} "insufficient authority"
+fi
+
+declare -x ETC_NETWORKS=/etc/networks
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+declare -x INITIAL_AUTH
+
+MYSQL_TMPW=$(journalctl -xe | grep 'mysqld_pre_systemd.*temporary password is generated' | tail -1 | awk '{print $18}')
+INITIAL_AUTH="${MYSQL_TMPW}"
+declare -x NEW_PW
+
+trap 'rm -f "${RESET_ALREADY_FLAG}"' 0 1 2 3 15
+
+if [ -f "${RESET_ALREADY_FLAG}" ] ; then
+  NEW_PW=$(cat ${RESET_ALREADY_FLAG})
+  INITIAL_AUTH="${NEW_PW}"
+  Verbose "  Re-using INITIAL_AUTH from RESET_ALREADY_FLAG:${RESET_ALREADY_FLAG}"
+else
+  authpw=$(echo $(cat authpw))
+  salt=$(date +%Y%m%d%H%M)
+  NEW_PW="${authpw}.${salt}"
+fi
+
+declare -x VC_NET=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}' | sed 's/\.0$/.%/')
+
+mysql --syslog --line-numbers --user=root --password="${INITIAL_AUTH}" --connect-expired-password << _MYSQL_PW_COMMANDS_
+SET PASSWORD = '${NEW_PW}';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER 'root'@'${VC_NET}' IDENTIFIED BY '${NEW_PW}';
+GRANT ALL ON *.* TO 'root'@'${VC_NET}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'localhost';
+FLUSH PRIVILEGES;
+_MYSQL_PW_COMMANDS_
+rc=$?
+if [ ${rc} -ne ${EX_OK} ] ; then
+  rm -f ${RESET_ALREADY_FLAG}
+  ErrExit ${EX_CONFIG} "mysql --user=root --password=INITIAL_AUTH --connect-expired-password failed:rc=${rc}"
+fi
+Rc ErrExit ${EX_OSERR} "echo \"${NEW_PW}\" > ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0400 ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0700 $(dirname ${RESET_ALREADY_FLAG})"
+
+trap '' 0
+exit ${EX_OK}
