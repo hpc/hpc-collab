@@ -31,13 +31,16 @@ AUTH="--user=root --password=${PW}"
 
 Rc ErrExit ${EX_OSERR} "mysql ${AUTH} -e \"exit\" 2>&1"
 
+# review my.cnf
+# At present, gtid=off so the following is not appropriate
+#  MASTER_AUTO_POSITION = 1
 mysql --syslog --line-numbers ${AUTH}  << _MYSQL_CHANGEMASTER_COMMANDS_
 CHANGE MASTER TO
 	MASTER_HOST = 'vcdb',
 	MASTER_PORT = 3306,
 	MASTER_USER = 'root',
 	MASTER_PASSWORD = '${PW}',
-	MASTER_AUTO_POSITION = 1;
+	MASTER_AUTO_POSITION = 0;
 _MYSQL_CHANGEMASTER_COMMANDS_
 rc=$?
 if [ ${rc} -ne ${EX_OK} ] ; then
