@@ -76,8 +76,11 @@ chkConfig() {
   owner=$(bash -c "ls -ld ${COMMON_HOME} | awk '{print \$3}'")
   if [ "${ID}" != "${owner}" ] ; then
     isvirt=$(virt-what 2>&1)
-    if [[ "${isvirt}" = *virtualbox* ]] ; then 
-      ErrExit ${EX_OSFILE} "ID: ${ID} is not owner of VC_COMMON_HOME:${VC_COMMON_HOME}, owner:${owner}"
+    rc=$?
+    if [ ${rc} -eq ${EX_OK} ] ; then
+      if [[ "${isvirt}" = *virtualbox* ]] ; then 
+        ErrExit ${EX_OSFILE} "ID: ${ID} is not owner of VC_COMMON_HOME:${VC_COMMON_HOME}, owner:${owner}"
+      fi
     fi
   fi
 

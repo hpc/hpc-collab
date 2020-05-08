@@ -52,12 +52,24 @@ ErrExit() {
         TidyUp ${TIDYUP_LOCK}
       fi
     fi
+
     if [ -n "${HALT_ERREXIT}" ] ; then
-      local isvirt=$(virt-what)
+      local isvirt=""
+      local nopoweroff="echo disabled:"
+      local isroot=$(id -n -u)
+      local detectvirt=$(which systemd-detect-virt)
+      local virthwat=$(which virt-what)
+
+      if [ -x "${detectvirt}" ] ; then
+        isvirt=$(systemd-detect-virt)
+      elif [ -x "${virtwhat}" -a "${isroot}" = "root" ] ; then
+        isvirt=$(${virtwhat})
+      fi
+
       if [[ ${isvirt} != *kvm* && ${isvirt} != *virtualbox* ]] ; then
         echo "[refusing to poweroff non-virtual system]"
       else
-        poweroff --force --no-wall
+        ${nopoweroff} poweroff --force --no-wall
       fi
     fi
     exit ${rc}

@@ -8,7 +8,11 @@
 
 if [ -z "${COMMON}" ] ; then
   echo "  ${0}: Error: broken configuration: COMMON empty"
-  exit 99
+  isvirt=$(echo $(virt-what))
+  case "${isvirt}" in
+    *virtualbox*|*vbox*|*kvm*) exit 99 ;;
+    *) ;;
+  esac
 fi
 
 declare -x SLURMCONF=${COMMON}/${ETCSLURM}/slurm.conf

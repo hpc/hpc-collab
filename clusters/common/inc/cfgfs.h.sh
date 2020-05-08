@@ -7,7 +7,12 @@
 ## @brief This header file defines common names and hierarchy of the configuration file system layout
 
 HOSTNAME=${HOSTNAME:-$(hostname -s)}
-isvirt=$(echo $(which virt-what 2>&1))
+isvirt=""
+detect_virt=$(which systemd-detect-virt)
+if [ -x "${detect_virt}" ] ; then
+  isvirt=$(${detect_virt})
+fi
+
 declare -x IN_CLUSTER=""
 
 case "${isvirt}" in
@@ -18,14 +23,12 @@ case "${isvirt}" in
         exit 99
       fi
     ;;
-  *)
-     # default (obsolete)
-     # declare -x VC=/vagrant
+  "virtualbox"|"vbox"|"kvm")
      declare -x CLUSTERNAME=${HOSTNAME:0:2}
-     if [ -x ${isvirt} ] ; then
-       declare -x  IN_CLUSTER=true
-     fi
-   ;;
+     declare -x IN_CLUSTER="${isvirt}"
+    ;;
+  *)
+    ;;
 esac
 
 # inside the base host ("dom0"), ANCHOR is used.
