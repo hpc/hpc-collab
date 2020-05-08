@@ -37,8 +37,8 @@ $(REPO_WORKSPACE_D): $(REPO_OS) $(REPO_UPDATES)
 # and incorporate an estimated space check
 $(REPO_OS) $(REPO_UPDATES):
 	mkdir -p $(@D)
-	rsync --dry-run  -4 -avz --delete $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
-	rsync            -4 -avz --delete $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
+	rsync --dry-run  -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
+	rsync            -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
 	touch $@
 
 # use this to pull a repo and roll a tarball
