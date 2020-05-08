@@ -51,7 +51,7 @@ $(TARBALL_D)/$(repo_cksum): $(TARBALL_D)/$(repo_tgz)
 
 # set http_proxy or https_proxy if need be
 $(TARBALL_D)/$(VBOX_ISO):
-	wget --show-progress -4 $(VBOX_ISO_URL)/$(VBOX_ISO) $@
+	wget -4 $(VBOX_ISO_URL)/$(VBOX_ISO) > $@
 
 force:
 	rm -f $(REPO_OS) $(REPO_UPDATES)
