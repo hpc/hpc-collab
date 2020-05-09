@@ -775,11 +775,29 @@ InstallRPMS() {
   local _rpms_add
   local _r
   local _disable_localrepo_arg_
+  local _need_clean
 
   case "${1}" in
   install|"")
 	    which=install
-  	    timeout=${YUM_TIMEOUT_INSTALL}
+  	  timeout=${YUM_TIMEOUT_INSTALL}
+
+      # may require this for CentOS if encountering "yum interrupted by user cancel"
+      # https://forums.centos.org/viewtopic.php?t=47372
+      # https://bugzilla.redhat.com/show_bug.cgi?id=1091740
+      # https://bugzilla.redhat.com/show_bug.cgi?id=1099101
+      if [ -f /etc/os-release ] ; then
+        local centos
+        centos=$(grep '^ID=' /etc/os-release | sed 's/^ID=//' | sed 's/"//g')
+        if [ "${centos}" = "centos" ] ; then
+          Verbose "  (CentOS bug#1099101) would force SKIP_YUMDOWNLOAD to be clear; yum clean metadata"
+          # extremely high cost (in time) to do this; temporary fix is to force latest python-urlgrabber
+          # into early RPMS
+          # SKIP_YUMDOWNLOAD=""
+          _need_clean=true
+        fi
+      fi
+
 	    ;;
   early)
     	    which=early
@@ -802,6 +820,10 @@ InstallRPMS() {
 	    ;;
   esac
 
+  if [ -n "${_need_clean}" ] ; then
+    Verbose "  yum -y clean metadata"
+    Rc ErrExit ${EX_SOFTWARE} "yum -y clean metadata"
+  fi
   ## collect list of rpms. This list may either be a string subset of rpm names, or actual rpms
   ## If it appears to be an actual RPM, we will attempt to localinstall it rather than reach out to a remote repo
   rpms_add=$(echo $(ls ${RPM}/${which} | grep -v README))
@@ -851,6 +873,10 @@ InstallRPMS() {
   do
     if [ -n "${SKIP_YUMDOWNLOAD}" ] ; then
       continue
+    fi
+    if [ -n "${_need_clean}" ] ; then
+      Verbose "  yum -y clean metadata && yum -y upgrade"
+      Rc ErrExit ${EX_SOFTWARE} "yum -y clean metadata && yum -y upgrade"
     fi
     if [ -x $(which yumdownloader) ] ; then
       Rc ErrExit ${EX_IOERR} "timeout ${timeout} yumdownloader --resolve --destdir=${RPM}/${which} --archlist=${ARCH} \"${r}\" ; "
