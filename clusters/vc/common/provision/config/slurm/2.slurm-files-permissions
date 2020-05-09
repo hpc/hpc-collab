@@ -45,7 +45,15 @@ if [ -n "${svc_pid}" ] ; then
   done
 fi
 
-Rc ErrExit ${EX_OSFILE} "mkdir -p /var/log/slurm /var/spool/slurm /var/run/slurm"
+for d in /var/log/slurm /var/spool/slurm /var/run/slurm
+do
+  _d=${d}
+  if [ -L ${d} ] ; then
+	  _d=$(readlink ${d})
+  fi
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${_d}"
+done
+
 Rc ErrExit ${EX_OSFILE} "touch /var/log/slurm/slurmd.log"
 Rc ErrExit ${EX_OSFILE} "cmp ${ROOTFS}${SLURMDSERVICE} ${SLURMDSERVICE} || cp -bv ${ROOTFS}${SLURMDSERVICE} ${SLURMDSERVICE}"
 Rc ErrExit ${EX_OSFILE} "systemctl daemon-reload"
