@@ -790,7 +790,7 @@ InstallRPMS() {
         local centos
         centos=$(grep '^ID=' /etc/os-release | sed 's/^ID=//' | sed 's/"//g')
         if [ "${centos}" = "centos" ] ; then
-          Verbose "  (CentOS bug#1099101) would force SKIP_YUMDOWNLOAD to be clear; yum clean metadata"
+          Verbose "  (CentOS bug#1099101) would force SKIP_YUMDOWNLOAD to be clear"
           # extremely high cost (in time) to do this; temporary fix is to force latest python-urlgrabber
           # into early RPMS
           # SKIP_YUMDOWNLOAD=""
