@@ -53,7 +53,7 @@ done
 # common aliases for all clusters:
 for t in help show up pkg prereq provision unprovision down
 do
-  alias "${t}"="make -C ${BASE} ${t}"
+  alias "${t}"="make -s -C ${BASE} ${t}"
 done
 alias  "savelogs"="make -C ${CLUSTERS} savelogs"
 
