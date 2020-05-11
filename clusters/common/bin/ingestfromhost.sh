@@ -110,10 +110,10 @@ main() {
   local calling_args=($@)
   shift
 
-  if [ $(hostname -s) != ${REQUESTED_HOST} ] ; then
+  if [[ ${REQUESTED_HOST} != *fs ]] ; then
+    Verbose "  not storage host."
     exit ${EX_OK}
   fi
-
   if [ $# -lt 2 ] ; then
     ErrExit ${EX_USAGE} "arguments? expected calling host and possibly :<KEYWORD>"
   fi
