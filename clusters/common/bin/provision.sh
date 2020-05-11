@@ -821,7 +821,7 @@ InstallRPMS() {
   esac
 
   if [ -n "${_need_clean}" ] ; then
-    Verbose "  yum -y clean metadata"
+    Verbose "    yum -y clean metadata"
     Rc ErrExit ${EX_SOFTWARE} "yum -y clean metadata"
   fi
   ## collect list of rpms. This list may either be a string subset of rpm names, or actual rpms
