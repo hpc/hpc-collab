@@ -11,20 +11,23 @@ Git is now the approved distribution and installation mechanism. 'hpc-collab.tgz
    If running low on space, make this a symlink to an alternate partition with more space.
    Point this symlink wherever your local system has sufficient scratch space.
 
-3. a. Download repos.tgz, repos.cksum
+Skip to item #7:
+
+3. [OBSOLETE] This item is only included for reference. The Makefile performs this action, as needed.
+   a. Download repos.tgz, repos.cksum
       This only needs to be done once, or occasionally when there's a major CentOS version upgrade.
     For convenience, here's one: 
       repos.tgz:   https://drive.google.com/open?id=1pMM79r_UiEQDv6GmZZQ_AxssxQl9rei-
       repos.cksum: https://drive.google.com/open?id=1F_jSe0dZHXG3Rl8L3QtjHN55EoHpVIT9
    b. [OBSOLETE] Download hpc-collab.tgz, hpc-collab.cksum
 
-4. Put these into the tarballs directory
+4. [OBSOLETE] Put these into the tarballs directory
       mv *.tgz tarballs
 
-5. Compare checksums of the tarballs:
+5. [OBSOLETE] Compare checksums of the tarballs:
       ex. "cksum repos.tgz; cat repos.cksum", "cksum hpc-collab.tgz; cat hpc-collab.cksum"
 
-6. Untar vc.tgz:
+6. [OBSOLETE] Untar vc.tgz:
       cd hpc-collab
       tar -xzvf tarballs/hpc-collab.tgz
    which would create, for example, the vc subdirectory.
@@ -33,7 +36,8 @@ Git is now the approved distribution and installation mechanism. 'hpc-collab.tgz
      a. bash/zsh/ksh: export PATH=vc/cfg/provision/bin:${PATH} or ". ./bin/setpath.sh"
      b. [t]csh: setenv path=(vc/cfg/provision/bin $path) or "source ./bin/setpath.csh"
 
-8. make prereq
+
+8. make prereq [This is not required, but can be informational.]
    to check known prerequisites (virtualbox, vagrant, mostly)
 
 9. make [help | show | up | pkg | ...]

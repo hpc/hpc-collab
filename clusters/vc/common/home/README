@@ -1,15 +1,32 @@
-assuming pwd = clusters/vc or clusters/vx
+This procedure for adding a user is applicable to an unprovisioned cluster.
 
-To add an additional user:
- cp -prv provision/useradd/<old-user> provision/useradd/<new-user>
- mv provision/useradd/<new-user>/uid/# provision/useradd/<new-user>/uid/<uid>
- mv provision/useradd/<new-user>/gid/# provision/useradd/<new-user>/gid/<gid>
- mkdir common/home/<new-user>
+For a running cluster, an additional common configuration management mechanism
+is needed. (https://github.com/hpc/hpc-collab/issues/9)
 
-Possibly:
+assuming pwd = clusters/vc or clusters/vx, that is, clusters/<CL> = two-letter cluster prefix
+
+1) To add an additional user:
+ Add the user to the Linux passwd, group, shadow, etc files. Use a unique uid and gid for the user.
+```
+   cp -prv provision/useradd/<old-user> provision/useradd/<new-user>
+   mv provision/useradd/<new-user>/uid/# provision/useradd/<new-user>/uid/<uid>
+   mv provision/useradd/<new-user>/gid/# provision/useradd/<new-user>/gid/<gid>
+   mkdir common/home/<new-user>
+```
+2) If the user needs modification from base defaults:
+   a. Change the shell from bash to zsh, for example:
+```
  mv provision/useradd/<new-user>/shell/zsh provision/useradd/<new-user>/shell/bash
+```
+   b. Add 'sudo' privileges for the user
+```
  sed -i 's/<old-user>/<new-user/' provision/useradd/<new-user>/sudoers.d/<old-user> provision/useradd/<new-user>/sudoers.d/<old-user>
  mv provision/useradd/<new-user>/sudoers.d/<old-user> provision/useradd/<new-user>/sudoers.d/<new-user>
+```
+
+3) Review the slurm account construction for more complex allocations, as needed.
+   See: <new-user>/slurm/...
+   These map to qos, partitions and associations to be used to populate the slurm data base.
 
 To Do:
  move this outside of an individual cluster recipe, into a top-most common useradd area
