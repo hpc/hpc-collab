@@ -7,6 +7,9 @@ clusters_bin=${CLUSTERS}/common/bin
 PWD=$(pwd)
 
 export HUSH=@
+if ! [[ ${MAKEFLAGS} =~  --quiet ]] ; then
+  export MAKEFLAGS="${MAKEFLAGS} --quiet"
+fi
 
 for e in ${provision_bin} ${clusters_bin}
 do
