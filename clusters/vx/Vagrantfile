@@ -30,7 +30,7 @@ end
 
 ### XXX ### XXX ### XXX ###
 ### The ruby way is to define nodes in an external YAML file, rather than to define within ruby
-### XXX for now, include it inline here
+### XXX for now, include it inline here, or explore a file tree walk to collect generically
 
 # -*- mode: ruby -*-
 # vi: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
