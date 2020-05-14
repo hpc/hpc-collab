@@ -1,0 +1,70 @@
+
+
+# default virtualbox location
+declare -x VBOX_VM=${HOME}/VirtualBox\ VMs
+declare -x SPACE_FS=$(echo $(df -l | grep -v 1K-blocks | egrep '\/dev\/|tmpfs' | awk '{print $6}'))
+declare -x NEED_SPACE=$(cat need_space)
+
+declare -x BIGGEST_FS
+
+declare -x EX_OK=0
+declare -x EX_NOSPC=2
+declare -x EX_CONFIG=99
+
+if [ ! -f need_space ] ; then
+  echo " need_space missing"
+  exit ${EX_CONFIG}
+fi
+
+BigEnough() {
+	export avail_space
+	fs=${1:-_no_filesystem_}
+	if [ "${fs}" != "_no_filesystem_" ] ; then
+		avail_space=$(echo $(df -l ${fs} | grep -v 1K-blocks | awk '{print $4}'))
+		if [[ ${avail_space} < ${NEED_SPACE} ]] ; then
+			echo ""
+		fi
+	fi
+	echo "${fs}"
+	return
+}
+
+MostAvailable() {
+	export largest_found
+	export max_fs
+	export avail
+	max_fs=""
+	largest_found=0
+	for fs in ${SPACE_FS}
+	do
+		if [ ! -d ${fs} ] ; then
+			continue
+		fi
+		avail=$(df -l ${fs} | grep -v 1K-blocks | egrep '\/dev\/|tmpfs' | awk '{print $4}')
+		if [[ ${avail} > ${largest_found} ]] ; then
+			largest_found=${avail}
+			max_fs=${fs}
+		fi
+	done
+	echo ${max_fs}
+	return
+}
+
+main() {
+	fs=$(MostAvailable)
+	if [ -z "${fs}" ] ; then
+		echo " No file system found."
+		exit ${EX_NOSPC}
+	fi
+	if [ "$1" = "-v" ] ; then
+		echo "${fs}"
+	fi
+	isbigenough=$(BigEnough ${fs})
+	if [ -z "${isbigenough}" ] ; then
+		echo " No file system with enough space (${NEED_SPACE})."
+		exit ${EX_NOSPC}
+	fi
+	exit ${EX_OK}
+}
+
+main $*

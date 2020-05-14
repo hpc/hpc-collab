@@ -99,6 +99,12 @@ chkConfig() {
     ErrExit ${EX_OSFILE} "ID: ${ID} empty shell (${COMMON_USERADD}/${ID}/shell)"
   fi
 
+  if [ ! -d ${COMMON_USERADD}/${ID}/passwd ] ; then
+    Verbose " ${COMMON_USERADD}/${ID}/passwd does not exist -- creating"
+    Rc ErrExit ${EX_OSFILE} "mkdir -p ${COMMON_USERADD}/${ID}/passwd"
+    Rc ErrExit ${EX_OSFILE} "touch ${COMMON_USERADD}/${ID}/passwd/.gitignore"
+  fi
+
   echo ${shell} ${home}
   return
 }

@@ -10,7 +10,12 @@ set provision_bin=${BASE}/bin
 set clusters_bin=${CLUSTERS}/common/bin
 set PWD=`pwd`
 
-setenv HUSH @
+setenv HUSH	 @
+if ( $?MAKEFLAGS ) then
+	setenv MAKEFLAGS "${MAKEFLAGS} --quiet"
+else
+	setenv MAKEFLAGS "--quiet"
+endif
 
 foreach e ( ${provision_bin} ${clusters_bin} )
   set present=""
