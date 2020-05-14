@@ -1,6 +1,6 @@
 # hpc-collab (sometimes: hpc-colab)
 
-This project provides provisioned HPC cluster models using underlying virtualization mechanisms.
+This project provides provisioned HPC cluster models using underlying virtualization mechanisms. In short, "clusters as cattle, not pets."
 
 Its purpose is to provide a common baseline for repeatable HPC experiments. This has been used for education, distributed collaboration, tool development colaboration, failure signature discovery, local HPC debugging and cluster configuration comparisons.
 
