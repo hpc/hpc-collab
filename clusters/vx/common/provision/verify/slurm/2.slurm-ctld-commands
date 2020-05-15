@@ -22,6 +22,7 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+TIMEOUT=5
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sinfo              >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show part >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show res  >/dev/null"
