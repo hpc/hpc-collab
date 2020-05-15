@@ -43,18 +43,19 @@ do
   declare -x cl=${n:0:2}
 
   declare -x cluster_dir=${CLUSTERS}/${cl}
-  alias	"${n}"="make -C ${cluster_dir} ${n}"
-  alias	"${n}!"="make -C ${cluster_dir} ${n}_UNPROVISION; make -C ${cluster_dir} ${n}"
+  alias	"${n}"="nohup make -C ${cluster_dir} ${n} > ${n}.out &"
+  alias	"${n}!"="make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n} > ${n}.out &"
   alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION" 
 
   # yes, this redefines the alias for multiple nodes; that is not costly
-  alias	"${cl}"="make -C ${cluster_dir} up"
+  alias	"${cl}"="nohup make -C ${cluster_dir} up > ${cl}.up.out &"
   alias	"${cl}--"="make -C ${cluster_dir} unprovision"
-  alias	"${cl}!"="make -C ${cluster_dir} unprovision; make -C ${cluster_dir} up"
+  alias	"${cl}!"="make -C ${cluster_dir} unprovision; nohup make -C ${cluster_dir} up > ${cl}.up.out &"
 done
 
 # common aliases for all clusters:
-for t in help show up pkg prereq provision unprovision down
+alias "up"="nohup make -s -C ${BASE} up > up.out &"
+for t in help show pkg prereq provision unprovision down
 do
   alias "${t}"="make -s -C ${BASE} ${t}"
 done
