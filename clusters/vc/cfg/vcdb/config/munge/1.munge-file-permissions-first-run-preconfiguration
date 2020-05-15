@@ -64,6 +64,7 @@ do
   fi
   if [ -f ${f} -o -d ${f} ] ; then
     Rc ErrExit ${EX_OSFILE} "chown ${ch_args} root:root ${f}"
+    Rc ErrExit ${EX_OSFILE} "chmod g-w ${f}"
   else
     Rc ErrExit ${EX_OSFILE} "touch ${f}"
   fi
