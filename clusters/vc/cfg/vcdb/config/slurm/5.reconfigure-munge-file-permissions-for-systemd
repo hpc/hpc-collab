@@ -64,6 +64,7 @@ do
         ch_arg="-h"
       fi
       Rc ErrExit ${EX_OSFILE} "chown ${ch_arg} munge:munge ${x}"
+      Rc ErrExit ${EX_OSFILE} "chmod g-w ${x}"
     fi
   done
 done
