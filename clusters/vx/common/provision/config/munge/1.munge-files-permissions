@@ -78,6 +78,7 @@ do
     ch_args="-h"
   fi
   Rc ErrExit ${EX_OSFILE} "chown ${ch_args} root:root ${f}"
+  Rc ErrExit ${EX_OSFILE} "chmod g-w ${f}"
 done
 
 for f in /var/log/munge /var/log/munge/munged.log \
