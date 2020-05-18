@@ -78,16 +78,19 @@ SaveDB() {
     ErrExit ${EX_CONFIG} "DB_HOST: empty"
   fi
 
+  SLURMDBDCONF=/etc/slurm/slurmdbd.conf
   MYSQLDUMP_ARGS="--single-transaction --opt --dump-date --flush-logs --quick --user=root"
   MYSQLDUMP_CMD="/usr/bin/mysqldump"
   MYSQLDUMP_DB="slurm_acct_db"
   DUMPFILE=/tmp/slurm_acct_db.${TSTAMP}.sql
-  MYSQLDUMP="${MYSQLDUMP_CMD} ${MYSQLDUMP_ARGS} ${MYSQLDUMP_DB}"
 
   _h=${DB_HOST}
   Rc ErrExit ${EX_CONFIG} "ping -n -q -w 1 ${_h}"
   Rc ErrExit ${EX_CONFIG} "ssh -q ${SSH_OPTARGS} ${_h} true"
   Rc ErrExit ${EX_CONFIG} "mkdir -p ${TMPDIR}/${_h}"
+  # Assumes: invoking user has password-less sudo enabled in-cluster
+  MYSQLPASS=$(echo $(ssh -q ${SSH_OPTARGS} ${_h} sudo grep StoragePass= ${SLURMDBDCONF}) | sed 's/StoragePass=//')
+  MYSQLDUMP="${MYSQLDUMP_CMD} ${MYSQLDUMP_ARGS} --password=${MYSQLPASS} ${MYSQLDUMP_DB}"
   Rc ErrExit ${EX_OSFILE} "ssh -q ${SSH_OPTARGS} ${_h} ${MYSQLDUMP} > ${DUMPFILE}"
   Rc ErrExit ${EX_OSFILE} "mv ${DUMPFILE} ${TMPDIR}/${_h}/"
   return

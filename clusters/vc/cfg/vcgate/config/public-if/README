@@ -1,0 +1,3 @@
+ip adress and gateway values for static configurations are in, for example, LANL/gw-static , LANL/ip-static.
+If these are named LANL/gw-static.env or LANL/ip-static.env then the files contain environment variables with the
+values. Otherwise, they are assumed to be exact values to be passed to the ip command.
