@@ -5,7 +5,7 @@ Git is now the approved distribution and installation mechanism. 'hpc-collab.tgz
    cd $HOME/hpc-collab
    If not in this directory, update bin/setpath.{c}sh with the installation root. [(7) below]
 
-2. mkdir tarballs
+2. ```mkdir tarballs``` or ```ln -s /scratch/tarballs```
    This directory name is expected by the Makefile
    This directory is also used for the expansion of the source repositories, as a second disk.
    If running low on space, make this a symlink to an alternate partition with more space.
