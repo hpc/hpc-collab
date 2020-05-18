@@ -58,8 +58,8 @@ end
 foreach n ($nodes)
   set cl=`echo ${n}| cut -c1-2`
   set cluster_dir=${CLUSTERS}/${cl}
-  alias	"${n}"		"nohup make -C ${cluster_dir} ${n} >& ${n}.out &; tail -f ${n}.out"
-  alias	"${n}!"		"make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n} >& ${n}.out &; tail -f ${n}.out"
+  alias	"${n}"		"touch ${n}.out; nohup make -C ${cluster_dir} ${n} >& ${n}.out &; tail -f ${n}.out"
+  alias	"${n}!"		"touch ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n} >& ${n}.out &; tail -f ${n}.out"
   alias	"${n}--"	"make -C ${cluster_dir} ${n}_UNPROVISION" 
 
   # yes, this redefines the alias for multiple nodes; that's not costly in csh
@@ -69,11 +69,12 @@ foreach n ($nodes)
 end
 
 # common aliases for all clusters:
-alias "up"		"nohup make -s -C ${BASE} up >& up.out &; tail -f up.out"
+alias "up"		"touch up.out; nohup make -s -C ${BASE} up >& up.out &; tail -f up.out"
+
 foreach t (show pkg prereq provision unprovision down)
   alias "${t}"		"make -s -C ${BASE} ${t}"
 end
-alias  "savelogs"	"make -C ${CLUSTERS} savelogs"
+alias  "savelogs"	"env TMPDIR=. make -C ${CLUSTERS} savelogs"
 
 # when/if needed
 #ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key >& /dev/null
