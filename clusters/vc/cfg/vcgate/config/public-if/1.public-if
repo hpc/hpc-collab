@@ -36,14 +36,28 @@ esac
 # to set IS_LANL
 SetFlags >/dev/null 2>&1
 
+declare LANL_IP_FILE_BASE=LANL/ip-static
+declare LANL_IP_FILE_ENV=${LANL_IP_FILE_BASE}.env
+
 if_ip="DHCP"
-declare -x LANL_public_ip_file=LANL/ip
+
 if [ -n "${IS_LANL}" ] ; then
-  if [ ! -f ${LANL_public_ip_file} ] ; then
-    Warn ${EX_CONFIG} "IS_LANL: ${LANL_public_ip_file} does not exist"
-  else
-    if_ip=$(cat ${LANL_public_ip_file})
-  fi
+  for _ip_file in ${LANL_IP_FILE_ENV} ${LANL_IP_FILE_BASE}
+  do
+    if [ ! -f ${_ip_file} ] ; then
+      continue
+    fi
+    if [[ ${_ip_file} = *.env ]] ; then
+      _var=$(cat ${_ip_file})
+      if [ -n "${!_var}" ] ; then
+        Verbose "  Setting public I/F from ${_var}:${!_var}"
+        if_ip=${!_var}
+        break
+      fi
+    else
+      if_ip=$(cat ${_ip_file})
+    fi
+  done
 fi
 
 if [ "${if_ip}" = "DHCP" -o -z "${if_ip}" ] ; then
