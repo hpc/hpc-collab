@@ -59,7 +59,7 @@ for t in help show pkg prereq provision unprovision down
 do
   alias "${t}"="make -s -C ${BASE} ${t}"
 done
-alias  "savelogs"="env TMPDIR=. make -C ${CLUSTERS} savelogs"
+alias  "savelogs"="( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/savelogsdb.sh )"
 
 # when/if needed
 # ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key > /dev/null 2>&1

@@ -74,7 +74,7 @@ alias "up"		"nohup make -s -C ${BASE} up"
 foreach t (show pkg prereq provision unprovision down)
   alias "${t}"		"make -s -C ${BASE} ${t}"
 end
-alias  "savelogs"	"env TMPDIR=. make -C ${CLUSTERS} savelogs"
+alias  "savelogs"	"( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/savelogsdb.sh )"
 
 # when/if needed
 #ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key >& /dev/null
