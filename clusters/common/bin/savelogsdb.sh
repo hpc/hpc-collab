@@ -8,8 +8,9 @@
 declare -x VC=${VC:-_VC_UNSET_}
 
 if [ ${VC} = "_VC_UNSET_" ] ; then
-  echo ${0}: VC is unset. Need virtual cluster identifier.
-  exit 97
+  declare -x VC=$(basename $(pwd))
+  declare -x CLUSTERNAME=${VC}
+  echo ${0}: VC is unset. Assuming: \"${VC}\"
 fi
 
 #declare -x ANCHOR=cfg/provision
@@ -29,19 +30,29 @@ fi
 source ${LOADER_SHLOAD}
 
 declare -x PWD=$(pwd)
+
 declare -x ID=$(id -n -u)
 declare -x IAM=$(basename $0 .sh)
 declare -x TSTAMP=$(date +%Y.%m.%d.%H%M)
 declare -x REQUESTED_HOST=${1-""}
 declare -x VARLOG=/var/log
-declare -x TMPDIR=${TMPDIR:-/tmp/${IAM}.${TSTAMP}.d}
+
 declare -x STORAGE_HOST=""
 declare -x DB_HOST=""
 declare -x SSH_OPTARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 declare -x PROVISIONED_D=common/._state/provisioned
+declare -x SAVELOGS_D=${IAM}.${TSTAMP}.d
+declare -x TMPDIR
+
+if [ -n "${TMPDIR}" ] ; then
+  if [ -d ${TMPDIR} ] ; then
+    TMPDIR=${PWD}/${SAVELOGS_D}
+  fi
+else
+  TMPDIR=/tmp/${SAVELOGS_D}
+fi
 
 SaveLogs() {
-  Rc ErrExit ${EX_OSFILE} "mkdir -p ${TMPDIR}"
   local _vc=$(echo $(basename $(cd ${VC}; pwd)))
 
   any_up=""
@@ -58,8 +69,8 @@ SaveLogs() {
   export STORAGE_HOST=${_h}
   export DB_HOST=${any_up:0:2}db
 
-  Rc ErrExit  ${EX_CONFIG} "ping -n -q -w 1 ${_h}"
-  Rc ErrExit ${EX_CONFIG} "ssh -q ${SSH_OPTARGS} ${_h} true"
+  Rc ErrExit ${EX_CONFIG} "ping -c 1 -i 1 -n -q -w 1 ${_h}"
+  Rc ErrExit ${EX_CONFIG} "ssh ${SSH_OPTARGS} ${_h} /bin/true"
   Rc ErrExit ${EX_CONFIG} "mkdir -p ${TMPDIR}/${_h}"
 
   LOGDIRS=( ${LOGDIRS} )
@@ -86,10 +97,13 @@ SaveDB() {
 
   _h=${DB_HOST}
   Rc ErrExit ${EX_CONFIG} "ping -n -q -w 1 ${_h}"
-  Rc ErrExit ${EX_CONFIG} "ssh -q ${SSH_OPTARGS} ${_h} true"
+  Rc ErrExit ${EX_CONFIG} "ssh ${SSH_OPTARGS} ${_h} /bin/true"
   Rc ErrExit ${EX_CONFIG} "mkdir -p ${TMPDIR}/${_h}"
   # Assumes: invoking user has password-less sudo enabled in-cluster
   MYSQLPASS=$(echo $(ssh -q ${SSH_OPTARGS} ${_h} sudo grep StoragePass= ${SLURMDBDCONF}) | sed 's/StoragePass=//')
+  if [ -z "${MYSQLPASS}" ] ; then
+    ErrExit ${EX_SOFTWARE} "Warning: slurmdb password empty, expect a broken, incomplete or empty db dump."
+  fi
   MYSQLDUMP="${MYSQLDUMP_CMD} ${MYSQLDUMP_ARGS} --password=${MYSQLPASS} ${MYSQLDUMP_DB}"
   Rc ErrExit ${EX_OSFILE} "ssh -q ${SSH_OPTARGS} ${_h} ${MYSQLDUMP} > ${DUMPFILE}"
   Rc ErrExit ${EX_OSFILE} "mv ${DUMPFILE} ${TMPDIR}/${_h}/"
@@ -97,17 +111,22 @@ SaveDB() {
 }
 
 CompressLogs() {
-  Rc ErrExit ${EX_SOFTWARE} "find ${TMPDIR} -type f -not -name \*.gz -exec gzip \{\} \;"
+  if [ "${TMPDIR}" != "." ] ; then
+    Rc ErrExit ${EX_SOFTWARE} "find ${TMPDIR} -type f -not -name \*.gz -exec gzip \{\} \;"
+  fi
   return
 }
 
 main() {
-  SetFlags >/dev/null 2>&1
+
+  SetFlags
   local _vc=$(echo $(basename $(cd ${VC}; pwd)))
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${TMPDIR}"
+  trap "rmdir ${TMPDIR} >/dev/null 2>&1" 0 1 2 3 15
   SaveLogs
   SaveDB
   CompressLogs
-  echo "${_vc} logs: ${TMPDIR}"
+  Verbose " ${_vc} logs: ${TMPDIR}"
   trap '' 0
   exit ${EX_OK}
 }

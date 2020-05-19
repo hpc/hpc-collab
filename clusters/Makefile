@@ -179,7 +179,7 @@ $(TARBALL_REPOS_TGZ): $(TARBALLS_D)
 	done
 
 $(VC_TGZ): $(TARBALLS_D) $(TAR_GET)
-	$(HUSH)ln -f $(TAR_GET) $@
+	$(HUSH)ln -f $(TAR_GET) $@ |& grep -v 'Invalid cross-device'
 
 $(VC_CKSUM): $(TARBALLS_D) $(VC_TGZ)
 	$(HUSH)cksum $(VC_TGZ) > $(VC_CKSUM)
