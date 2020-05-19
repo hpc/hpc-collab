@@ -1,16 +1,22 @@
 Git is now the approved distribution and installation mechanism. 'hpc-collab.tgz' references should be skipped.
 
 ----
-1. Create a work directory, usually $HOME/hpc-collab
-   cd $HOME/hpc-collab
+1. a. Create a work directory, usually $HOME/hpc-collab
+   b. $ cd $HOME/hpc-collab
    If not in this directory, update bin/setpath.{c}sh with the installation root. [(7) below]
 
-2. mkdir tarballs
+2. a. Set up initial space.
+        $ mkdir hpc-collab/tarballs (if you have space for 20+Gb centos repo, ~10Gb repos tarball)
+        $ mkdir /scratch/tarballs; ln -s /scratch/tarballs hpc-collab/tarballs
    This directory name is expected by the Makefile
    This directory is also used for the expansion of the source repositories, as a second disk.
    If running low on space, make this a symlink to an alternate partition with more space.
    Point this symlink wherever your local system has sufficient scratch space.
+   b. Make sure that Virtualbox doesn't overrun your HOME partition space.
+        $ mkdir /scratch/Virtualbox\ VMs
+        $ ln -s /scratch/Virtualbox\ VMs ${HOME}/VirtualBox\ VMs
 
+---- ---- ----
 Skip to item #7:
 
 3. [OBSOLETE] This item is only included for reference. The Makefile performs this action, as needed.
@@ -31,16 +37,21 @@ Skip to item #7:
       cd hpc-collab
       tar -xzvf tarballs/hpc-collab.tgz
    which would create, for example, the vc subdirectory.
+---- ---- ---- ----
 
 7. Whichever shell you prefer:
      a. bash/zsh/ksh: export PATH=vc/cfg/provision/bin:${PATH} or ". ./bin/setpath.sh"
      b. [t]csh: setenv path=(vc/cfg/provision/bin $path) or "source ./bin/setpath.csh"
+     This will be a modulefile, but isn't yet.
 
+8. Check prerequisities:
+       make prereq [This is not required, but can be informational.]
+   The storage space checker needs work.
 
-8. make prereq [This is not required, but can be informational.]
-   to check known prerequisites (virtualbox, vagrant, mostly)
-
-9. make [help | show | up | pkg | ...]
+9. Construct the cluster:
+      $ up
+   or more verbosely:
+      $ make [help | show | up | pkg | ...]
    This will trigger construction of the virtual cluster nodes, with dependencies.
    The Makefile codifies dependencies so that the full cluster can be brought up or down with, for example,
      'make up' or 'make unprovision'
