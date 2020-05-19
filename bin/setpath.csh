@@ -58,18 +58,18 @@ end
 foreach n ($nodes)
   set cl=`echo ${n}| cut -c1-2`
   set cluster_dir=${CLUSTERS}/${cl}
-  alias	"${n}"		"touch ${n}.out; nohup make -C ${cluster_dir} ${n} >& ${n}.out &; tail -f ${n}.out"
-  alias	"${n}!"		"touch ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n} >& ${n}.out &; tail -f ${n}.out"
+  alias	"${n}"		"nohup make -C ${cluster_dir} ${n}"
+  alias	"${n}!"		"make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n}"
   alias	"${n}--"	"make -C ${cluster_dir} ${n}_UNPROVISION" 
 
   # yes, this redefines the alias for multiple nodes; that's not costly in csh
-  alias	"${cl}"		"nohup make -C ${cluster_dir} up >& ${cl}.up.out & ; tail -f ${cl}.up.out"
+  alias	"${cl}"		"nohup make -C ${cluster_dir} up"
   alias	"${cl}--"	"make -C ${cluster_dir} unprovision"
-  alias	"${cl}!"	"make -C ${cluster_dir} unprovision; nohup make -C ${cluster_dir} up >& ${cl}.up.out &; tail -f ${cl}.up.out"
+  alias	"${cl}!"	"make -C ${cluster_dir} unprovision; nohup make -C ${cluster_dir} up"
 end
 
 # common aliases for all clusters:
-alias "up"		"touch up.out; nohup make -s -C ${BASE} up >& up.out &; tail -f up.out"
+alias "up"		"nohup make -s -C ${BASE} up"
 
 foreach t (show pkg prereq provision unprovision down)
   alias "${t}"		"make -s -C ${BASE} ${t}"
