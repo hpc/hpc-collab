@@ -505,9 +505,9 @@ $(XFR_REPOS_TGZ): $(TARBALL_REPOS_TGZ)
 # attempt to use ln to avoid running out of space on the partition holding $(XFR_...)
 $(XFR_VBOXADD_ISO): $(TARBALL_VBOXADD_ISO)
 	$(HUSH)if [ -f $(XFR_VBOXADD_ISO_PREV) ] ; then					  \
-	  ln -f $(XFR_VBOXADD_ISO_PREV) $@						; \
+	  ln -f $(XFR_VBOXADD_ISO_PREV) $@ |& grep -v 'Invalid cross-device'		; \
 	else										  \
-	  ln -f $< $@ ||								  \
+	  ( ln -f $< $@ |& grep -v 'Invalid cross-device') ||				  \
 	    rsync -LHcau $< $@								; \
 	fi
 
