@@ -926,8 +926,6 @@ InstallEarlyRPMS() {
 ## UserAdd()
 ##
 UserAdd() {
-  local ETC_DEFAULT_USERADD=/etc/default/useradd
-
   if [ ! -d ${USERADD} ] ; then
     ErrExit ${EX_CONFIG} "${USERADD} No such file or directory"
   fi
@@ -985,15 +983,6 @@ UserAdd() {
       if [ -n "${groups}" ] ; then 
         group_arg="-G ${groups}"
         Verbose "   + groups: ${groups}"
-      fi
-    fi
-
-    if [ -f ${ETC_DEFAULT_USERADD} ] ; then
-      sed -i~ -e "/HOME=\/home/d"  ${ETC_DEFAULT_USERADD}
-      sed -i~ -e "/INACTIVE=-1/i\
-HOME=${HOME_BASEDIR}" ${ETC_DEFAULT_USERADD}
-      if [ $? -ne ${EX_OK} ] ; then
-        ErrExit ${EX_SOFTWARE} "sed /INACTIVE=-1/i => HOME=${HOME_BASEDIR}"
       fi
     fi
 
