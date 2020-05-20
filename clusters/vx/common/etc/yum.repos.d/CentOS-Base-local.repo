@@ -6,6 +6,7 @@ baseurl=file:///home/vx/common/repos/centos/$releasever/os/$basearch
 gpgcheck=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 enabled=1
+priority=1
 
 #released updates 
 [local-updates]
@@ -16,4 +17,5 @@ baseurl=file:///home/vx/common/repos/centos/$releasever/updates/$basearch
 gpgcheck=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 enabled=1
+priority=1
 
