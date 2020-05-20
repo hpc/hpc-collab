@@ -3,7 +3,7 @@
 
 require 'pathname'
 
-REPODISK_SIZE = 20	# Gb
+REPODISK_SIZE = 12	# Gb
 
 clustername_fullpath_raw = %x[pwd]
 clustername_fullpath     = "#{clustername_fullpath_raw}"
