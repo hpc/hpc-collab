@@ -386,68 +386,68 @@ $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS):
 
 
 $(PROVISIONED_D)/%: $(XFR_PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
-	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"				; \
-	for prereq in $^ $${_prereq_nodes}										; \
-        do														  \
-	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then									  \
-	    continue													; \
-	  fi														; \
-	  export _VCC=$${prereq:0:2}											; \
-	  if [ -n "$${_VCC}" -a -d "../$${_VCC}" -a -d "../$${_VCC}/cfg/$${prereq}" ] ; then				  \
-	    if [ -n "$(HUSH)" ] ; then											  \
-	      echo "prerequisite: $${prereq}"										; \
-	    fi														; \
-	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}			; \
-	    continue													; \
-	  fi														; \
-	  if [ ! -f "$${prereq}" ] ; then										  \
-	    echo prerequisite: $${prereq} missing									; \
-	    exit 105													; \
-	  fi														; \
-	done														; \
-	if [ -f $(RUNNING_D)/$(@F) -a ! -f $(PROVISIONED_D)/$(@F) ] ; then						  \
-	  vagrant destroy -f $(@F) || exit 106										; \
-	fi								    					  	; \
-	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      					 	  \
-	  vagrant up --provision $(@F)											; \
-	  rc=$$?													; \
-	  if [ $${rc} -ne 0 ] ; then											  \
-	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)									; \
-	    exit 107													; \
-	  else														  \
-	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)									; \
-	  fi														; \
+	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"		; \
+	for prereq in $^ $${_prereq_nodes}								; \
+        do												  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then							  \
+	    continue											; \
+	  fi												; \
+	  export _VCC=$${prereq:0:2}									; \
+	  if [ -n "$${_VCC}" -a -d "../$${_VCC}" -a -d "../$${_VCC}/cfg/$${prereq}" ] ; then		  \
+	    if [ -n "$(HUSH)" ] ; then									  \
+	      echo "prerequisite: $${prereq}"								; \
+	    fi												; \
+	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}	; \
+	    continue											; \
+	  fi												; \
+	  if [ ! -f "$${prereq}" ] ; then								  \
+	    echo prerequisite: $${prereq} missing							; \
+	    exit 105											; \
+	  fi												; \
+	done												; \
+	if [ -f $(RUNNING_D)/$(@F) -a ! -f $(PROVISIONED_D)/$(@F) ] ; then				  \
+	  vagrant destroy -f $(@F) || exit 106								; \
+	fi								    			  	; \
+	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      			 	  \
+	  vagrant up --provision $(@F)									; \
+	  rc=$$?											; \
+	  if [ $${rc} -ne 0 ] ; then									  \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	    exit 107											; \
+	  else												  \
+	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
+	  fi												; \
 	fi
 
 $(RUNNING_D)/%: $(XFR_PREREQ) ingest-state
-	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then					       \
-	  vagrant up --no-provision $(@F)						     ; \
-	  rc=$$?									     ; \
-	  if [ $${rc} -ne 0 ] ; then							       \
-	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)					     ; \
-	    exit 101									     ; \
-	  fi										     ; \
-	elif [ -f $(POWEROFF_D)/$(@F) ] ; then						       \
-	  vagrant up --no-provision $(@F)						     ; \
-	  rc=$$?									     ; \
-	  if [ $${rc} -ne 0 ] ; then							       \
-	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)					     ; \
-	    exit 102									     ; \
-	  fi										     ; \
-											       \
-	elif [ ! -f $(PROVISIONED_D)/$(@F) -a ! -f $(NONEXISTENT_D)/$(@F) ] ; then	     \
-	  vagrant destroy -f $(@F) || exit 103						     ; \
-	fi										     ; \
-	ssh $(@F) uptime >/dev/null 2>&1						     ; \
-	rc=$$?										     ; \
-	if [ $${rc} -ne 0 ] ; then							       \
-	  $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)					     ; \
-	  exit 104									     ; \
+	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
+	  vagrant up --no-provision $(@F)							    	; \
+	  rc=$$?											; \
+	  if [ $${rc} -ne 0 ] ; then								  	  \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	    exit 101											; \
+	  fi												; \
+	elif [ -f $(POWEROFF_D)/$(@F) ] ; then								  \
+	  vagrant up --no-provision $(@F)								; \
+	  rc=$$?											; \
+	  if [ $${rc} -ne 0 ] ; then									  \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	    exit 102											; \
+	  fi												; \
+													  \
+	elif [ ! -f $(PROVISIONED_D)/$(@F) -a ! -f $(NONEXISTENT_D)/$(@F) ] ; then			  \
+	  vagrant destroy -f $(@F) || exit 103								; \
+	fi												; \
+	ssh $(@F) uptime >/dev/null 2>&1								; \
+	rc=$$?												; \
+	if [ $${rc} -ne 0 ] ; then									  \
+	  $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	  exit 104											; \
 	fi
 
 $(POWEROFF_D)/%:
-	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/$(@F)" ] ; then				  \
-		vagrant halt $(@F)							; \
+	$(HUSH)if [ ! -f "$(NONEXISTENT_D)/$(@F)" ] ; then						  \
+		vagrant halt $(@F)									; \
 	fi
 
 $(NONEXISTENT_D)/%: $(POWEROFF_D)/%
@@ -467,12 +467,12 @@ $(TARBALLS_D):
 
 $(TARBALL_REPOS_TGZ) $(TARBALL_VBOXADD_ISO): $(TARBALLS_D)
 	$(MAKE) -C ../../requires/ingest
-	$(HUSH)for _f in $@				;\
-	do						 \
-	  if [ ! -f $${_f} ] ; then			 \
-	    echo missing prerequisite: $${_f}		;\
-	    exit 104					;\
-	  fi						;\
+	$(HUSH)for _f in $@										; \
+	do												  \
+	  if [ ! -f $${_f} ] ; then									  \
+	    echo missing prerequisite: $${_f}								; \
+	    exit 104											; \
+	  fi												; \
 	done
 
 $(VC_TGZ): $(TAR_GET)
@@ -483,31 +483,31 @@ $(VC_CKSUM): $(TARBALLS_D) $(VC_TGZ)
 
 # Attempt to ln to conserve disk space, but fallback to rsync as gracefully as possible
 $(XFR_REPOS_TGZ): $(TARBALL_REPOS_TGZ)
-	$(HUSH)if [ -n "$(ALTERNATE_VC_D)" ] ; then				   \
-	  if [ -d "$(ALTERNATE_VC_D)" ] ; then					   \
-	    if [ -d "$(ALTERNATE_VC_D)/$(XFR)" ] ; then				   \
-	      if [ -f "$(ALTERNATE_VC_D)/$(XFR)/$(repos_tgz)" ] ; then		   \
-	        if [ ! -L "$(ALTERNATE_VC_D)/$(XFR)/$(repos_tgz)" ] ; then	   \
-	          ln -n -f $(ALTERNATE_VC_D)/$(XFR)/$(repos_tgz) $(XFR_REPOS_TGZ); \
-	        fi								   \
-	      else								   \
-		if [ -f "$(XFR_REPOS_TGZ_PREV)" ] ; then			   \
-	          if [ ! -L "$(XFR_REPOS_TGZ_PREV)" ] ; then			   \
-	            ln -n -f $(XFR_REPOS_TGZ_PREV) $(XFR_REPOS_TGZ)		 ; \
-	          fi								   \
-	        fi								   \
-	      fi								   \
-	    fi									   \
-	  fi									   \
+	$(HUSH)if [ -n "$(ALTERNATE_VC_D)" ] ; then							  \
+	  if [ -d "$(ALTERNATE_VC_D)" ] ; then								  \
+	    if [ -d "$(ALTERNATE_VC_D)/$(XFR)" ] ; then							  \
+	      if [ -f "$(ALTERNATE_VC_D)/$(XFR)/$(repos_tgz)" ] ; then					  \
+	        if [ ! -L "$(ALTERNATE_VC_D)/$(XFR)/$(repos_tgz)" ] ; then				  \
+	          ln -n -f $(ALTERNATE_VC_D)/$(XFR)/$(repos_tgz) $(XFR_REPOS_TGZ)			; \
+	        fi											  \
+	      else											  \
+		if [ -f "$(XFR_REPOS_TGZ_PREV)" ] ; then						  \
+	          if [ ! -L "$(XFR_REPOS_TGZ_PREV)" ] ; then						  \
+	            ln -n -f $(XFR_REPOS_TGZ_PREV) $(XFR_REPOS_TGZ)		 			; \
+	          fi											  \
+	        fi											  \
+	      fi											  \
+	    fi												  \
+	  fi												  \
 	fi
 	$(HUSH)rsync -LHcau $(TARBALL_REPOS_TGZ) $(XFR_REPOS_TGZ)
 
 # attempt to use ln to avoid running out of space on the partition holding $(XFR_...)
 $(XFR_VBOXADD_ISO): $(TARBALL_VBOXADD_ISO)
-	$(HUSH)if [ -f $(XFR_VBOXADD_ISO_PREV) ] ; then					  \
-	  ln -f $(XFR_VBOXADD_ISO_PREV) $@ |& grep -v 'Invalid cross-device'		; \
-	else										  \
-	  ( ln -f $< $@ |& grep -v 'Invalid cross-device') ||				  \
-	    rsync -LHcau $< $@								; \
+	$(HUSH)if [ -f $(XFR_VBOXADD_ISO_PREV) ] ; then							  \
+	  ln -f $(XFR_VBOXADD_ISO_PREV) $@ |& grep -v 'Invalid cross-device'				; \
+	else												  \
+	  ( ln -f $< $@ |& grep -v 'Invalid cross-device') ||						  \
+	    rsync -LHcau $< $@										; \
 	fi
 
