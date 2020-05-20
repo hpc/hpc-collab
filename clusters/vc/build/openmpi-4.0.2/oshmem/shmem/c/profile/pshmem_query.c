@@ -1,1 +1,0 @@
-../../../../oshmem/shmem/c/shmem_query.c
