@@ -98,7 +98,7 @@ DISABLE_RM		:= $(shell test -s ${PROVISION_FLAG_D}/DISABLE_RM && cat ${PROVISION
 
 TARBALLS		= tarballs
 TARBALLS_D		= ../../$(TARBALLS)
-TARBALL_REPOS_TGZ	= $(TARBALLS_D)/$(repos_tgz)
+TARBALLS_REPOS_TGZ	= $(TARBALLS_D)/$(repos_tgz)
 TAR_EXCLUDE_ARGS	= --exclude=$(repos_tgz) --exclude=$(TARBALLS) --exclude=._\* \
 				--exclude=.ssh --exclude=.vagrant
 
@@ -125,8 +125,9 @@ VBOX_VERSION		= $(shell cat $(CFG)/provision/config/vboxadd/version)
 VBOXADD_ISO_SUF		= VBoxGuestAdditions_$(VBOX_VERSION).iso
 XFR_VBOXADD_ISO		= $(XFR)/$(VBOXADD_ISO_SUF)
 XFR_VBOXADD_ISO_PREV	= $(XFR_PREV)/$(VBOXADD_ISO_SUF)
-TARBALL_VBOXADD_ISO	= $(TARBALLS_D)/$(VBOXADD_ISO_SUF)
-XFR_PREREQ		= $(XFR_VBOXADD_ISO) $(XFR_REPOS_TGZ)
+TARBALLS_VBOXADD_ISO	= $(TARBALLS_D)/$(VBOXADD_ISO_SUF)
+XFR_PREREQ_PREMOUNT	= $(XFR_VBOXADD_ISO) $(XFR_REPOS_TGZ)
+XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 
 ### XXX @todo generate COMPLETE from the inverse of QUICK
 FLAGS			= RSYNC_CENTOS_REPO  SKIP_UPDATERPMS  SKIP_SW  BUILD_LUSTRE_FLAG
@@ -465,7 +466,7 @@ pkg:	$(TARGETS_UNPROVISION)
 $(TARBALLS_D):
 	$(HUSH)mkdir -p $@
 
-$(TARBALL_REPOS_TGZ) $(TARBALL_VBOXADD_ISO): $(TARBALLS_D)
+$(TARBALLS_REPOS_TGZ) $(TARBALLS_VBOXADD_ISO): $(TARBALLS_D)
 	$(MAKE) -C ../../requires/ingest
 	$(HUSH)for _f in $@										; \
 	do												  \
@@ -482,7 +483,7 @@ $(VC_CKSUM): $(TARBALLS_D) $(VC_TGZ)
 	$(HUSH)cksum $(VC_TGZ) > $(VC_CKSUM)
 
 # Attempt to ln to conserve disk space, but fallback to rsync as gracefully as possible
-$(XFR_REPOS_TGZ): $(TARBALL_REPOS_TGZ)
+$(XFR_REPOS_TGZ): $(TARBALLS_REPOS_TGZ)
 	$(HUSH)if [ -n "$(ALTERNATE_VC_D)" ] ; then							  \
 	  if [ -d "$(ALTERNATE_VC_D)" ] ; then								  \
 	    if [ -d "$(ALTERNATE_VC_D)/$(XFR)" ] ; then							  \
@@ -500,10 +501,10 @@ $(XFR_REPOS_TGZ): $(TARBALL_REPOS_TGZ)
 	    fi												  \
 	  fi												  \
 	fi
-	$(HUSH)rsync -LHcau $(TARBALL_REPOS_TGZ) $(XFR_REPOS_TGZ)
+	$(HUSH)rsync -LHcau $(TARBALLS_REPOS_TGZ) $(XFR_REPOS_TGZ)
 
 # attempt to use ln to avoid running out of space on the partition holding $(XFR_...)
-$(XFR_VBOXADD_ISO): $(TARBALL_VBOXADD_ISO)
+$(XFR_VBOXADD_ISO): $(TARBALLS_VBOXADD_ISO)
 	$(HUSH)if [ -f $(XFR_VBOXADD_ISO_PREV) ] ; then							  \
 	  ln -f $(XFR_VBOXADD_ISO_PREV) $@ |& grep -v 'Invalid cross-device'				; \
 	else												  \
