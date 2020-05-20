@@ -591,11 +591,11 @@ CopyHomeVagrant() {
     if [ ! -d "${HOMEVAGRANT}" ] ; then
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${HOMEVAGRANT}"
     fi
-    size=$(du -x -s -m ${VC}/* --exclude=common/repos --exclude='repos.tgz*' | \
+    size=$(du -x -s -m ${VC}/* --exclude=common/repos --exclude='repos.tgz*' --exclude=repos | \
 				awk 'BEGIN {total=0} {total += $1} END {print total}')
     Verbose " ${size}Mb "
     Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${VC} \
-                              --exclude='common/repos' --exclude='repos.tgz*' --exclude='*.iso' --exclude='._*' . | \
+         --one-file-system --exclude='common/repos' --exclude='repos.tgz*' --exclude=repos --exclude='*.iso' --exclude='._*' . | \
                               (cd ${HOMEVAGRANT}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
     Rc ErrExit ${EX_OSFILE} "touch ${HOMEVAGRANT}/HOME\ VAGRANT; chmod 0 ${HOMEVAGRANT}/HOME\ VAGRANT"
   fi
