@@ -1479,6 +1479,22 @@ UserVerificationJobs() {
     if [ ! -d ${USERADD}/${u} ] ; then
       ErrExit ${EX_CONFIG} "${USERADD}/${u} is not a directory"
     fi
+    if [ -f ${USERADD}/${u}/Template ] ; then
+      continue
+    fi
+
+    # if we ever need per-multiple-acount test jobs
+    local numeric="^[0-9]+$"
+    local multiple
+    if [ -d ${USERADD}/${u}/multiple ] ; then
+      multiple=$(echo $(basename $(ls ${USERADD}/${u}/multiple)))
+    fi
+    if [ -z "${multiple}" ] ; then
+      multiple=1
+    fi
+    if ! [[ ${multiple} =~ ${numeric} ]] ; then
+      ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"
+    fi
 
     _u_verify_d=${USERADD}/${u}/verify
     if [ ! -d ${_u_verify_d} ] ; then
