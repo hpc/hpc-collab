@@ -43,6 +43,7 @@ declare -x SSH_OPTARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/n
 declare -x PROVISIONED_D=common/._state/provisioned
 declare -x SAVELOGS_D=${IAM}.${TSTAMP}.d
 declare -x TMPDIR
+declare -x LOGROTATE_CONF=/etc/logrotate.conf
 
 if [ -n "${TMPDIR}" ] ; then
   if [ -d ${TMPDIR} ] ; then
@@ -70,7 +71,7 @@ SaveLogs() {
   export DB_HOST=${any_up:0:2}db
 
   Rc ErrExit ${EX_CONFIG} "ping -c 1 -i 1 -n -q -w 1 ${_h}"
-  Rc ErrExit ${EX_CONFIG} "ssh ${SSH_OPTARGS} ${_h} /bin/true"
+  Rc ErrExit ${EX_OSFILE} "ssh ${SSH_OPTARGS} ${_h} sudo -n sh -c \"/usr/sbin/logrotate --force ${LOGROTATE_CONF}; exit 0\""
   Rc ErrExit ${EX_CONFIG} "mkdir -p ${TMPDIR}/${_h}"
 
   LOGDIRS=( ${LOGDIRS} )
@@ -100,7 +101,7 @@ SaveDB() {
   Rc ErrExit ${EX_CONFIG} "ssh ${SSH_OPTARGS} ${_h} /bin/true"
   Rc ErrExit ${EX_CONFIG} "mkdir -p ${TMPDIR}/${_h}"
   # Assumes: invoking user has password-less sudo enabled in-cluster
-  MYSQLPASS=$(echo $(ssh -q ${SSH_OPTARGS} ${_h} sudo grep StoragePass= ${SLURMDBDCONF}) | sed 's/StoragePass=//')
+  MYSQLPASS=$(echo $(ssh -q ${SSH_OPTARGS} ${_h} sudo -n grep StoragePass= ${SLURMDBDCONF}) | sed 's/StoragePass=//')
   if [ -z "${MYSQLPASS}" ] ; then
     ErrExit ${EX_SOFTWARE} "Warning: slurmdb password empty, expect a broken, incomplete or empty db dump."
   fi

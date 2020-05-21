@@ -101,33 +101,33 @@ export VC VIRTUALCLUSTER
 ## assumes: 1st two characters of target name may be a cluster name
 ## @todo XXX could look for ${_VC}/cfg/$
 .DEFAULT:
-	$(HUSH)export _NODE=$(@F)											; \
-	export _VC=$${_NODE:0:2}											; \
-	if [ -n "$(VC)" ] ; then											  \
-	  if [ -z "$${_NODE}" ]	; then											  \
-	    echo CURDIR:$(CURDIR): _NODE: empty										; \
-	    exit 99													; \
-	  fi														; \
-	  if [ -z "$${_VC}" ] ; then											  \
-	    echo CURDIR:$(CURDIR): _VC: empty										; \
-	    exit 99													; \
-	  fi														; \
-	  export _VC=$(VC)												; \
-	fi														; \
-	if [ -n "$${_VC}" ] ; then											  \
-	  if [ -n "$${_NODE}" ] ; then											  \
-	    if [ -d $${_VC} ] ; then											  \
-	      if [ -d $${_VC}/cfg/$${_NODE} ] ; then									  \
-	        if [ ! -f "$${_VC}/common/._state/provisioned/$${_NODE}" ] ; then					  \
-	          env VC=$${_VC} VIRTUALCLUSTER=$${_VC} $(MAKE) --quiet -s VC=$${_VC} -C $${_VC} $(@F)			; \
-	        else													  \
-	          if [ -z "$(HUSH)" ] ; then										  \
-		    echo provisioned: $${_NODE}										; \
-	          fi													; \
-	        fi													; \
-	      fi													; \
-	    fi														; \
-	  fi														; \
+	$(HUSH)export _NODE=$(@F)									; \
+	export _VC=$${_NODE:0:2}									; \
+	if [ -n "$(VC)" ] ; then									  \
+	  if [ -z "$${_NODE}" ]	; then									  \
+	    echo CURDIR:$(CURDIR): _NODE: empty								; \
+	    exit 99											; \
+	  fi												; \
+	  if [ -z "$${_VC}" ] ; then									  \
+	    echo CURDIR:$(CURDIR): _VC: empty								; \
+	    exit 99											; \
+	  fi												; \
+	  export _VC=$(VC)										; \
+	fi												; \
+	if [ -n "$${_VC}" ] ; then									  \
+	  if [ -n "$${_NODE}" ] ; then									  \
+	    if [ -d $${_VC} ] ; then									  \
+	      if [ -d $${_VC}/cfg/$${_NODE} ] ; then							  \
+	        if [ ! -f "$${_VC}/common/._state/provisioned/$${_NODE}" ] ; then			  \
+	          env VC=$${_VC} VIRTUALCLUSTER=$${_VC} $(MAKE) --quiet -s VC=$${_VC} -C $${_VC} $(@F)	; \
+	        else											  \
+	          if [ -z "$(HUSH)" ] ; then								  \
+		    echo provisioned: $${_NODE}								; \
+	          fi											; \
+	        fi											; \
+	      fi											; \
+	    fi												; \
+	  fi												; \
 	fi
 
 $(VC_TARGETS):
@@ -140,9 +140,9 @@ show_vars show-vars vars: clusters
 	$(HUSH)echo "TAR_STEM:$(TAR_STEM)"
 
 clusters:
-	$(HUSH)if [ -z "$(HUSH)" ] ; then	  \
-	  $(info + $(ENABLED_CLUSTERS))	:	; \
-	  $(info - $(DISABLED_CLUSTERS)):	; \
+	$(HUSH)if [ -z "$(HUSH)" ] ; then							  \
+	  $(info + $(ENABLED_CLUSTERS))	:							; \
+	  $(info - $(DISABLED_CLUSTERS)):							; \
 	fi
 
 
@@ -170,12 +170,12 @@ $(PKG_TARGETS):	 $(TAR_ADDITIONAL_FILES)
 
 $(TARBALL_REPOS_TGZ): $(TARBALLS_D)
 	$(MAKE) -C ../requires/ingest
-	$(HUSH)for _f in $@				;\
-	do						 \
-	  if [ ! -f $${_f} ] ; then			 \
-	    echo missing prerequisite: $${_f}		;\
-	    exit 104					;\
-	  fi						;\
+	$(HUSH)for _f in $@										;\
+	do												 \
+	  if [ ! -f $${_f} ] ; then									 \
+	    echo missing prerequisite: $${_f}								;\
+	    exit 104											;\
+	  fi												;\
 	done
 
 $(VC_TGZ): $(TARBALLS_D) $(TAR_GET)

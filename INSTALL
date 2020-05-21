@@ -48,6 +48,9 @@ Skip to item #7:
        make prereq [This is not required, but can be informational.]
    The storage space checker needs work.
 
+9. Add your in-cluster userid, and home directory if needed, to the cluster.
+   See: clusters/vc/common/provision/useradd/README
+
 9. Construct the cluster:
       $ up
    or more verbosely:
