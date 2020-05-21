@@ -8,11 +8,22 @@ assuming pwd = clusters/vc or clusters/vx, that is, clusters/<CL> = two-letter c
 1) To add an additional user:
  Add the user to the Linux passwd, group, shadow, etc files. Use a unique uid and gid for the user.
 ```
-   cp -prv provision/useradd/<old-user> provision/useradd/<new-user>
+   cp -rv --preserve=context provision/useradd/User.Template provision/useradd/<new-user>
    mv provision/useradd/<new-user>/uid/# provision/useradd/<new-user>/uid/<uid>
    mv provision/useradd/<new-user>/gid/# provision/useradd/<new-user>/gid/<gid>
    mkdir common/home/<new-user>
 ```
+ If this is a multiple account, such as for test drivers, with <NUMBER> test accounts
+```
+   touch provision/useradd/<new-user>/multiple/<NUMBER>
+```
+ For example,
+```
+   touch provision/useradd/rat/multiple/5
+```
+ to create accounts with a username of "rat1", "rat2", "rat3", "rat4" and "rat5".
+
+
 2) If the user needs modification from base defaults:
    a. Change the shell from bash to zsh, for example:
 ```
@@ -28,6 +39,7 @@ assuming pwd = clusters/vc or clusters/vx, that is, clusters/<CL> = two-letter c
    See: <new-user>/slurm/...
    These map to qos, partitions and associations to be used to populate the slurm data base.
 
-To Do:
- move this outside of an individual cluster recipe, into a top-most common useradd area
+4) A home directory is not explicitly required to be created in common/home/<new-user> unless it is to be populated as the cluster is constructed.
+
+# XXX @todo move this outside of an individual cluster recipe, into a top-most common useradd area
 

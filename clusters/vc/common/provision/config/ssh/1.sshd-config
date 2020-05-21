@@ -69,17 +69,43 @@ if [ ! -d "${USERADD}" ] ; then
 fi
 
 UsersPWAuth() {
+  local numeric="^[0-9]+$"
   users=$(echo $(ls ${USERADD}) | sed 's/root//')
   if [ -n "${users}" ] ; then
     echo "Allow PasswordAuthentication:"
   fi
   for u in ${users}
   do
+    local multiple
+    local U
     if [ ! -d ${USERADD}/${u} ] ; then
       continue
     fi
-    printf "\nMatch user ${u}\nPasswordAuthentication yes\nPermitEmptyPasswords yes\n" >> ${SSHDCONFIG}
-    echo -n " ${u}"
+    if [ ! -d ${USERADD}/${u}/multiple ] ; then
+      multiple=1
+    else
+      multiple=$(echo $(ls ${USERADD}/${u}/multiple))
+      if [ -z "${multiple}" ] ; then
+        multiple=1
+      fi
+      if ! [[ ${multiple} =~ ${numeric} ]] ; then
+        multiple=1
+      fi
+    fi
+
+    if [ -f ${USERADD}/${u}/Template ] ; then
+      continue
+    fi
+    U=${u}
+
+    for m in `seq 1 ${multiple}`
+    do
+      if [ ${multiple} -gt 1 ] ; then
+        U=${u}${m}
+      fi
+      printf "\nMatch user ${U}\nPasswordAuthentication yes\nPermitEmptyPasswords yes\n" >> ${SSHDCONFIG}
+      echo -n " ${U}"
+    done
   done
   if [ -n "${users}" ] ; then
     echo ''
