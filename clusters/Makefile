@@ -80,6 +80,9 @@ TAR_ARGS		= $(TAR_EXCLUDE_ARGS) -czf $(TAR_GET) $(TAR_CHECKPOINT_ARGS)
 
 TARBALL_REPOS_TGZ	= $(TARBALLS_D)/$(repos_tgz)
 
+SLURM_VERSION	       := $(shell cat vc/cfg/vcbuild/build/slurm/version) 
+SLURM_TARBALL		= $(TARBALLS_D)/slurm-$(SLURM_VERSION).tar.bz2
+
 TARGETS		= clusters show-vars show_vars vars show all
 
 # VC_TARGETS are passed through to enabled clusters
@@ -168,7 +171,7 @@ $(TAR_GET_CKSUM): $(TAR_GET)
 $(PKG_TARGETS):	 $(TAR_ADDITIONAL_FILES)
 	$(HUSH)ls -ltL $^
 
-$(TARBALL_REPOS_TGZ): $(TARBALLS_D)
+$(TARBALL_REPOS_TGZ) $(SLURM_TARBALL): $(TARBALLS_D)
 	$(MAKE) -C ../requires/ingest
 	$(HUSH)for _f in $@										;\
 	do												 \

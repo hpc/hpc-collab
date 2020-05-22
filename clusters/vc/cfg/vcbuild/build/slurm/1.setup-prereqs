@@ -56,19 +56,24 @@ tstamp=$(date +%Y.%m.%d.%H:%M)
 
 SetFlags >/dev/null 2>&1
 
-sleep 10
-
 if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
-  ErrExit ${EX_CONFIG}  "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} not a directory"
+  Verbose " recreating BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT}"
+  if [ ! -r ${XFR}/${SLURM_TARBALL} ] ; then
+    ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURM_TARBALL:${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} missing"
+  fi
+  if [ ! -d ${BUILDWHERE}/${PRODUCT}-${SLURM_VERSION} ] ; then
+    Rc ErrExit ${EX_OSFILE} "tar -xjf ${XFR}/${SLURM_TARBALL} -C ${BUILDWHERE}"
+  fi
+  Rc ErrExit ${EX_OSFILE} "cd ${BUILDWHERE} ; ln -s -f ${PRODUCT}-${SLURM_VERSION} ${PRODUCT}"
 fi
 
 if [ ! -r "${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}" ] ; then
   if [ ! -r ${XFR}/${SLURM_TARBALL} ] ; then
     ## @todo could check that there's a newer version indicated in ${BUILDWHERE_PRODUCT} with symlink,
     ##       but shouldn't just use that in case the build area is in transition
-    ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURM_TARBALL:${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} missing"
+    ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURM_TARBALL:${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} and no XFR/SLURM_TARBALL:${XFR}/${SLURM_TARBALL}"
   fi
-  Rc Warn ${EX_OSFILE} "ln -f ${XFR}/${SLURM_TARBALL} ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}"
+  Rc Warn ${EX_OSFILE} "ln -f ${XFR}/${SLURM_TARBALL} ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} 2>&1 | grep -v 'cross-device'"
   if [ ! -f ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ] ; then
     Rc ErrExit ${EX_OSFILE} "cp -cpruv ${XFR}/${SLURM_TARBALL} ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL}"
   fi

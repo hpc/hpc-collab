@@ -1288,11 +1288,11 @@ SW() {
   local ARCH=${ARCH:-$(uname -m)}
 
   case "${dowhat}" in
-  build)   what=${CFG}/${HOSTNAME}/${BUILDWHAT} ; where=${BUILDWHERE} ;;
-  install) what=${INSTALLWHAT} ;                                      ;;
-  config)  what=${CONFIGWHAT}  ;                                      ;;
-  verify)  what=${VERIFYWHAT}  ; RPMS_MANIFEST="required.services"    ;;
-  *) ErrExit ${EX_SOFTWARE} "SW(): ${dowhat}"                         ;;
+  build)   what=${CFG}/${HOSTNAME}/${BUILDWHAT}                    ;;
+  install) what=${INSTALLWHAT} ;                                   ;;
+  config)  what=${CONFIGWHAT}  ;                                   ;;
+  verify)  what=${VERIFYWHAT}  ; RPMS_MANIFEST="required.services" ;;
+  *) ErrExit ${EX_SOFTWARE} "SW(): ${dowhat}"                      ;;
   esac
 
   [ ! -d "${what}" ] && \
@@ -1360,6 +1360,8 @@ SW() {
       _msg=" ${_s}:  "
       sw=$(basename $_s)
       cmds=$(echo $(ls ${what}/${_s}))
+      Rc ErrExit ${EX_OSFILE} "mkdir -p ${where}"
+      Rc ErrExit ${EX_OSFILE} "chmod 0755 ${where}"
       local c
       for c in ${cmds}
       do
