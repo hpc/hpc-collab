@@ -22,28 +22,50 @@ fi
 
 users=$(echo $(ls ${USERADD} | grep -v root))
 if [ -n "${users}" ] ; then
-  printf " %12s	%16s		%s\n"  "user" "partition" "job type"
-  printf " %12s	%16s		%s\n"  "----" "---------" "--- ----"
+  printf " %15s	%16s		%s\n"  "user" "partition" "job type"
+  printf " %15s	%16s		%s\n"  "----" "---------" "--- ----"
 fi
 for _u in ${users}
 do
   if [ ! -d ${USERADD}/${_u} ] ; then
     continue
-  fi 
-  for _p in $(sinfo -h --format="%R")
+  fi
+  if [ -f ${USERADD}/${_u}/Template ] ; then
+    continue
+  fi
+  numeric="^[0-9]+$"
+  multiple=""
+  if [ -d ${USERADD}/${_u}/multiple ] ; then
+    multiple=$(echo $(ls ${USERADD}/${_u}/multiple))
+  fi
+  if [ -z "${multiple}" ] ; then
+    multiple=1
+  fi
+  if ! [[ ${multiple} =~ ${numeric} ]] ; then
+    ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"
+  fi
+
+  for _m in $(seq 1 ${multiple})
   do
-    _state=$(scontrol show partition ${_p}  -o | sed 's/^.*State=//' | sed 's/ .*$//')
-    if [ ${_state} = DOWN ] ; then
-      continue
+    _U=${_u}
+    if [ "${multiple}" -gt 1 ] ; then
+      _U=${_u}${_m}
     fi
-    ### XXX better output verification
-    printf  " %12s	%16s		sbatch " ${_u} ${_p}
-    Rc ErrExit 10 "sbatch --chdir=/tmp --uid=${_u} --time=00:10 --partition=${_p} --quiet --wait --wrap=hostname"
-    printf "salloc"
-    Rc ErrExit 11 "salloc --chdir=/tmp --uid=${_u} --time=00:10 --partition=${_p} hostname"
-    printf '\n' 
+    for _p in $(sinfo -h --format="%R")
+    do
+      _state=$(scontrol show partition ${_p}  -o | sed 's/^.*State=//' | sed 's/ .*$//')
+      if [ ${_state} = DOWN ] ; then
+        continue
+      fi
+      ### XXX better output verification
+      printf  " %15s	%16s		sbatch" ${_U} ${_p}
+      Rc ErrExit 10 "sbatch --chdir=/tmp --uid=${_U} --time=00:10 --partition=${_p} --quiet --wait --wrap=hostname"
+      printf " salloc"
+      Rc ErrExit 11 "salloc --chdir=/tmp --uid=${_U} --time=00:10 --partition=${_p} hostname"
+      printf '\n' 
+    done
+    printf '\n'
   done
-  printf '\n'
 done
 
 trap '' 0

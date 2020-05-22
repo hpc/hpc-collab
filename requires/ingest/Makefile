@@ -3,9 +3,13 @@
 VBOX_ISO	 = VBoxGuestAdditions_6.1.6.iso
 VBOX_ISO_URL	 = https://download.virtualbox.org/virtualbox/6.1.6/
 
+SCHEDMD_SLURM_URL = https://download.schedmd.com/slurm/
+
 repo_tgz	 = repos.tgz
 repo_cksum	 = repos.cksum
-TARGETS		 = $(TARBALL_D)/$(repo_cksum) $(TARBALL_D)/$(repo_tgz) $(TARBALL_D)/$(VBOX_ISO)
+SLURM_VERSION	:= $(shell cat ../../clusters/vc/cfg/vcbuild/build/slurm/version)
+SLURM_TARBALL	 = slurm-$(SLURM_VERSION).tar.bz2
+TARGETS		 = $(TARBALL_D)/$(repo_cksum) $(TARBALL_D)/$(repo_tgz) $(TARBALL_D)/$(VBOX_ISO) $(TARBALL_D)/$(SLURM_TARBALL)
 TARBALL_D	 = ../../tarballs
 REPO_PREFIX	 = centos/7
 REPO_WORKSPACE_D = $(TARBALL_D)/repos
@@ -48,6 +52,9 @@ $(TARBALL_D)/$(repo_tgz): $(REPO_WORKSPACE_D) $(REPO_OS) $(REPO_UPDATES)
 $(TARBALL_D)/$(repo_cksum): $(TARBALL_D)/$(repo_tgz)
 	cksum $^ > $@
 
+$(TARBALL_D)/$(SLURM_TARBALL):
+	wget -4 $(SCHEDMD_SLURM_URL)/$(SLURM_TARBALL)
+	mv $(@F) $@
 
 # set http_proxy or https_proxy if need be
 $(TARBALL_D)/$(VBOX_ISO):

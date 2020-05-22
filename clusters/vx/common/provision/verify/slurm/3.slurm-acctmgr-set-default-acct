@@ -39,12 +39,13 @@ if [ -z "${users}" ] ; then
   ErrExit ${EX_CONFIG} "users: list empty?"
 fi
 
+msg=""
 for u in ${users}
 do
   if [ ! -d ${USERADD}/${u} ] ; then
     continue
   fi
-  Verbose "  ${u}"
+  msg="${msg}  ${u}"
   d=${USERADD}/${u}/slurm/acct/DefaultAccount
   if [ -d ${d} ] ; then
     defacct=$(ls ${USERADD}/${u}/slurm/acct/DefaultAccount)
@@ -53,6 +54,7 @@ do
     fi
   fi
 done
+Verbose "${msg}"
 
 # work around SchedMD bug #8849
 Rc ErrExit ${EX_OSERR} "ssh -o \"StrictHostKeyChecking no\" vxsched systemctl restart slurmctld ; "

@@ -53,6 +53,7 @@ fi
 for u in ${users} vagrant
 do
   slurm_attr=${USERADD}/${u}/slurm
+  multiple_attr="${USERADD}/${u}/multiple"
   slurm_acct=${slurm_attr}/acct
   slurm_qos=${slurm_attr}/qos
   slurm_assoc=${slurm_attr}/assoc
@@ -60,9 +61,13 @@ do
   DefaultAccount=""
   accounts=""
   associations=""
+  multiple=""
 
   # may be a login-only account
   if [ ! -d ${slurm_acct} ] ; then
+    continue
+  fi
+  if [ -f ${USERADD}/${u}/Template ] ; then
     continue
   fi
   if [ -d ${slurm_acct}/acct/DefaultAccount ] ; then
@@ -75,42 +80,62 @@ do
     qos=$(echo $(ls ${slurm_acct}/qos))
   fi
 
-  associations=$(echo $(ls ${slurm_assoc}))
-  for a in ${associations}
+  multiple=""
+  numeric="^[0-9]+$"
+  if [ -d ${multiple_attr} ] ; then
+    multiple=$(echo $(ls ${multiple_attr}))
+  fi
+  if [ -z "${multiple}" ] ; then
+    multiple=1
+  fi
+  if ! [[ ${multiple} =~ ${numeric} ]] ; then
+    ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"
+  fi
+
+  for m in $(seq 1 ${multiple})
   do
-    _p=""
-    _q=""
-    _a=""
-    exists=""
+    U=${u}
+    if [ ${multiple} -gt 1 ] ; then
+      U=${u}${m}
+    fi
 
-    _p=$(basename $(echo $(readlink ${slurm_assoc}/${a}/partition)))
-    _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
-    _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
+    associations=$(echo $(ls ${slurm_assoc}))
+    for a in ${associations}
+    do
+      _p=""
+      _q=""
+      _a=""
+      exists=""
 
-    exists=$(sacctmgr show user withassoc -n name=${u} partition=${_p} qos=${_q} account=${_a} cluster=${clustername} \
+      _p=$(basename $(echo $(readlink ${slurm_assoc}/${a}/partition)))
+      _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
+      _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
+
+      exists=$(sacctmgr show user withassoc -n name=${U} partition=${_p} qos=${_q} account=${_a} cluster=${clustername} \
 	    	| egrep "${clustername}.*${_a}.*${_p}.*${qos}")
-    if [ -z "${exists}" ] ; then
-      def_arg=""
-      if [ -n "${DefaultAccount}" ] ; then
-        def_arg="defaultaccount=${DefaultAccount}"
+      if [ -z "${exists}" ] ; then
+        def_arg=""
+        if [ -n "${DefaultAccount}" ] ; then
+          def_arg="defaultaccount=${DefaultAccount}"
+        fi
+        Rc ErrExit 9 "sacctmgr -iQ add user name=${U} partition=${_p} qos=${_q} account=${_a} cluster=${clustername} ${def_arg}"
       fi
-      Rc ErrExit 9 "sacctmgr -iQ add user name=${u} partition=${_p} qos=${_q} account=${_a} cluster=${clustername} ${def_arg}"
+    done
+
+    if [ -d "${slurm_adminlevel}" ] ; then
+      _adminlevel=$(echo $(ls ${slurm_adminlevel}))
+      case "${_adminlevel}" in
+        *"perator"|*"dministrator")
+          Rc ErrExit 10 "sacctmgr -iQ update user name=${U} cluster=${clustername} set AdminLevel=${_adminlevel}"
+          ;;
+        "")
+          ;;
+        *)
+          ErrExit 11 "${U}: unknown AdminLevel ${_adminlevel}"
+          ;;
+        esac
     fi
   done
-
-  if [ -d "${slurm_adminlevel}" ] ; then
-    _adminlevel=$(echo $(ls ${slurm_adminlevel}))
-    case "${_adminlevel}" in
-      *"perator"|*"dministrator")
-        Rc ErrExit 10 "sacctmgr -iQ update user name=${u} cluster=${clustername} set AdminLevel=${_adminlevel}"
-        ;;
-      "")
-        ;;
-      *)
-        ErrExit 11 "${u}: unknown AdminLevel ${_adminlevel}"
-        ;;
-      esac
-  fi
 done
 
 trap '' 0

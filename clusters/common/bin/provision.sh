@@ -1288,11 +1288,11 @@ SW() {
   local ARCH=${ARCH:-$(uname -m)}
 
   case "${dowhat}" in
-  build)   what=${CFG}/${HOSTNAME}/${BUILDWHAT} ; where=${BUILDWHERE} ;;
-  install) what=${INSTALLWHAT} ;                                      ;;
-  config)  what=${CONFIGWHAT}  ;                                      ;;
-  verify)  what=${VERIFYWHAT}  ; RPMS_MANIFEST="required.services"    ;;
-  *) ErrExit ${EX_SOFTWARE} "SW(): ${dowhat}"                         ;;
+  build)   what=${CFG}/${HOSTNAME}/${BUILDWHAT}                    ;;
+  install) what=${INSTALLWHAT} ;                                   ;;
+  config)  what=${CONFIGWHAT}  ;                                   ;;
+  verify)  what=${VERIFYWHAT}  ; RPMS_MANIFEST="required.services" ;;
+  *) ErrExit ${EX_SOFTWARE} "SW(): ${dowhat}"                      ;;
   esac
 
   [ ! -d "${what}" ] && \
@@ -1360,6 +1360,8 @@ SW() {
       _msg=" ${_s}:  "
       sw=$(basename $_s)
       cmds=$(echo $(ls ${what}/${_s}))
+      Rc ErrExit ${EX_OSFILE} "mkdir -p ${where}"
+      Rc ErrExit ${EX_OSFILE} "chmod 0755 ${where}"
       local c
       for c in ${cmds}
       do
@@ -1478,6 +1480,22 @@ UserVerificationJobs() {
     fi
     if [ ! -d ${USERADD}/${u} ] ; then
       ErrExit ${EX_CONFIG} "${USERADD}/${u} is not a directory"
+    fi
+    if [ -f ${USERADD}/${u}/Template ] ; then
+      continue
+    fi
+
+    # if we ever need per-multiple-acount test jobs
+    local numeric="^[0-9]+$"
+    local multiple
+    if [ -d ${USERADD}/${u}/multiple ] ; then
+      multiple=$(echo $(basename $(ls ${USERADD}/${u}/multiple)))
+    fi
+    if [ -z "${multiple}" ] ; then
+      multiple=1
+    fi
+    if ! [[ ${multiple} =~ ${numeric} ]] ; then
+      ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"
     fi
 
     _u_verify_d=${USERADD}/${u}/verify
