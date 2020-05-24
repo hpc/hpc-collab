@@ -99,6 +99,9 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "../vx",            "/vx",                            create: true, type: "virtualbox"
   config.vm.synced_folder "../vc",            "/vc",		                        create: true, type: "virtualbox"
 
+  config.vm.synced_folder "../../tarballs",   "/vc/xfr",                        create: true, type: "virtualbox"
+  config.vm.synced_folder "../../tarballs",   "/vx/xfr",                        create: true, type: "virtualbox"
+
   # in-cluster tools
   # in theory, flags could be constructed differently for each cluster (/vc vs /vx) 
   # or different version of the tools could be mounted for separate experiments

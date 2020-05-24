@@ -59,9 +59,15 @@ Aliases are provided by the setpath helper. If using them, the appropriate Makef
 </UL>
 
 ~~~
-<nodename>	  = equivalent to 'cd clusters/<CL>; make nodename' - only provisions as needed
-<nodename>--	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION' - unprovision existing node
-<nodename>!	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION ; make nodename' - unprovision and force reprovisioning of a node
+for <nodename>:
+<nodename>	  = equivalent to 'cd clusters/<CL>; make nodename' - provisions as needed
+<nodename>--	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION' - unprovision node
+<nodename>!	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION ; make nodename' - unprovision and force reprovisioning
+
+for all nodes in the cluster:
+<CL>		  = equivalent to 'make up'
+<CL>--		  = equivalent to 'make nodename_UNPROVISION'
+<CL>!		  = equivalent to 'make nodename_UNPROVISION; make nodename' - unprovision and force reprovisioning
 ~~~
 
 Components such as clusters, nodes and filesystems are standalone. Each includes code and configuration to establish prerequisites, configure, install, and verify. Common configuration implementations, <A HREF="https://github.com/hpc/hpc-collab/issues/9">such as ansible</A>, are planned.
