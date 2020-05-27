@@ -24,6 +24,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+## @todo replace with ssh-keyscan
+
 SKIP_NODES_FILE=skip.nodes
 
 nodes=$(sinfo -N -h -o "%N" | sort | uniq)
