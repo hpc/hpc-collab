@@ -2,11 +2,14 @@
 
 ## $Header: $
 ## Source:
-## @file vc*/common/provision/config/ssh/5.monitor-for-ssh_known_hosts-updates
+## @file vc*/common/provision/userad/root/verify/provisioned/ssh/2.reset-cron-ssh_known_hosts-updates
 
 ## @brief This sshd configuration script constructs and enables the cron directive to keep the node-local ssh_known_hosts (target) file in sync with common ssh_known_hosts (source)
 
-VCLOAD=../../../provision/loader/shload.sh
+
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CLUSTERNAME=${HOSTNAME:0:2}
+VCLOAD=/${CLUSTERNAME}/cfg/provision/loader/shload.sh
 
 if [ ! -f "${VCLOAD}" ] ; then
   echo "${0}: missing: ${VCLOAD}"
@@ -51,7 +54,7 @@ SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 MAILTO=root
 
-*/3 * * * * root ${rsync} ${rsync_args} ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}
+*/19 * * * * root ${rsync} ${rsync_args} ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}
 __CRON_HOURLY_ENTRY_EOF__
 
 Rc ErrExit ${EX_OSERR} "systemctl restart crond"

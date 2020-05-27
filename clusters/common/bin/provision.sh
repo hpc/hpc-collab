@@ -1463,9 +1463,15 @@ UserVerificationJobs() {
   local _u_verify_d
   local u
   local tstamp=`date +%Y.%m.%d.%H:%M`
+  local verbose_was=""
 
   if [ ! -d ${USERADD} ] ; then
     ErrExit ${EX_CONFIG} "${USERADD} No such file or directory"
+  fi
+
+  if [ -n "${VERBOSE}" ] ; then
+    verbose_was="${VERBOSE}"
+    VERBOSE="true+"
   fi
 
   local users_add=$(echo $(ls ${USERADD}))
@@ -1591,6 +1597,7 @@ UserVerificationJobs() {
     done
     cd ${opwd} || ErrExit ${EX_OSERR} "cd ${opwd}"
   done
+  VERBOSE="${verbose_was}"
   return
 }
 
