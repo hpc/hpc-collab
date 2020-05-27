@@ -93,7 +93,8 @@ if [ ${GREP_FOUND} -eq ${_rc} ] ; then
   exit ${EX_OK}
 fi
 
-trap "rm -f ${tmpfile1} ${tmpfile2} ${tmpfile3}" 0 1 2 3 15
+#XXX DEBUG
+#trap "rm -f ${tmpfile1} ${tmpfile2} ${tmpfile3}" 0 1 2 3 15
 Rc ErrExit ${EX_OSFILE} "cp ${SLURM_SPEC} ${tmpfile1}"
 
 # tmpfile1: input for each pass
@@ -153,12 +154,15 @@ do
   done
 done
 
-# bump release
-awk "/^%define rel	/{\$0=\$0\".${MARKER_TAG}\"}{print}" ${tmpfile1} > ${tmpfile2}
-rc=$?
-if [ ${rc} -ne ${EX_OK} ] ; then
-  Rc ErrExit ${EX_OSFILE} "awk "/^Release:	.*$/{\$0=\$0\".${MARKER_TAG}\"}{print}" ${tmpfile2} > ${tmpfile1}"
-fi
+# for now, assume that we always start with the stock slurm .1 release
+ed - ${tmpfile1} << __SED_BUMP_RELEASE_EOF__
+/^%define rel	1/d
+/^Release:/i
+%define rel	1.${MARKER_TAG}
+.
+w
+q
+__SED_BUMP_RELEASE_EOF__
 Rc ErrExit ${EX_OSFILE} "cp -b --preserve=all ${tmpfile1} ${SLURM_SPEC}"
 
 exit ${EX_OK}
