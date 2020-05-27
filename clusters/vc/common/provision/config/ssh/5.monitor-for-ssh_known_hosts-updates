@@ -51,7 +51,7 @@ SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 MAILTO=root
 
-*/17 * * * * root ${rsync} ${rsync_args} ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}
+*/3 * * * * root ${rsync} ${rsync_args} ${COMMONETC_SSH_KNOWNHOSTS} ${ETCSSH_KNOWNHOSTS}
 __CRON_HOURLY_ENTRY_EOF__
 
 Rc ErrExit ${EX_OSERR} "systemctl restart crond"
