@@ -6,7 +6,10 @@
 
 ## @brief This sshd configuration script constructs and enables the cron directive to keep the node-local ssh_known_hosts (target) file in sync with common ssh_known_hosts (source)
 
-VCLOAD=../../../provision/loader/shload.sh
+
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CLUSTERNAME=${HOSTNAME:0:2}
+VCLOAD=/${CLUSTERNAME}/cfg/provision/loader/shload.sh
 
 if [ ! -f "${VCLOAD}" ] ; then
   echo "${0}: missing: ${VCLOAD}"
