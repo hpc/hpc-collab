@@ -1,12 +1,3 @@
-Generate some sample queue patterns:
-1) Idle/Null
-2) Many small, short jobs
-3) Large job at queue head, many small, short jobs behind
-4) Descending size-ordered list of large jobs at queue head, many small short jobs behind
-5) Descending size-ordered list of large jobs at queue head, many small short jobs behind, draining gap for backfill
-6) Descending size-ordered list of large jobs at queue head, many small short jobs behind, backfilled jobs running
-7) Random mix of small, short and large, long jobs, unordered
-
 datums are:
   for each partition, # jobs associated with that partition, nodes in the partition, shared/exclusive, priority
   for each node, its state, reservation state
