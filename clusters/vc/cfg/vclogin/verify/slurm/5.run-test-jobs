@@ -20,6 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+declare -x JOB_TIME_LIMIT="00:10"
+
 users=$(echo $(ls ${USERADD} | grep -v root))
 if [ -n "${users}" ] ; then
   printf " %15s	%16s		%s\n"  "user" "partition" "job type"
@@ -59,9 +61,10 @@ do
       fi
       ### XXX better output verification
       printf  " %15s	%16s		sbatch" ${_U} ${_p}
-      Rc ErrExit 10 "sbatch --chdir=/tmp --uid=${_U} --time=00:10 --partition=${_p} --quiet --wait --wrap=hostname"
+      args="--uid=${_U} --time=${JOB_TIME_LIMIT} --partition=${_p} --chdir=/tmp"
+      Rc ErrExit 10 "sbatch ${args} --quiet --wrap=hostname"
       printf " salloc"
-      Rc ErrExit 11 "salloc --chdir=/tmp --uid=${_U} --time=00:10 --partition=${_p} hostname"
+      Rc ErrExit 11 "salloc ${args} hostname"
       printf '\n' 
     done
     printf '\n'
