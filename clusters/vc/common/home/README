@@ -40,6 +40,19 @@ assuming pwd = clusters/vc or clusters/vx, that is, clusters/<CL> = two-letter c
    These map to qos, partitions and associations to be used to populate the slurm data base.
 
 4) A home directory is not explicitly required to be created in common/home/<new-user> unless it is to be populated as the cluster is constructed.
+   For convenience, the following may be used for ~/.ssh/config. Be sure that this fits your security model.
+--- --- --- --- --- --- --- --- --- ---
+     Host vx*
+	UserKnownHostsFile /dev/null
+	StrictHostKeyChecking no
+	CheckHostIP no
+
+     Host vc*
+	UserKnownHostsFile /dev/null
+	StrictHostKeyChecking no
+	CheckHostIP no
+--- --- --- --- --- --- --- --- --- ---
+
 
 # XXX @todo move this outside of an individual cluster recipe, into a top-most common useradd area
 

@@ -24,40 +24,59 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-SKIP_NODES_FILE=skip.nodes
 
-nodes=$(sinfo -N -h -o "%N" | sort | uniq)
-nodes_to_skip=""
-if [ -z "${SKIP_NODES_FILE}" ] ; then
-  ErrExit ${EX_SOFTWARE} "SKIP_NODES_FILE: empty"
-fi
-if [ -f ${SKIP_NODES_FILE} -a -s ${SKIP_NODES_FILE} ] ; then
-  nodes_to_skip=$(echo $(cat ${SKIP_NODES_FILE}))
-fi
-nl=""
-nodes_skipped=""
-for n in ${nodes}
-do
-  if [ -n "${nodes_to_skip}" ] ; then
-    case "${nodes_to_skip}" in
-      *${n}*)
-              if [ -z "${nodes_skipped}" ] ; then
-                nodes_skipped="skipped: ${n}"
-              else
-                nodes_skipped="${nodes_skipped} ${n}"
-              fi
-              continue 
-              ;;
-      *)
-              ;;
-    esac
+declare -x IAM=$(basename $0)
+declare -x tstamp=$(date +%Y.%m.%d.%H:%M)
+declare -x NODES=$(sinfo -N -h -o "%N" | sort | uniq | sed "s/$(cat skip.nodes)//")
+declare -x tmpfile1=/tmp/${IAM}.${tstamp}.out
+declare -x ETC_SSH=/etc/ssh
+declare -x ETC_SSH_KNOWNHOSTS=${ETC_SSH}/ssh_known_hosts
+declare -x COMMON_ETC_SSH_KNOWNHOSTS=${COMMON}${ETC_SSH}/ssh_known_hosts
+
+## @todo replace with ssh-keyscan
+
+ManuallyPopulateSSHKnownHosts() {
+  SKIP_NODES_FILE=skip.nodes
+
+  nodes=${NODES}
+  nodes_to_skip=""
+  if [ -z "${SKIP_NODES_FILE}" ] ; then
+    ErrExit ${EX_SOFTWARE} "SKIP_NODES_FILE: empty"
   fi
-  Rc ErrExit ${EX_OSERR} "ssh ${n} hostname"
-done
+  if [ -f ${SKIP_NODES_FILE} -a -s ${SKIP_NODES_FILE} ] ; then
+    nodes_to_skip=$(echo $(cat ${SKIP_NODES_FILE}))
+  fi
+  nl=""
+  nodes_skipped=""
+  for n in ${nodes}
+  do
+    if [ -n "${nodes_to_skip}" ] ; then
+      case "${nodes_to_skip}" in
+        *${n}*)
+                if [ -z "${nodes_skipped}" ] ; then
+                  nodes_skipped="skipped: ${n}"
+                else
+                  nodes_skipped="${nodes_skipped} ${n}"
+                fi
+                continue 
+                ;;
+        *)
+                ;;
+      esac
+    fi
+    Rc ErrExit ${EX_OSERR} "ssh ${n} hostname"
+  done
 
-if [ -n "${nodes_skipped}" ] ; then
-  echo " ${nodes_skipped}"
-fi
+  if [ -n "${nodes_skipped}" ] ; then
+    echo " ${nodes_skipped}"
+  fi
+}
 
+trap "rm -f ${tmpfile1}" 0 1 2 3 15
+Rc ErrExit ${EX_OSERR} "ssh-keyscan -4 ${NODES} > ${tmpfile1}"
+Rc ErrExit ${EX_OSERR} "cp -abuv ${tmpfile1} ${ETC_SSH_KNOWNHOSTS}"
+Rc ErrExit ${EX_OSERR} "cp -abuv ${tmpfile1} ${COMMON_ETC_SSH_KNOWNHOSTS}"
+Rc ErrExit ${EX_OSERR} "rm -f ${tmpfile1}"
 trap '' 0
+
 exit ${EX_OK}
