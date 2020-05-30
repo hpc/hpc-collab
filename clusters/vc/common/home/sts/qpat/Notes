@@ -1,5 +1,17 @@
+bin/qstats.sh -D -c -b -B -q -P -R -N -n -t -V
+
 datums are:
-  for each partition, # jobs associated with that partition, nodes in the partition, shared/exclusive, priority
-  for each node, its state, reservation state
-  for each job: its state, submission time, eligible time, blocked reason, partition, job priority
-  total jobs enqueued, in any state
+[x] for each job: its state, submission time, eligible time, blocked reason, partition, job priority
+  qstats.sh -D -P -R -V
+
+[x] total jobs enqueued, in any state
+  qstats.sh -D -t <<<needs work (totals don't show blocked correctly?)
+
+[ ] for each partition, # jobs associated with that partition, nodes in the partition, partition attributes
+    [qstat presently only nodes in the partition]
+
+[ ]  for each node, its state, reservation state, capabilities
+    [qstat presently only reports state] 
+
+[x] clustername
+   qstats.sh -D -V -c
