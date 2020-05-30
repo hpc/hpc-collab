@@ -124,6 +124,16 @@ main() {
     ErrExit ${EX_USAGE} "arguments? expected calling host and possibly :<KEYWORD>"
   fi
 
+  # not an error, is appropriate for conjoined clusters, such as vc+vx
+  if [ -L "${COMMON_HOME}" ] ; then
+    Warn ${EX_OK} "Note: COMMON_HOME:${COMMON_HOME} symlink, skipped"
+    exit ${EX_OK}
+  fi
+  if [ -f "${COMMON_HOME}/.undermount" ] ; then
+    Warn ${EX_OK} "Note: COMMON_HOME:${COMMON_HOME} marked as .undermount, skipped"
+    exit ${EX_OK}
+  fi
+
   configParams=($(chkConfig))
   rc=$?
   if [ ${rc} -eq ${EX_ALREADY} ] ; then
