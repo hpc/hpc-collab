@@ -22,5 +22,10 @@ fi
 
 Rc ErrExit 2  "timeout ${TIMEOUT} systemctl daemon-reload"
 
+schednode=$(scontrol show nodes -o | grep scheduler | awk '/NodeName=.* /{print $1}' | sed 's/NodeName=//')
+Rc ErrExit 12 "ssh -o "StrictHostKeyChecking=no" -o "CheckHostIP=no" ${schednode} systemctl restart slurmctld"
+
+sleep 5
+
 trap '' 0
 exit ${EX_OK}
