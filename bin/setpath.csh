@@ -64,7 +64,7 @@ foreach n ($nodes)
 
   # yes, this redefines the alias for multiple nodes; that's not costly in csh
   alias	"${cl}"		"nohup make -C ${cluster_dir} up"
-  alias	"${cl}--"	"make -C ${cluster_dir} unprovision"
+  alias	"${cl}--"	"make -C ${cluster_dir} unprovision; show"
   alias	"${cl}!"	"make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up"
 end
 
