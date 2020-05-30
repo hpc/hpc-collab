@@ -1,6 +1,0 @@
-#!/bin/sh
-
-# -J sleep300
-
-sleep 300
-exit 0
