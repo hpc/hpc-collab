@@ -24,29 +24,21 @@ prepOut() {
 dumpStats() {
   logger -t ${IAM} -- "dump queue stats: begin"
   echo "Output: ${LOGDIR}/${TSTAMP}/${IAM}"
-  qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee ${LOGDIR}/${TSTAMP}/${IAM}
+  qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee -a ${LOGDIR}/${TSTAMP}/${IAM}
   qstats.sh ${QSTATS_PARAMETERS}
   logger -t ${IAM} -- "dump queue stats: end"
-}
-
-fillQueue() {
-  for j in `seq 0 19`
-  do
-    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 45; date"
-  done
-
-  sbatch --time=5:00 -N 2 -J ${JOBNAME}20 --quiet --chdir=/tmp --wrap="sleep 150; date"
 }
 
 main() {
   prepOut
   # collect default partition (shared)
-  scontrol update partition=shared state=down
-  fillQueue
-  scontrol update partition=shared state=up
   dumpStats
-  #if a user is monitoring, give them a chance to review
-  sleep 3
+  queueempty=$(squeue --noheader | wc -l)
+  if [ "${queueempty}" -ne 0 ] ; then
+    sleep 10
+    date | tee -a ${LOGDIR}/${TSTAMP}/${IAM}
+    main
+  fi
 }
 
 main

@@ -33,7 +33,7 @@ fillQueue() {
   local max_minutes=10
   local max_nodes=2
 
-  for j in $(seq 1 100)
+  for j in $(seq 1 20)
   do
     local minutes=$(( ( $RANDOM % ${max_minutes} ) + 1 ))
     local nodes=$(( ( $RANDOM % ${max_nodes} ) + 1 ))
@@ -45,7 +45,7 @@ fillQueue() {
     else
       echo "Warning: empty queue, no job predecessor?" | tee -a ${LOGDIR}/${TSTAMP}/${IAM}
     fi
-      sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} ${pred_arg} --quiet --chdir=/tmp --wrap=date
+      sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} ${pred_arg} --quiet --chdir=/tmp --wrap="sleep 10; date"
   done
 }
 
@@ -56,6 +56,8 @@ main() {
   fillQueue
   scontrol update partition=shared state=up
   dumpStats
+  #if a user is monitoring, give them a chance to review
+  sleep 3
 }
 
 main

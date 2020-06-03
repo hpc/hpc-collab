@@ -33,11 +33,12 @@ fillQueue() {
   local max_minutes=10
   local max_nodes=2
 
-  for j in $(seq 1 100)
+  for j in $(seq 1 50)
   do
     local minutes=$(( ( $RANDOM % ${max_minutes} ) + 1 ))
     local nodes=$(( ( $RANDOM % ${max_nodes} ) + 1 ))
-    sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap=date
+    local sleeptime=$(( ( $RANDOM % ( ${max_minutes} - 1 ) * 60 ) ))
+    sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep $sleeptime; date"
   done
 }
 
@@ -48,6 +49,8 @@ main() {
   fillQueue
   scontrol update partition=shared state=up
   dumpStats
+  #if a user is monitoring, give them a chance to review
+  sleep 3
 }
 
 main
