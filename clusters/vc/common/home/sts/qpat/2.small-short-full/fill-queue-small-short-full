@@ -30,9 +30,9 @@ dumpStats() {
 }
 
 fillQueue() {
-  for j in `seq 0 19`
+  for j in `seq 1 20`
   do
-    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 45; date"
+    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 10; date"
   done
 }
 

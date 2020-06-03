@@ -33,7 +33,7 @@ fillQueue() {
   local max_minutes=10
   local max_nodes=2
 
-  for j in $(seq 1 100)
+  for j in $(seq 1 50)
   do
     local minutes=$(( ( $RANDOM % ${max_minutes} ) + 1 ))
     local nodes=$(( ( $RANDOM % ${max_nodes} ) + 1 ))
