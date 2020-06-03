@@ -142,7 +142,7 @@ declare -x TRAP_NOISY=${TRAP_NOISY:-""}
 declare -x CLUSTERNAME=""
 declare -x SHOW_CONFIG=""
 declare -x CSV="csv"
-declare -x SEPARATOR=""
+declare -x SEPARATOR="\n"
 
 ## @fn Trap()
 ## declares an exit and interrupt trap, calls TidyUp with its arguments
@@ -562,7 +562,7 @@ LogBuf() {
     > ${TMP_OUT}
   fi
   if [ -n "${TMP_OUT}" -a -w "${TMP_OUT}" ] ; then
-    echo "$@" >> ${TMP_OUT}
+    echo -e "$@" >> ${TMP_OUT}
   fi
   return
 }
@@ -571,13 +571,11 @@ ClusterName() {
   if [ -z "${CLUSTERNAME}" ] ; then
     ErrExit ${EX_SOFTWARE} "empty ClusterName"
   fi
-  if [ -z "${CSV}" ] ; then
-    LogBuf "CLUSTERNAME=${CLUSTERNAME}"
-  else
-    LogBuf "CLUSTERNAME"
-    LogBuf "${CLUSTERNAME}"
-    LogBuf "${SEPARATOR}"
+  cl="CLUSTERNAME=${CLUSTERNAME}"
+  if [ -n "${CSV}" ] ; then
+    cl="CLUSTERNAME ${CLUSTERNAME}"
   fi
+  LogBuf "${cl}"
 }
 
 Configuration() {
@@ -628,7 +626,9 @@ JobAttributes() {
   jobid=${1:-:no_jobid:}
   attr=$(timeout 30s scontrol show job $jobid -o)
   heading=$(echo $(scontrol show job ${jobid} | sed 's/ /\n/g' | sed '/^$/d' | sed 's/=.*$//'))
-  attr_noeq=$(echo $(echo $(scontrol show job ${jobid} | sed 's/ /\n/g' | sed '/^$/d' | sed 's/^.*=//')) | sed 's/ /,/g')
+  x_attr_noeq=$(echo $(echo $(scontrol show job ${jobid} | sed 's/ /\n/g' | sed '/^$/d' | sed 's/^.*=//')) | sed 's/ /,/g')
+  attr_noeq=${x_attr_noeq/${jobid},/${jobid}  }
+ 
 
 #% scontrol show job 1068851 -o
 # JobId= JobName= UserId= GroupId= MCS_label=N/A Priority= Nice=0 Account= QOS=standard WCKey=* JobState=PENDING Reason=Resources Dependency=(null) Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0 RunTime=00:00:00 TimeLimit=16:00:00 TimeMin=N/A SubmitTime=2018-11-02T10:12:12 EligibleTime=2018-11-02T10:39:51 StartTime=2018-11-02T12:21:12 EndTime=2018-11-03T04:21:12 Deadline=N/A PreemptTime=None SuspendTime=None SecsPreSuspend=0 Partition=standard AllocNode:Sid=ko-fe1:176331 ReqNodeList=(null) ExcNodeList=(null) NodeList=(null) SchedNodeList=ko025 NumNodes=1-1 NumCPUs=1 NumTasks=1 CPUs/Task=1 ReqB:S:C:T=0:0:*:* TRES=cpu=1,node=1 Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=* MinCPUsNode=1 MinMemoryNode=0 MinTmpDiskNode=0 Features=(null) DelayBoot=00:00:00 Gres=(null) Reservation=(null) OverSubscribe=NO Contiguous=0 Licenses=(null) Network=(null) Command=... WorkDir=.. AdminComment={ "color" : "TURQUOISE" }  StdErr=... StdIn=... StdOut=... Power=
@@ -676,9 +676,7 @@ Jobs() {
   local QL
   QL=`squeue -t ${lstate} -h | grep -v "Zero Bytes were transmitted" | wc -l`
   if [ -n "${CSV}" ] ; then
-    LogBuf "QUEUELENGTH[${state}]"
-    LogBuf "${QL}"
-    LogBuf "${SEPARATOR}"
+    LogBuf "QUEUELENGTH[${state}] ${QL}"
   else
     LogBuf QUEUELENGTH[${state}]=${QL}
   fi
@@ -693,10 +691,6 @@ Jobs() {
       JobAttributes $j
     fi
   done
-
-  if [ -n "${CSV}" ] ; then
-    LogBuf "${SEPARATOR}"
-  fi
 }
 
 JobPrioritiesComponents() {
@@ -742,22 +736,29 @@ JobPrioritiesComponents() {
 
 EnqueuedBlocked() {
   local cmd=LogBuf
+  local show_header=""
+  local first="true"
 
   if [ "$1" = "-l" ] ; then
     cmd=echo
-  fi
-  if [ -n "${CSV}" ] ; then
-   ${cmd} "JOBID    BlockedReason"
+  else
+    if [ -n "${CSV}" ] ; then
+      show_header="JobID  Blocked Reason"
+    fi
   fi
 
   while read -r _jobid _priority _qos _account _user _state _time _time_limit _end_time _nodes _reason
   do
+    if [ -n "${first}" -a -n "${show_header}" ] ; then
+      LogBuf "${show_header}"
+    fi
     if [ -n "${cmd}" ] ; then
       ${cmd} ${_jobid} `echo ${_reason} | sed 's/(//' | sed 's/)//'`
     else
       ${cmd} JOBID=${_jobid} BlockedReason=`echo ${_reason} | sed 's/(//' | sed 's/)//'`
     fi
-  done < <(timeout 60s squeue -t PD -h 2>&1 | grep -v "Zero Bytes were transmitted" | sed 's/\[/ &/' | sed 's/\]/& /')
+    first=""
+  done < <(timeout 60s squeue --noheader -t PD 2>&1 | grep -v "Zero Bytes were transmitted" | sed 's/\[/ &/' | sed 's/\]/& /')
 }
 
 TotalTime() {
@@ -1104,7 +1105,11 @@ FairShareUser() {
 
 BlockedLength() {
   blockedLength=$(EnqueuedBlocked -l | wc -l)
-  LogBuf "QUEUELENGTH[blocked]=${blockedLength}"
+  if [ -z "${CSV}" ] ; then
+    LogBuf "QUEUELENGTH[blocked]=${blockedLength}"
+  else
+    LogBuf "QUEUELENGTH[blocked]  ${blockedLength}"
+  fi
 }
 
 EnqueuedQOS() {
