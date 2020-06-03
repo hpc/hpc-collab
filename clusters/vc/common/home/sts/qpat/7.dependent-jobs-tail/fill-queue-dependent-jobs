@@ -1,0 +1,62 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+PATH=${PATH}:../bin
+
+LOGDIR=../logs
+TSTAMP=$(date +%y%m%d.%H%M)
+PWD=$(pwd)
+IAM=$(basename ${PWD})
+JOBNAME=${IAM}-
+TSTAMP=$(date +%y%m%d.%H%M)
+
+QSTATS_PARAMETERS="-V -c -b -B -P -R"
+QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
+
+prepOut() {
+  mkdir -p ${LOGDIR}/${TSTAMP}
+  touch "${LOGDIR}/${TSTAMP}/${IAM}"
+}
+
+dumpStats() {
+  logger -t ${IAM} -- "dump queue stats: begin"
+  echo "Output: ${LOGDIR}/${TSTAMP}/${IAM}"
+  qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee ${LOGDIR}/${TSTAMP}/${IAM}
+  qstats.sh ${QSTATS_PARAMETERS}
+  logger -t ${IAM} -- "dump queue stats: end"
+}
+
+fillQueue() {
+  local max_minutes=10
+  local max_nodes=2
+
+  for j in $(seq 1 100)
+  do
+    local minutes=$(( ( $RANDOM % ${max_minutes} ) + 1 ))
+    local nodes=$(( ( $RANDOM % ${max_nodes} ) + 1 ))
+    local predecessor_list=$(echo $(squeue --noheader -o "%i"))
+    local predecessor=$(echo ${predecessor_list}| awk '{print $NF}')
+    pred_arg=""
+    if [ "${predecessor}" !=  "" ] ; then
+      pred_arg="--dependency=afterok:${predecessor}"
+    else
+      echo "Warning: empty queue, no job predecessor?" | tee -a ${LOGDIR}/${TSTAMP}/${IAM}
+    fi
+      sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} ${pred_arg} --quiet --chdir=/tmp --wrap=date
+  done
+}
+
+main() {
+  prepOut
+  # collect default partition (shared)
+  scontrol update partition=shared state=down
+  fillQueue
+  scontrol update partition=shared state=up
+  dumpStats
+}
+
+main
+exit 0
