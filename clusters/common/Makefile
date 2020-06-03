@@ -379,13 +379,14 @@ provision-complete complete-provision: flags-complete provision
 ## @todo ...would require tighter integration to collect requires/* and Vagrantfile structure
 
 # generate the required nodes targets with a secondary (but empty recipe) rule
-# this wouldn't be necessary if the '%' could be used as an replacement argument
+# this wouldn't be necessary if the '%' could be used as a right-hand-side replacement argument
 # ex. : $(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/%/requires/*)))
+# rather than forcing the check inside the rules to execute
 NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS = $(foreach n,$(NODES),$(addprefix $(PROVISIONED_D)/, $(notdir $(wildcard $(CFG)/$(n)/requires/*))))
 
 $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS):
 
-
+# XXX @todo 'vmtouch -d -L -q -t $(XFR_PREREQ)' provided they're not $(PHONY)
 $(PROVISIONED_D)/%: $(XFR_PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"		; \
 	for prereq in $^ $${_prereq_nodes}								; \

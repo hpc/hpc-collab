@@ -45,7 +45,7 @@ do
   declare -x cluster_dir=${CLUSTERS}/${cl}
   alias	"${n}"="set -b; (echo output in: ${n}.out; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out; sleep 1; tail -f ${n}.out) &"
   alias	"${n}!"="set -b; (echo output in: ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out; sleep 1; tail -f ${n}.out) &"
-  alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION" 
+  alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION; show"
 
   # yes, this redefines the alias for multiple nodes; that is not costly
   alias	"${cl}"="set -b; (nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ; sleep 1; tail -f ${cl}.up.out) &"
