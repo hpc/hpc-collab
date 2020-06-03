@@ -1,0 +1,1 @@
+squeue -o "%i %5t %Q %D %65j %l %L %24S %24e %R"
