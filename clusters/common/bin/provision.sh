@@ -537,7 +537,10 @@ CopyCommon() {
   local to=/home${from}
 
   if [ -L "${VC}" ] ; then
-    ErrExit ${EX_OSFILE} "${VC} is a symlink"
+    ErrExit ${EX_OSFILE} "${VC}: symlink"
+  fi
+  if [ -L "${to}" ] ; then
+    Verbose "  to:${to}: symlink, skipped"
   fi
   size=$(du -x -s -m ${from} --exclude=repos\* | awk 'BEGIN {total=0} {total += $1} END {print total}')
   Verbose " ${size}Mb  ${from} => ${to}"
@@ -547,7 +550,11 @@ CopyCommon() {
                               (cd ${to}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
   # prevent easy errors such as accidental modification of the transient in-cluster fs
   Rc ErrExit ${EX_OSFILE} "chmod -R ugo-w ${to}/provision"
-  Rc ErrExit ${EX_OSFILE} "chmod    ugo-w ${to}/home"
+  if [ -L "${to}/home" ] ; then
+    Verbose "  ${to}/home: symlink, skipped"
+  else
+    Rc ErrExit ${EX_OSFILE} "chmod ugo-w ${to}/home"
+  fi
 
   return
 }
@@ -587,6 +594,11 @@ CopyHomeVagrant() {
     ErrExit ${EX_OSFILE} "${VC} is a symlink"
   fi
 
+  if [ -L "${COMMON}" ] ; then
+   Verbose: " COMMON:${COMMON} symlink, skipped"
+   return
+  fi
+
   if [ ! -f ${HOMEVAGRANT}/HOME\ VAGRANT ] ; then
     if [ ! -d "${HOMEVAGRANT}" ] ; then
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${HOMEVAGRANT}"
@@ -595,14 +607,17 @@ CopyHomeVagrant() {
 				awk 'BEGIN {total=0} {total += $1} END {print total}')
     Verbose " ${size}Mb "
     Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${VC} \
-         --one-file-system --exclude='common/repos' --exclude='repos.tgz*' --exclude='*.vdi' --exclude=repos --exclude='*.iso' --exclude='._*' . | \
-                              (cd ${HOMEVAGRANT}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
+       --one-file-system --exclude='common/repos' --exclude='repos.tgz*' --exclude='*.vdi' --exclude=repos --exclude='*.iso' --exclude='._*' . | (cd ${HOMEVAGRANT}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
     Rc ErrExit ${EX_OSFILE} "touch ${HOMEVAGRANT}/HOME\ VAGRANT; chmod 0 ${HOMEVAGRANT}/HOME\ VAGRANT"
   fi
 
   dirs=$(echo $(ls ${COMMON}) | grep -v ":∕home∕vagrant∕common")
   for d in ${dirs}
   do
+    if [ -L "${COMMON}/${d}" ] ; then
+      Verbose "${COMMON}/${d}: symlink, skipped"
+      continue
+    fi
     if [ ! -d "${COMMON}/${d}" ] ; then
       ErrExit ${EX_OSFILE} "${COMMON}/${d} is not a directory"
     fi
@@ -1179,7 +1194,7 @@ SetServices() {
   local turnsvcmsg=""
 
   if [ -f /.docker.env ] ; then
-    Verbose " docker [skipped]"
+    Verbose " docker, skipped"
   fi
 
   for _d in ${SERVICES_D} ${SERVICES_ON} ${SERVICES_OFF}
@@ -1553,7 +1568,7 @@ UserVerificationJobs() {
         if [ ${_x} = "Makefile" ] ; then
           local make_is_executable=$(which make)
           if [ ! -x "${make_is_executable}" ] ; then
-            Verbose " workdir:${workdir} found Makefile, but make is not executable [skipped]"
+            Verbose " workdir:${workdir} found Makefile, but make is not executable, skipped"
             continue
           fi
           _x="make"

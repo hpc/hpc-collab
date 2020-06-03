@@ -84,8 +84,16 @@ chkConfig() {
     fi
   fi
 
+  if [ ! -d ${COMMON_USERADD}/${ID} ] ; then
+    Rc ErrExit ${EX_OSFILE} "cp -cprv ${COMMON_USERADD}/User.Template/ ${COMMON_USERADD}/${ID}"
+    Rc ErrExit ${EX_OSFILE} "rm -f ${COMMON_USERADD}/${ID}/Template"
+    Rc ErrExit ${EX_OSFILE} "mv ${COMMON_USERADD}/${ID}/sudoers.d/User.Template ${COMMON_USERADD}/${ID}/sudoers.d/${ID}"
+    Rc ErrExit ${EX_OSFILE} "sed -i \"s/User.Template/${ID}/\" ${COMMON_USERADD}/${ID}/sudoers.d/${ID} ; "
+  fi
+
   # bash is the default shell
   shell=bash
+
 
   if [ -d ${COMMON_USERADD}/${ID}/shell ] ; then
       shell=$(ls ${COMMON_USERADD}/${ID}/shell)
@@ -122,6 +130,16 @@ main() {
   fi
   if [ $# -lt 2 ] ; then
     ErrExit ${EX_USAGE} "arguments? expected calling host and possibly :<KEYWORD>"
+  fi
+
+  # not an error, is appropriate for conjoined clusters, such as vc+vx
+  if [ -L "${COMMON_HOME}" ] ; then
+    Warn ${EX_OK} "Note: COMMON_HOME:${COMMON_HOME} symlink, skipped"
+    exit ${EX_OK}
+  fi
+  if [ -f "${COMMON_HOME}/.undermount" ] ; then
+    Warn ${EX_OK} "Note: COMMON_HOME:${COMMON_HOME} marked as .undermount, skipped"
+    exit ${EX_OK}
   fi
 
   configParams=($(chkConfig))
@@ -170,17 +188,19 @@ main() {
       ;;
 
     :DOTSSH)
-      sshfiles=$(ls ${home}/.ssh)
-      for s in ${sshfiles}
-      do
-        case "${s}" in
-          *.pub|identity|authorized_keys|config) dotssh="${dotssh} ${home}/.ssh/${s}" ;;
-          id_rsa|id_dsa|id_ecdsa|id_ed25519)                                     ;;
-          *)                                     dotssh="${dotssh} ${home}/.ssh/${s}" ;;
-        esac
-      done
-      if [ -n "${VERBOSE}" -a -n "${dotssh}" ] ; then
-        Verbose ":DOTSSH ${dotssh}"
+      if [ -d ${home}/.ssh ] ; then
+        sshfiles=$(ls ${home}/.ssh)
+        for s in ${sshfiles}
+        do
+          case "${s}" in
+            *.pub|identity|authorized_keys|config) dotssh="${dotssh} ${home}/.ssh/${s}" ;;
+            id_rsa|id_dsa|id_ecdsa|id_ed25519)                                     ;;
+            *)                                     dotssh="${dotssh} ${home}/.ssh/${s}" ;;
+          esac
+        done
+        if [ -n "${VERBOSE}" -a -n "${dotssh}" ] ; then
+          Verbose ":DOTSSH ${dotssh}"
+        fi
       fi
       ;;
 

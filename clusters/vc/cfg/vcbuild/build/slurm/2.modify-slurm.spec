@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcbuild/build/slurm/1.build-rpms
+## @file vcbuild/build/slurm/2.modify-slurm.spec
 
 _d=$(dirname $0)
 provision_d=${_d}/../../../provision
@@ -93,8 +93,7 @@ if [ ${GREP_FOUND} -eq ${_rc} ] ; then
   exit ${EX_OK}
 fi
 
-#XXX DEBUG
-#trap "rm -f ${tmpfile1} ${tmpfile2} ${tmpfile3}" 0 1 2 3 15
+trap "rm -f ${tmpfile1} ${tmpfile2} ${tmpfile3}" 0 1 2 3 15
 Rc ErrExit ${EX_OSFILE} "cp ${SLURM_SPEC} ${tmpfile1}"
 
 # tmpfile1: input for each pass

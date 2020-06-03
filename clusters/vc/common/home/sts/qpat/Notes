@@ -1,14 +1,17 @@
-Generate some sample queue patterns:
-1) Idle/Null
-2) Many small, short jobs
-3) Large job at queue head, many small, short jobs behind
-4) Descending size-ordered list of large jobs at queue head, many small short jobs behind
-5) Descending size-ordered list of large jobs at queue head, many small short jobs behind, draining gap for backfill
-6) Descending size-ordered list of large jobs at queue head, many small short jobs behind, backfilled jobs running
-7) Random mix of small, short and large, long jobs, unordered
+1. main driver sits in top-level directory
+   creates structure skeletons for jobs(?)
+   walks sub-directories which contain a Makefile
+   increases slurm debug flags
+   inserts marker into syslog, possibly slurm log
+   
+2. sub-directories fill up the queue according to their own pattern
+   run qstats: bin/qstats.sh [-D] [-V] -P -R, possibly qstats.sh [-D] -t
+   without "-D -V", attributes flow to syslog as "shell-like parameters"
+   with "-D -V", attributes flow to stdout as CSV
 
-datums are:
-  for each partition, # jobs associated with that partition, nodes in the partition, shared/exclusive, priority
-  for each node, its state, reservation state
-  for each job: its state, submission time, eligible time, blocked reason, partition, job priority
-  total jobs enqueued, in any state
+3. top-level collector runs and collects time-stamped CSV output,
+   inserts end marker into syslog, possibly slurm log
+   resets slurm debug flags back to normal
+ 
+4. collects slurm logs & queue CSV data => timestamped tarball
+ 
