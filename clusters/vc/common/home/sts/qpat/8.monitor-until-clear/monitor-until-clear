@@ -24,7 +24,7 @@ prepOut() {
 dumpStats() {
   logger -t ${IAM} -- "dump queue stats: begin"
   echo "Output: ${LOGDIR}/${TSTAMP}/${IAM}"
-  qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee ${LOGDIR}/${TSTAMP}/${IAM}
+  qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee -a ${LOGDIR}/${TSTAMP}/${IAM}
   qstats.sh ${QSTATS_PARAMETERS}
   logger -t ${IAM} -- "dump queue stats: end"
 }
