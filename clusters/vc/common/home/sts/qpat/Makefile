@@ -17,6 +17,7 @@ all: $(IAM)
 
 $(IAM): $(SUBDIRS_WITH_MAKE_D) $(FILES_RAW)
 	@skipped=""								  ; \
+	chmod 1777 logs								  ; \
 	executed=""								  ; \
 	subdir_make=""								  ; \
 	for f in $^								  ; \
