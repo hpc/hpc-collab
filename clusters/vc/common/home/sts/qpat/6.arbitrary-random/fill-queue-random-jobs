@@ -30,15 +30,19 @@ dumpStats() {
 }
 
 fillQueue() {
-  local max_minutes=10
-  local max_nodes=2
+  local max_minutes=3
+  nodes=1
 
-  for j in $(seq 1 50)
+  for j in $(seq 1 5)
   do
     local minutes=$(( ( $RANDOM % ${max_minutes} ) + 1 ))
-    local nodes=$(( ( $RANDOM % ${max_nodes} ) + 1 ))
     local sleeptime=$(( ( $RANDOM % ( ${max_minutes} - 1 ) * 60 ) ))
     sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep $sleeptime; date"
+    if [ ${nodes} = "1" ] ; then
+      nodes=2
+    else
+      nodes=1
+    fi
   done
 }
 

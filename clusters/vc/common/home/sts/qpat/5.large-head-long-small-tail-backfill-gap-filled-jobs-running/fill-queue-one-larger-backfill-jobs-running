@@ -30,16 +30,16 @@ dumpStats() {
 }
 
 fillQueue() {
-  for j in `seq 0 24`
+  for j in `seq 0 9`
   do
-    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 45; date"
+    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 10; date"
   done
 
-  sbatch --time=5:00 -N 2 -J ${JOBNAME}25 --quiet --chdir=/tmp --wrap="sleep 180; date"
+  sbatch --time=2:00 -N 2 -J ${JOBNAME}10 --quiet --chdir=/tmp --wrap="sleep 45; date"
 
-  for j in `seq 26 49`
+  for j in `seq 11 20`
   do
-    sbatch --time=2:00 -N 2 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 90; date"
+    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 10; date"
   done
 }
 
@@ -53,6 +53,5 @@ main() {
   #if a user is monitoring, give them a chance to review
   sleep 3
 }
-
 main
 exit 0
