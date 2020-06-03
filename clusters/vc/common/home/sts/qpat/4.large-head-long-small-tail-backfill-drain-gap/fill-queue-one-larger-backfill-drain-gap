@@ -32,10 +32,10 @@ dumpStats() {
 fillQueue() {
   for j in `seq 0 9`
   do
-    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap=date
+    sbatch --time=1:00 -N 1 -J ${JOBNAME}${j} --quiet --chdir=/tmp --wrap="sleep 45; date"
   done
 
-  sbatch --time=5:00 -N 2 -J ${JOBNAME}10 --quiet --chdir=/tmp --wrap=date
+  sbatch --time=5:00 -N 2 -J ${JOBNAME}10 --quiet --chdir=/tmp --wrap="sleep 150; date"
 }
 
 main() {
@@ -45,6 +45,8 @@ main() {
   fillQueue
   scontrol update partition=shared state=up
   dumpStats
+  #if a user is monitoring, give them a chance to review
+  sleep 3
 }
 
 main

@@ -45,7 +45,7 @@ fillQueue() {
     else
       echo "Warning: empty queue, no job predecessor?" | tee -a ${LOGDIR}/${TSTAMP}/${IAM}
     fi
-      sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} ${pred_arg} --quiet --chdir=/tmp --wrap=date
+      sbatch --time=${minutes}:00 -N ${nodes} -J ${JOBNAME}${j} ${pred_arg} --quiet --chdir=/tmp --wrap="sleep 45; date"
   done
 }
 
@@ -56,6 +56,8 @@ main() {
   fillQueue
   scontrol update partition=shared state=up
   dumpStats
+  #if a user is monitoring, give them a chance to review
+  sleep 3
 }
 
 main

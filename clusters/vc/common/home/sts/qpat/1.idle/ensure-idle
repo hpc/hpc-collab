@@ -41,6 +41,8 @@ main() {
   ensureIdle
   # collect default partition (shared)
   dumpStats
+  #if a user is monitoring, give them a chance to review
+  sleep 3
 }
 
 main
