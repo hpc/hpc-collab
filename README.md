@@ -10,23 +10,23 @@ Two representative HPC cluster recipes are included. At present, recipes generat
 
  <b>vc</b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
- <LI><EM>vcfs</EM>		- provides file storage to other cluster nodes, including common configuration and logs (slurm, rsyslog)</LI>
- <LI><EM>vcsvc</EM>		- provides common in-bound services such as DNS, NTP, SYSLOG</LI>
- <LI><EM>vcbuild</EM>	- configured with a larger share of RAM and cpu cores,
-  		  compilation HPC partition
-  builds software as it is brought up, if necessary</LI>
- <LI><EM>vcdb</EM>		- provides mysql/mariadb service, holds the slurm scheduling database daemon</LI>
- <LI><EM>vcsched</EM>	- provides the slurm controller and scheduler service</LI>
- <LI><EM>vc[1-2]</EM>	- computational nodes</LI>
- <LI><EM>vclogin</EM>	- front-end/login node, provides vc-cluster job submission services</LI>
- <LI><EM>vcgate</EM>	- externally-accessible node via bridged 3rd interface</LI>
+ <LI><EM>vcfs</EM>     - provides file storage to other cluster nodes, including common configuration and logs (slurm, rsyslog)</LI>
+ <LI><EM>vcsvc</EM>    - provides common in-bound services such as DNS, NTP, SYSLOG</LI>
+ <LI><EM>vcbuild</EM>  - configured with a larger share of RAM and cpu cores, compilation HPC partition,<br>
+                       builds software (slurm, lustre) as it is brought up, if necessary</LI>
+ <LI><EM>vcdb</EM>     - provides mysql service, holds the slurm scheduling database daemon</LI>
+ <LI><EM>vcaltdb</EM>  - provides an alternate mysql db, configured as a slave replicant of the primary data base</LI>
+ <LI><EM>vcsched</EM>  - provides the slurm controller and scheduler service</LI>
+ <LI><EM>vc[1-2]</EM>  - computational nodes</LI>
+ <LI><EM>vclogin</EM>  - front-end/login node, provides vc-cluster job submission services</LI>
+ <LI><EM>vcgate</EM>   - externally-accessible node via bridged 3rd interface</LI>
  </UL>
 
  <b>vx</b> is a minimal, conjoined virtual-machine cluster, dependent upon "vc"
  <UL>
- <LI><EM>vxsched</EM>	- provides the slurm controller and scheduler service, dependent upon vcdb, vcbuild, vcsvc, vcfs</LI>
- <LI><EM>vx[1-2]</EM>	- computational nodes</LI>
- <LI><EM>vxlogin</EM>	- front-end/login node, provides vx-cluster job submission services</LI>
+ <LI><EM>vxsched</EM>  - provides the slurm controller and scheduler service, dependent upon vcdb, vcbuild, vcsvc, vcfs</LI>
+ <LI><EM>vx[1-2]</EM>  - computational nodes</LI>
+ <LI><EM>vxlogin</EM>  - front-end/login node, provides vx-cluster job submission services</LI>
  </UL>
 
 To start:<BR>
@@ -50,13 +50,13 @@ In the interest of documentation that matches actual code, makefile rules are in
  </UL>
  <P>
 Aliases are provided by the setpath helper. If using them, the appropriate Makefile is set so that one need not be in a cluster directory.<BR>
-<UL>
- <LI><EM>provision</EM>	= 'make provision'</LI>
- <LI><EM>show</EM>		= 'make show'</LI>
- <LI><EM>up</EM>		= 'make up'</LI>
- <LI><EM>unprovision</EM>	= 'make unprovision'</LI>
- <LI><EM>savelogs</EM> = 'make savelogs'</LI>
-</UL>
+<TABLE>
+ <TR><TD><EM>provision</EM></TD>   <TD>make provision</TD></TR>
+ <TR><TD><EM>show</EM></TD>		      <TD>make show</TD></TR>
+ <TR><TD><EM>up</EM></TD>          <TD>make up</TD></TR>
+ <TR><TD><EM>unprovision</EM></TD> <TD>make unprovision</TD></TR>
+ <TR><TD><EM>savelogs</EM>         <TD>make savelogs</TD></TR>
+</TABLE>
 
 ~~~
 for <nodename>:
