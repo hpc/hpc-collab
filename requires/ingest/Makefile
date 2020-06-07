@@ -1,7 +1,9 @@
 
 
-VBOX_ISO	 = VBoxGuestAdditions_6.1.6.iso
-VBOX_ISO_URL	 = https://download.virtualbox.org/virtualbox/6.1.6/
+VBOX_VERSION	:= $(shell cat ../../clusters/vc/common/provision/config/vboxadd/version)
+
+VBOX_ISO	 = VBoxGuestAdditions_$(VBOX_VERSION).iso
+VBOX_ISO_URL	 = https://download.virtualbox.org/virtualbox/$(VBOX_VERSION)/
 
 SCHEDMD_SLURM_URL = https://download.schedmd.com/slurm/
 
