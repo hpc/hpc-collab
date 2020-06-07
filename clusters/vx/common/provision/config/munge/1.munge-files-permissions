@@ -57,7 +57,7 @@ if [ -L ${ETCMUNGE} ] ; then
     ErrExit ${EX_OSFILE} "ETCMUNGE:${ETCMUNGE} link_target:${link_target} is not a directory"
   fi
   link_target_pwd=$(cd ${link_target}; pwd)
-  if [ "${link_target_pwd}" != "${COMMONETCMUNGE}" ] ; then
+  if [ "${link_target_pwd}" != "${COMMONETCMUNGE}" -a "${link_target_pwd}" != "${COMMONETCMUNGE/vagrant/vx}" ] ; then
     Warn ${EX_OSFILE} "COMMONETCMUNGE:${COMMONETCMUNGE} != link_target_pwd:${link_target_pwd}"
     Rc ErrExit ${EX_OSFILE} "cmp ${COMMONETCMUNGEKEY} ${ETCMUNGEKEY}"
   fi
