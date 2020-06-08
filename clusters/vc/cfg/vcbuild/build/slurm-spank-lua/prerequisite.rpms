@@ -1,0 +1,8 @@
+bison
+flex
+lua-devel
+lua-bitop
+lua-posix
+lua
+slurm
+slurm-devel

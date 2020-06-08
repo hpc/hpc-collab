@@ -1,0 +1,112 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/slurm/1.setup-prereqs
+
+_d=$(dirname $0)
+provision_d=${_d}/../../../provision
+loader_d=${provision_d}/loader
+build_d=${provision_d}/../../build
+
+VCLOAD=$(cd ${loader_d}; pwd)/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CLUSTERNAME=${HOSTNAME:0:2}
+XFR=/${CLUSTERNAME}/xfr
+TAR_SUFFIX=".tar.gz"
+
+PRODUCT=$(basename ${PWD})
+BUILDWHERE=$(cd ${build_d}; pwd)
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDSLURM=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDSLURM}/RPMS.Manifest
+VERSION_FILE=${BUILDSLURM}/version
+GITURL_FILE=${BUILDSLURM}/git.url
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=$(uname -m)
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+PREREQ_RPMS_F=${BUILDSLURM}/prerequisite.rpms
+
+if [ ! -f "${PREREQ_RPMS_F}" ] ; then
+  ErrExit ${EX_CONFIG} "unreadable: ${PREREQ_RPMS_F}"
+fi
+
+PREREQ_RPMS=$(echo $(cat ${PREREQ_RPMS_F}))
+declare -x SLURM_SPANK_LUA_VERSION
+if [ -s ${VERSION_FILE} ] ; then
+  SLURM_SPANK_LUA_VERSION=$(cat ${VERSION_FILE})
+fi
+declare -x SLURM_SPANK_LUA_GIT_URL=""
+if [ -s ${GITURL_FILE} ] ; then
+  SLURM_SPANK_LUA_GIT_URL=$(cat ${GITURL_FILE})
+fi
+BUILDWHERE_PRODUCT_VERSION=${BUILDWHERE_PRODUCT}-${SLURM_SPANK_LUA_VERSION}
+SLURM_SPANK_LUA_SPEC=${BUILDWHERE_PRODUCT_VERSION}/${PRODUCT}.spec
+SLURM_SPANK_LUA_TARBALL=${PRODUCT}-${SLURM_SPANK_LUA_VERSION}${TAR_SUFFIX}
+
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+SetFlags >/dev/null 2>&1
+
+if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
+  Verbose " recreating BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT}"
+  if [ -r ${XFR}/${SLURM_SPANK_LUA_TARBALL} ] ; then
+    if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
+      Rc ErrExit ${EX_OSFILE} "tar -xzf ${XFR}/${SLURM_SPANK_LUA_TARBALL} -C ${BUILDWHERE}"
+    fi
+    ## Assumes tarball contains version-specific hierarchy, which it will if constructed as below
+    if [ ! -L "${BUILDWHERE_PRODUCT}" ] ; then
+      Rc ErrExit ${EX_OSFILE} "ln -s ${BUILDWHERE_PRODUCT_VERSION} ${BUILDWHERE_PRODUCT}"
+    fi
+  else
+    if [ -z "${SLURM_SPANK_LUA_GIT_URL}" ] ; then
+      ErrExit ${EX_SOFTWARE} "SLURM_SPANK_LUA_GIT_URL empty"
+    fi
+    Rc ErrExit ${EX_SOFTWARE} "cd ${BUILDWHERE}; git clone ${SLURM_SPANK_LUA_GIT_URL}"
+  fi
+fi
+
+if [ ! -r "${SLURM_SPANK_LUA_SPEC}" ] ; then
+  ErrExit ${EX_OSFILE} "SLURM_SPANK_LUA_SPEC:${SLURM_SPANK_LUA_SPEC} unreadable"
+fi
+
+SPECFILE_VERSION=$(grep -i '^Version:' ${SLURM_SPANK_LUA_SPEC} | grep -v '%{version}' | sed 's/Version:\t//')
+rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
+
+if [ -n "${PREREQ_RPMS}" ] ; then
+  Rc ErrExit ${EX_OSFILE}   "yum -y install ${PREREQ_RPMS}"
+fi
+
+# this little dance is necessary so that the tarball internal structure contains the TAG (our HOSTNAME)
+slurm_spank_lua_vers=${PRODUCT}-${SLURM_SPANK_LUA_VERSION}
+
+if [ ! -d ${BUILDWHERE}/${slurm_spank_lua_vers} ] ; then
+  Rc ErrExit ${EX_OSFILE} "mv ${BUILDWHERE_PRODUCT} ${BUILDWHERE}/${slurm_spank_lua_vers}"
+fi
+if [ ! -L "${BUILDWHERE_PRODUCT}" ] ; then
+  Rc ErrExit ${EX_OSFILE} "ln -s ${BUILDWHERE}/${slurm_spank_lua_vers} ${BUILDWHERE_PRODUCT}"
+fi
+
+if [ ! -f ${RPMBUILD}/SOURCES/${slurm_spank_lua_vers}${TAR_SUFFIX} ] ; then
+  Rc ErrExit ${EX_OSFILE} "tar --exclude=\*${TAR_SUFFIX} --exclude=.git -h -czvf ${RPMBUILD}/SOURCES/${slurm_spank_lua_vers}${TAR_SUFFIX} -C ${BUILDWHERE} ${slurm_spank_lua_vers}"
+fi
+Rc ErrExit ${EX_OSFILE} "cp -v --preserve=all ${RPMBUILD}/SOURCES/${slurm_spank_lua_vers}${TAR_SUFFIX} ${XFR}"
+
+exit ${EX_OK}
