@@ -1,0 +1,66 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/slurm/2.populate-local-repo
+
+_d=$(dirname $0)
+provision_d=${_d}/../../../provision
+loader_d=${provision_d}/loader
+build_d=${provision_d}/../../build
+
+VCLOAD=$(cd ${loader_d}; pwd)/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+PRODUCT=$(basename $(pwd))
+BUILDWHERE=$(cd ${build_d}; pwd)
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDSLURM=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDSLURM}/RPMS.Manifest
+VERSION=${BUILDSLURM}/version
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=${ARCH:-$(uname -m)}
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+SLURM_VERSION=$(cat ${VERSION})
+
+if [ -z "${ARCH}" ] ; then
+  ErrExit ${EX_SOFTWARE} "ARCH empty"
+fi
+
+if [ ! -d "${COMMON_LOCALREPO}" ] ; then
+  ErrExit ${EX_OSFILE}  "COMMON_LOCALREPO:${COMMON_LOCALREPO} not directory"
+fi
+
+for d in ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}
+do
+  if [ ! -d ${d} ] ; then
+    Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
+  fi
+done
+
+any_built=$(ls ${RPMS_ARCH}/*${SLURM_VERSION}*.rpm)
+if [ -z "${any_built}" ] ; then
+  ErrExit ${EX_SOFTWARE} " no rpms built"
+fi
+
+Rc ErrExit ${EX_OSFILE} "cp -bv ${RPMS_ARCH}/*${SLURM_VERSION}*.rpm ${COMMON_LOCALREPO}/${ARCH}"
+
+exit ${EX_OK}

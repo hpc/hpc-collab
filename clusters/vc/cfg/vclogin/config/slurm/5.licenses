@@ -1,0 +1,94 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/config/slurm/4.configure-slurm-db
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+declare -x PWD=$(pwd)
+declare -x PRODUCT=$(basename ${PWD})
+declare -x LICENSES_D=${PWD}/licenses
+licenses=$(echo $(ls ${LICENSES_D}))
+cluster=${HOSTNAME:0:2}
+
+nodecnt=$(echo $(sinfo --format="%n %f" | grep compute | awk '{print $1}' | sort | uniq | wc -l))
+n_clusters=$(ls /home | wc -l)
+count=$(( ${nodecnt} * ${n_clusters} ))
+
+# see if they match (are in conflict with) those in licenses/
+
+#existing_licenses=$(sacctmgr show resource format=name,count,allocated --noheader|awk '{print $1}')
+
+existing_licenses=$(echo $(sacctmgr show resource format=name%-25 --noheader))
+
+# # sacctmgr show resource withclusters format=name%-25,server,type,count,allocated,cluster,allowed
+#      Name     Server     Type  Count % Allocated ServerType    Cluster  % Allowed 
+#---------- ---------- -------- ------ ----------- ---------- ---------- ---------- 
+#homevagra+    slurmdb  License      4          50                    vc         50
+
+# if license doesn't exist, add it with a count
+# if license already exists, and we have a percentallowed, add that percentage, using our cluster=... entry
+# if this attribute is already set, with the same value, don't redo
+
+for name in ${licenses}
+do
+  n=$(basename ${name})
+  if [[ "${existing_licenses}" != *"${n}"* ]] ; then
+    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} name=${name}"
+    Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
+  fi
+
+  d=${LICENSES_D}/${name}
+  attributes=$(echo $(ls ${d}))
+
+  sacct_mgr="sacctmgr -iQ add resource name=${name} cluster=${cluster}"
+  didany=""
+  for v in ${attributes}
+  do
+    fmt_name="${v}"
+    if [ "${v}" = "percentallowed" ] ; then
+      fmt_name="allowed"
+    fi
+
+    existing=$(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|grep ${cluster}| awk '{print $2}')
+    existing_clusters=$(echo $(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|awk '{print $3}'))
+    a=""
+    if [ -s ${d}/${v} ] ; then
+      a=$(cat ${d}/${v})
+    fi
+    if [ "${a}" = "${existing}" ] ; then
+      if [[ "${existing_clusters}" = *${cluster}* ]] ; then
+        Verbose "${n}: ${v}=${a}, cluster=${cluster} exists, skipped"
+        continue
+      fi
+    fi
+    didany="${didany} ${v}"
+    if [ -n "${a}" ] ; then
+      sacct_mgr="${sacct_mgr} ${v}=${a}"
+    fi
+  done
+  if [ -n "${didany}" ] ; then
+    Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
+  fi
+done
+
+trap '' 0
+
+exit ${EX_OK}

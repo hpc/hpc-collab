@@ -1,0 +1,97 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/build/slurm/1.build-rpms
+
+_d=$(dirname $0)
+provision_d=${_d}/../../../provision
+loader_d=${provision_d}/loader
+build_d=${provision_d}/../../build
+
+VCLOAD=$(cd ${loader_d}; pwd)/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+PRODUCT=$(basename $(pwd))
+
+BUILDWHERE=$(cd ${build_d}; pwd)
+BUILDWHAT=${CFG}/${HOSTNAME}/build
+BUILDSLURM=${BUILDWHAT}/${PRODUCT}
+RPMS=${BUILDSLURM}/RPMS.Manifest
+VERSION_FILE=${BUILDSLURM}/version
+BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
+RPMBUILD=${BUILDWHERE}/rpmbuild
+ARCH=$(uname -m)
+RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
+SOURCES=${RPMBUILD}/SOURCES
+need_build="true"
+
+tstamp=$(date +%Y.%m.%d.%H:%M)
+
+SetFlags
+
+if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
+  ErrExit ${EX_CONFIG}  "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} not a directory"
+fi
+
+SLURMSPANKLUA_VERSION=$(cat ${VERSION_FILE})
+
+SLURMSPANKLUA_TARBALL=slurm-${SLURMSPANKLUA_VERSION}.tar.bz2
+SLURMSPANKLUA_SPEC=${BUILDWHERE_PRODUCT}/${PRODUCT}.spec
+
+if [ ! -r "${SLURMSPANKLUA_SPEC}" ] ; then
+  opwd=$(pwd)
+  cd ${BUILDWHERE}
+  if [ ! -r ${BUILDWHERE_PRODUCT}/${SLURMSPANKLUA_TARBALL} ] ; then
+    ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURMSPANKLUA_TARBALL:${BUILDWHERE_PRODUCT}/${SLURMSPANKLUA_TARBALL} missing"
+  fi
+  tar -xzvf ${BUILDWHERE_PRODUCT}/${SLURMSPANKLUA_TARBALL}
+  cd ${opwd}
+fi
+if [ ! -r ${SLURMSPANKLUA_SPEC} ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURMSPANKLUA_SPEC:${SLURMSPANKLUA_SPEC} unreadable"
+fi
+
+SPECFILE_VERSION=$(grep -i '^Version:' ${SLURMSPANKLUA_SPEC} | grep -v '%{version}' | sed 's/Version:\s//')
+#SPECFILE_VERSION=$(rpm -q --qf '%{VERSION}\n' --specfile ${SLURMSPANKLUA_SPEC} 2>&1 | sort | uniq | grep -v -i Warning)
+SPECFILE_RELEASE=$(grep '^Release:\s' ${SLURMSPANKLUA_SPEC} | awk '{print $2}')
+
+rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
+
+# if RPMS do *not* include dist changes (DIST tag), => need_build
+
+if [ "${SPECFILE_VERSION}" = "${SLURMSPANKLUA_VERSION}" ] ; then
+  case "${rpms}" in
+  *"No such file or directory"*)
+    Verbose " [need build]"
+    ## XXX also search in localrepo?
+    ;;
+  *rpm)
+    echo " [skipped] ${PRODUCT} ${SLURMSPANKLUA_VERSION} rpms already built"
+    need_build=""
+    ;;
+  esac
+fi
+
+rc=${EX_OK}
+
+if [ -n "${need_build}" ] ; then
+  echo rpmbuild -ba ${SLURMSPANKLUA_SPEC} --define "_topdir ${RPMBUILD}/"
+  rpmbuild -ba ${SLURMSPANKLUA_SPEC} --define "_topdir ${RPMBUILD}/"
+  rc=$?
+fi
+
+exit ${rc}
