@@ -26,15 +26,16 @@ check_space:
 		exit $(PREREQ_ERROR_EXIT)					; \
 	fi									; \
 	TARGET_RAW=$$(cat target)						; \
-	TARGET_NORMAL=$$(realpath $${TARGET_RAW})				; \
+	TARGET_COOKED=$$(bash -c "echo \"$${TARGET_RAW}\"")			; \
+	TARGET_NORMAL=$$(realpath "$${TARGET_COOKED}")				; \
 	if [ -z "$${TARGET_NORMAL}" ] ; then					  \
 		echo empty TARGET_NORMAL					; \
 		exit $(PREREQ_ERROR_EXIT)					; \
 	fi									; \
 	TARGET_SPACEAVAIL=$(shell bash -c "$(SPACE_AVAIL) -v")			; \
-	AVAIL_BLKS=$$(stat -f --format="%a" $${TARGET_SPACEAVAIL})		; \
-	AVAIL_FS=$$(stat -f --format="%i" $${TARGET_SPACEAVAIL})		; \
-	TARGET_FS=$$(stat -f --format="%i" $${TARGET_NORMAL})			; \
+	AVAIL_BLKS=$$(stat -f --format="%a" "$${TARGET_SPACEAVAIL}")		; \
+	AVAIL_FS=$$(stat -f --format="%i" "$${TARGET_SPACEAVAIL}")		; \
+	TARGET_FS=$$(stat -f --format="%i" "$${TARGET_NORMAL}")			; \
 	$(SPACE_AVAIL)								; \
 	rc=$$?									; \
 	if [ "$${rc}" -ne 0 ] ; then						  \
