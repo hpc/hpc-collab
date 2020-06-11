@@ -20,9 +20,15 @@ BigEnough() {
 	export avail_space
 	fs=${1:-_no_filesystem_}
 	if [ "${fs}" != "_no_filesystem_" ] ; then
-		avail_space=$(echo $(df -l ${fs} | grep -v 1K-blocks | awk '{print $4}'))
-		if [[ ${avail_space} < ${NEED_SPACE} ]] ; then
+		avail_space=$(echo $(df -l ${fs} | egrep -v '(1K-blocks|tmpfs)' | awk '{print $4}'))
+		if [ -z "${avail_space}" ] ; then
 			echo ""
+			return
+		else
+			if [ "${avail_space}" -lt "${NEED_SPACE}" ] ; then
+				echo ""
+				return
+			fi
 		fi
 	fi
 	echo "${fs}"
@@ -40,8 +46,11 @@ MostAvailable() {
 		if [ ! -d ${fs} ] ; then
 			continue
 		fi
-		avail=$(df -l ${fs} | grep -v 1K-blocks | egrep '\/dev\/|tmpfs' | awk '{print $4}')
-		if [[ ${avail} > ${largest_found} ]] ; then
+		avail=$(df -l ${fs} | egrep -v '(1K-blocks|tmpfs)' | awk '{print $4}')
+		if [ -z "${avail}" ] ; then
+			continue
+		fi
+		if [ "${avail}" -gt "${largest_found}" ] ; then
 			largest_found=${avail}
 			max_fs=${fs}
 		fi
