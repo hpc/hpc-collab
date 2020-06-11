@@ -1,8 +1,8 @@
 # hpc-collab (sometimes: hpc-colab)
 
-This project provides provisioned HPC cluster models using underlying virtualization mechanisms. In short, "clusters as cattle, not pets."
+This project provides provisioned HPC cluster models using underlying virtualization mechanisms. 
 
-Its purpose is to provide a common baseline for repeatable HPC experiments. This has been used for education, distributed collaboration, tool development colaboration, failure signature discovery, local HPC debugging and cluster configuration comparisons.
+The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been used for education, distributed collaboration, tool development colaboration, failure signature discovery, local HPC debugging and cluster configuration comparisons, enabled by construction and use of short-lived and common baseline hpc cluster models. In short, extend the "<A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">systems as cattle not pets</A>" analogy into the realm of "clusters as cattle, not pets."
 
 The initial release requires local enablers: gmake, vagrant and virtualbox. Lighterweight and multi-node mechanisms, such as containers, jails and pods, are planned.
 
@@ -71,4 +71,9 @@ for all nodes in the cluster:
 ~~~
 
 Components such as clusters, nodes and filesystems are standalone. Each includes code and configuration to establish prerequisites, configure, install, and verify. Common configuration implementations, <A HREF="https://github.com/hpc/hpc-collab/issues/9">such as ansible</A>, are planned.
+
+<H4>Resource Usage</H4>
+
+Virtualbox, in particular, requires substantial RAM (>32Gb) and storage (~36Gb) for the default cluster recipe's run-time. During ingestion of prerequisites, ~20Gb storage is needed for a temporary local copy of a CentOS repository.
+
 
