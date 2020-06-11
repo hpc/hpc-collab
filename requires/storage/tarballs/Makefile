@@ -17,17 +17,32 @@ PREREQ_ERROR_EXIT	= 99
 
 all: check_space
 
-# XXX @todo fix TARGET_NORMAL parsing
 check_space:
 	declare -x TARGET_RAW							; \
 	declare -x TARGET_NORMAL						; \
 	declare -x TARGET_SPACEAVAIL						; \
-	TARGET_RAW=$(shell cat target)						; \
-	TARGET_NORMAL=$(realpath $${TARGET_RAW})				; \
+	if [ ! -f target ] ; then						  \
+		echo target: does not exist					; \
+		exit $(PREREQ_ERROR_EXIT)					; \
+	fi									; \
+	TARGET_RAW=$$(cat target)						; \
+	TARGET_NORMAL=$$(realpath $${TARGET_RAW})				; \
+	if [ -z "$${TARGET_NORMAL}" ] ; then					  \
+		echo empty TARGET_NORMAL					; \
+		exit $(PREREQ_ERROR_EXIT)					; \
+	fi									; \
 	TARGET_SPACEAVAIL=$(shell bash -c "$(SPACE_AVAIL) -v")			; \
-	$(SPACE_AVAIL) ||							  \
-	printf Insufficient space: perhaps create a symlink to			  \
-		$(shell bash -c "$(SPACE_AVAIL) -v") from			  \
-		$(shell bash -c "$${TARGET_NORMAL}")				  \
-		which has the largest block of available space.
+	AVAIL_BLKS=$$(stat -f --format="%a" $${TARGET_SPACEAVAIL})		; \
+	AVAIL_FS=$$(stat -f --format="%i" $${TARGET_SPACEAVAIL})		; \
+	TARGET_FS=$$(stat -f --format="%i" $${TARGET_NORMAL})			; \
+	$(SPACE_AVAIL)								; \
+	rc=$$?									; \
+	if [ "$${rc}" -ne 0 ] ; then						  \
+		printf "Insufficient space: $${TARGET_FS}"			; \
+		if [ "$${TARGET_FS}" != "$${AVAIL_FS}" ] ; then			  \
+			printf Perhaps create a symlink to			  \
+				$${TARGET_SPACEAVAIL} from $${TARGET_NORMAL}	  \
+				which has $${AVAIL_BLKS} available blocks.	; \
+		fi								; \
+	fi
 
