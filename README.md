@@ -2,7 +2,7 @@
 
 This project provides provisioned HPC cluster models using underlying virtualization mechanisms. 
 
-The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been used for education, distributed collaboration, tool development colaboration, failure signature discovery, local HPC debugging and cluster configuration comparisons, enabled by construction and use of short-lived and common baseline hpc cluster models. In short, extend the "<A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">systems as cattle not pets</A>" analogy into the realm of "clusters as cattle, not pets."
+The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been used for education, distributed collaboration, tool development colaboration, failure signature discovery, local HPC debugging and cluster configuration comparisons, enabled by construction and use of short-lived and common baseline hpc cluster models. In short, extend the "systems as cattle not pets" <A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">[1]</A> </A><HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into the realm of "clusters as cattle, not pets."
 
 The initial release requires local enablers: gmake, vagrant and virtualbox. Lighterweight and multi-node mechanisms, such as containers, jails and pods, are planned.
 
