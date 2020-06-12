@@ -6,7 +6,7 @@ The purpose of this project is to provide a common baseline for repeatable HPC e
 
 The initial release requires local enablers: gmake, vagrant and virtualbox. Lighterweight and multi-node mechanisms, such as containers, jails and pods, are planned.
 
-Two representative HPC cluster recipes are included. At present, recipes generate clusters local to the installation host. Cluster recipes are in the clusters directory. At present, two representative cluster recipes are provided.
+Two representative HPC cluster recipes are included. Presently, recipes generate clusters local to the installation host. Cluster recipes are in the clusters directory. Two representative cluster recipes are provided.
 
  <b>vc</b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
