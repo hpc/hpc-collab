@@ -18,6 +18,8 @@ REPO_WORKSPACE_D = $(TARBALL_D)/repos
 REPO_OS		 = $(REPO_WORKSPACE_D)/centos/7/os/.target
 REPO_UPDATES	 = $(REPO_WORKSPACE_D)/centos/7/updates/.target
 REPO_URL	 = rsync://linux.mirrors.es.net
+REPO_HTTP_URL	 = $(subst rsync,http,$(REPO_URL))
+REPO_HOST	 = $(subst rsync://,,$(REPO_URL))
 
 # collect from ../../common/inc/ingestfs.h.sh
 #	"rsync://centos.sonn.com/CentOS"
@@ -42,9 +44,23 @@ $(REPO_WORKSPACE_D): $(REPO_OS) $(REPO_UPDATES)
 # could be a bit more intelligent about manipulating the pattern to generate the rsync
 # and incorporate an estimated space check
 $(REPO_OS) $(REPO_UPDATES):
-	mkdir -p $(@D)
-	rsync --dry-run  -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
-	rsync            -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
+	ping -c 1 -n -w 1 $(REPO_HOST) >/dev/null 2>&1		; \
+	rc=$$?							; \
+	if [ $${rc} -ne 0 ] ; then				  \
+		echo Cannot contact repository $(REPO_HOST)	; \
+		exit 99						; \
+	fi
+	declare -x BEHIND_PROXY					; \
+	BEHIND_PROXY=$$(env | grep proxy)			; \
+	if [ -z "$${BEHIND_PROXY}" ] ; then			  \
+		mkdir -p $(@D)					; \
+		rsync --dry-run  -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D) ; \
+		rsync            -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D) ; \
+	else  \
+		echo Cannot ingest: $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ to $(@D)		; \
+		echo Please download repository copy from, for example, $(REPO_HTTP_URL) to $(@D)	; \
+		exit 99											; \
+	fi
 	touch $@
 
 # use this to pull a repo and roll a tarball
