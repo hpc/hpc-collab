@@ -6,7 +6,7 @@ The purpose of this project is to provide a common baseline for repeatable HPC e
 
 The initial release requires local enablers: gmake, vagrant and virtualbox. Lighterweight and multi-node mechanisms, such as containers, jails and pods, are planned.
 
-Two representative HPC cluster recipes are included. Presently, recipes generate clusters local to the installation host. Cluster recipes are in the clusters directory. Two representative cluster recipes are provided.
+Two representative HPC cluster recipes are provided. Cluster recipes are in the <EM>clusters</EM> directory.  Presently, recipes generate clusters local to the installation host. 
 
  <b>vc</b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
@@ -35,8 +35,9 @@ Set the BASE directory in bin/setpath.{c}sh. The default setting is $HOME/hpc-co
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
 ~~~
+Then ```make prereq``` to sanity check that there is sufficient storage to host a this set of cluster recipes. Be prepared to point ```hpc-collab/tarballs``` and ```$HOME/VirtualBox VMs``` at a separate partition with more storage.
 
-Cluster recipes are driven by configuration stored in skeleton file systems. Vagrant Vagrantfile and GNU make rules ingest the settings from the cfg/<nodenames> directories.
+Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
 
 In the interest of documentation that matches actual code, makefile rules are included for graphviz, doxygen and <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.
 
