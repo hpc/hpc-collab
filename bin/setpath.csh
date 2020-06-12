@@ -1,6 +1,7 @@
 #!/bin/csh
 
-set BASE=${HOME}/hpc-collab
+#set BASE=${HOME}/hpc-collab
+set BASE=${PWD}
 set CLUSTERS=${BASE}/clusters
 
 # XXX @todo collect these dynamically, similarly to the Makefile

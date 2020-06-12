@@ -1,6 +1,7 @@
 #!/bin/bash
 
-BASE=${HOME}/hpc-collab
+#BASE=${HOME}/hpc-collab
+BASE=${PWD}
 CLUSTERS=${BASE}/clusters
 provision_bin=${BASE}/bin
 clusters_bin=${CLUSTERS}/common/bin
