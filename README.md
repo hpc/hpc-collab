@@ -30,7 +30,7 @@ Two representative HPC cluster recipes are included. Presently, recipes generate
  </UL>
 
 To start:<BR>
-Set the BASE directory in bin/setpath.{c}. The default setting is $HOME/hpc-collab.</BR>
+Set the BASE directory in bin/setpath.{c}sh. The default setting is $HOME/hpc-collab.</BR>
 ~~~
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
@@ -38,7 +38,7 @@ Set the BASE directory in bin/setpath.{c}. The default setting is $HOME/hpc-coll
 
 Cluster recipes are driven by configuration stored in skeleton file systems. Vagrant Vagrantfile and GNU make rules ingest the settings from the cfg/<nodenames> directories.
 
-In the interest of documentation that matches actual code, makefile rules are included graphviz, doxygen and bash-doxygen.sed.
+In the interest of documentation that matches actual code, makefile rules are included for graphviz, doxygen and <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.
 
 <P>Make systematizes dependencies and invocations.
  <UL>
