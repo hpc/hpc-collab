@@ -64,8 +64,16 @@ SLURM_SPANK_LUA_TARBALL=${PRODUCT}-${SLURM_SPANK_LUA_VERSION}${TAR_SUFFIX}
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
 SetFlags >/dev/null 2>&1
+need_ingest=""
 
 if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
+  need_ingest=true
+fi
+if [ ! -r "${SLURM_SPANK_LUA_SPEC}" ] ; then
+  need_ingest=true
+fi
+
+if [ -n "${need_ingest}" ] ; then
   Verbose " recreating BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT}"
   if [ -r ${XFR}/${SLURM_SPANK_LUA_TARBALL} ] ; then
     if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
@@ -79,8 +87,19 @@ if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
     if [ -z "${SLURM_SPANK_LUA_GIT_URL}" ] ; then
       ErrExit ${EX_SOFTWARE} "SLURM_SPANK_LUA_GIT_URL empty"
     fi
-    Rc ErrExit ${EX_SOFTWARE} "cd ${BUILDWHERE}; git clone ${SLURM_SPANK_LUA_GIT_URL}"
+    if [ ! -d ${BUILDWHERE_PRODUCT}/.git ] ; then
+      Rc ErrExit ${EX_SOFTWARE} "cd ${BUILDWHERE}; git clone ${SLURM_SPANK_LUA_GIT_URL}"
+    fi
+    Rc ErrExit ${EX_OSFILE} "mv ${BUILDWHERE_PRODUCT} ${BUILDWHERE_PRODUCT_VERSION}"
+    Rc ErrExit ${EX_OSFILE} "ln -s ${BUILDWHERE_PRODUCT_VERSION} ${BUILDWHERE_PRODUCT}"
   fi
+fi
+
+if [ ! -d ${BUILDWHERE_PRODUCT_VERSION} ] ; then
+  ErrExit ${EX_OSFILE} "BUILDWHERE_PRODUCT_VERSION:${BUILDWHERE_PRODUCT_VERSION} not dir"
+fi
+if [ ! -L ${BUILDWHERE_PRODUCT} ] ; then
+  ErrExit ${EX_OSFILE} "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} not symlink"
 fi
 
 if [ ! -r "${SLURM_SPANK_LUA_SPEC}" ] ; then
