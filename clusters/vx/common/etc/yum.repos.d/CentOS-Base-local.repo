@@ -7,6 +7,12 @@ gpgcheck=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 enabled=1
 priority=1
+mirrorlist_expire = 0
+metadata_expire = 0
+retries = 128
+skip_if_unavailable = 1
+keepcache = 0
+timeout = 45.0
 
 #released updates 
 [local-updates]
@@ -18,4 +24,10 @@ gpgcheck=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
 enabled=1
 priority=1
+mirrorlist_expire = 0
+metadata_expire = 0
+retries = 128
+skip_if_unavailable = 1
+keepcache = 0
+timeout = 45.0
 
