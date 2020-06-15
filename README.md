@@ -15,7 +15,7 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
  <LI><EM>vcbuild</EM>  - configured with a larger share of RAM and cpu cores, compilation HPC partition,<br>
                        builds software (slurm, lustre) as it is brought up, if necessary</LI>
  <LI><EM>vcdb</EM>     - provides mysql service, holds the slurm scheduling database daemon</LI>
- <LI><EM>vcaltdb</EM>  - provides an alternate mysql db, configured as a slave replicant of the primary data base</LI>
+ <LI><EM>vcaltdb</EM>  - provides an alternate mysql db, configured as a replicant of the primary data base</LI>
  <LI><EM>vcsched</EM>  - provides the slurm controller and scheduler service</LI>
  <LI><EM>vc[1-2]</EM>  - computational nodes</LI>
  <LI><EM>vclogin</EM>  - front-end/login node, provides vc-cluster job submission services</LI>
