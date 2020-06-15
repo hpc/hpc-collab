@@ -30,8 +30,9 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
  </UL>
 
 To start:<BR>
-Set the BASE directory in bin/setpath.{c}sh. The default setting is $HOME/hpc-collab.</BR>
+Set the BASE directory in bin/setpath.{c}sh. The default setting is the output of pwd, often $HOME/hpc-collab.</BR>
 ~~~
+         cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
 ~~~
