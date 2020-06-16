@@ -24,7 +24,10 @@ declare -x IPADDR=$(cat ipaddr)
 declare -x RPC_PORT=111
 
 Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
-Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1 -v -z ${IPADDR} ${RPC_PORT} </dev/null"
+
+TIMEOUT2=$(expr ${TIMEOUT} \* 2)
+Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w${TIMEOUT} -v -z ${IPADDR} ${RPC_PORT} </dev/null"
+Rc ErrExit 3  "timeout ${TIMEOUT2} ncat -4 -w${TIMEOUT2} -v -z ${IPADDR} ${RPC_PORT} </dev/null"
 
 trap '' 0
 exit ${EX_OK}
