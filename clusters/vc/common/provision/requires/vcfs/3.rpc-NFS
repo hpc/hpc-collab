@@ -17,18 +17,28 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
 
-exec > >(tee -a "${OUT}") 2>&1
+if [ ! -f ipaddr ] ; then
+  ErrExit ${EX_CONFIG} "missing ipaddr"
+fi
 
 declare -x IPADDR=$(cat ipaddr)
+Rc ErrExit ${EX_CONFIG} "[ -n \"${IPADDR}\" ] || false"
+
 declare -x _d=${COMMON}/${HOSTNAME}.$$d
 declare -x _f=${COMMON}/${HOSTNAME}.$$f
 
-Rc ErrExit ${EX_OSERR} "[ -n \"${IPADDR}\" ] || false"
+multiplier=2
 
-Rc ErrExit ${EX_OSERR} "timeout ${TIMEOUT} rpcinfo -p ${IPADDR}"
-Rc ErrExit ${EX_OSERR} "timeout ${TIMEOUT} rpcinfo -p ${IPADDR} 2>&1 | grep nfs"
+for i in $(seq 1 3)
+do
+  t=$(( ${TIMEOUT} * ${multiplier} * ${i} ))
+  rc=$(( ${EX_OSERROR} + ${t} ))
+  Rc ErrExit ${rc} "timeout ${t} rpcinfo -p ${IPADDR} 2>&1 | grep nfs"
+  sleep 0.35
+done
 
 trap '' 0
 exit ${EX_OK}
