@@ -32,8 +32,9 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
 <H5>Security Note</H5>
 <P>
 This software constructs models of production clusters which include security features. 
-The cluster models are constructed to automate experiments. This automation means that these
-cluster recipes are not in themselves secure.
+The cluster models are constructed to automate experiments. <em>This automation means that these
+ cluster recipes are not in themselves secure.</em> New secure cluster recipes would be necessary
+ if this were to be used to create actual production cluster images.
 </P>
 
 <H5>To start<H5>
@@ -45,7 +46,8 @@ Set the BASE directory in bin/setpath.{c}sh. The default setting is the output o
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
 ~~~
- </P>
+
+<P>
 Then ```make prereq``` to sanity check that there is sufficient storage to host this set of cluster recipes. Be prepared to point ```hpc-collab/tarballs``` and ```$HOME/VirtualBox VMs``` at a separate partition with more storage.
 
 Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
@@ -60,7 +62,7 @@ In the interest of documentation that matches actual code, makefile rules are in
   <LI><EM>make up</EM>          - provisions virtual cluster nodes</LI>
   <LI><EM>make unprovision</EM> - destroys virtual clusters, their nodes and underlying resources</LI>
  </UL>
- <P>
+
 Aliases are provided by the setpath helper. If using them, the appropriate Makefile is set so that one need not be in a cluster directory.<BR>
 <TABLE>
  <TR><TD><EM>provision</EM></TD>   <TD>make provision</TD></TR>
