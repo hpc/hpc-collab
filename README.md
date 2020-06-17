@@ -36,13 +36,16 @@ The cluster models are constructed to automate experiments. This automation mean
 cluster recipes are not in themselves secure.
 </P>
 
-To start:<BR>
-Set the BASE directory in bin/setpath.{c}sh. The default setting is the output of pwd, often $HOME/hpc-collab.</BR>
+<H5>To start<H5>
+<P>
+Set the BASE directory in bin/setpath.{c}sh. The default setting is the output of pwd, often $HOME/hpc-collab.
+
 ~~~
          cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
 ~~~
+ </P>
 Then ```make prereq``` to sanity check that there is sufficient storage to host this set of cluster recipes. Be prepared to point ```hpc-collab/tarballs``` and ```$HOME/VirtualBox VMs``` at a separate partition with more storage.
 
 Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
