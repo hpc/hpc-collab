@@ -37,9 +37,9 @@ The cluster models are constructed to automate experiments. <em>This automation 
  if this were to be used to create actual production cluster images.
 </P>
 
-<H5>To start<H5>
+<H5>To start</H5>
 <P>
-Set the BASE directory in bin/setpath.{c}sh. The default setting is the output of pwd, often $HOME/hpc-collab.
+ Set the BASE directory in <EM>bin/setpath.{c}sh</EM>. The default setting is the output of pwd, often <EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
 
 ~~~
          cd hpc-collab
@@ -48,7 +48,7 @@ Set the BASE directory in bin/setpath.{c}sh. The default setting is the output o
 ~~~
 
 <P>
-Then ```make prereq``` to sanity check that there is sufficient storage to host this set of cluster recipes. Be prepared to point ```hpc-collab/tarballs``` and ```$HOME/VirtualBox VMs``` at a separate partition with more storage.
+ Then <EM>make prereq</EM> to sanity check that there is sufficient storage to host this set of cluster recipes. Be prepared to point <EM>hpc-collab/tarballs</EM> and <EM>$HOME/VirtualBox VMs</EM> at a separate partition with more storage.
 
 Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
 
@@ -91,4 +91,7 @@ Components such as clusters, nodes and filesystems are standalone. Each includes
 Virtualbox, in particular, requires substantial RAM (>32Gb) and storage (~36Gb) for the default cluster recipe's run-time. During ingestion of prerequisites, ~20Gb storage is needed for a temporary local copy of a CentOS repository.
 
 The <EM>vc</EM> and <EM>vx</EM> clusters build in ~90 minutes on an Intel core i5 laptop with 64Gb RAM, assuming that the initial repository rsync and tarball creation of <EM>tarballs/repos.tgz</EM> is complete and successful.
+
+Use <EM>make prereq</EM> to validate the known storage space issues. Monitoring virtual memory footprints of the cluster images is also necessary.
+
 
