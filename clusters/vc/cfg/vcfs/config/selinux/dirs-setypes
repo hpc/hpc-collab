@@ -1,4 +1,7 @@
 # Note that order matters in this file, as types are applied recursively to contained objects.
+#
+/etc/idmapd.conf				system_u:object_r:etc_t:s0
+/home/vagrant/common/etc/idmapd.conf		system_u:object_r:etc_t:s0
 
 /home/vagrant					unconfined_u:object_r:public_content_rw_t:s0
 /home/vx					unconfined_u:object_r:public_content_rw_t:s0
