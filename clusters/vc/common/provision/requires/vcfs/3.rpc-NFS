@@ -30,13 +30,15 @@ Rc ErrExit ${EX_CONFIG} "[ -n \"${IPADDR}\" ] || false"
 declare -x _d=${COMMON}/${HOSTNAME}.$$d
 declare -x _f=${COMMON}/${HOSTNAME}.$$f
 
-multiplier=2
-
-for i in $(seq 1 3)
+t=${TIMEOUT}
+for i in `seq 1 4`
 do
-  t=$(( ${TIMEOUT} * ${multiplier} * ${i} ))
-  rc=$(( ${EX_OSERROR} + ${t} ))
-  Rc ErrExit ${rc} "timeout ${t} rpcinfo -p ${IPADDR} 2>&1 | grep nfs"
+  t=$((${t} * 2))
+  timeout ${t} rpcinfo -p ${IPADDR} 2>&1 | grep nfs >/dev/null 2>&1
+  rc=$?
+  if [ "${rc}" -eq ${EX_OK} ] ; then
+    break
+  fi
   sleep 0.35
 done
 

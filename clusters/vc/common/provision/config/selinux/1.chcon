@@ -22,6 +22,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 SEBOOL=$(echo $(cat sebool))
 
 for _s in ${SEBOOL}

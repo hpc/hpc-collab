@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file .../requires/vcfs/2.socket-RPC
+## @file v*/requires/vcfs/2.socket-NFS
 
 VCLOAD=../../../provision/loader/shload.sh
 
@@ -21,10 +21,20 @@ if [ -n "${OUT}" ] ; then
 fi
 
 declare -x IPADDR=$(cat ipaddr)
-declare -x NFS_PORT=2049
+declare -x RPC_PORT=2049
 
 Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
-Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1 -v -z ${IPADDR} ${NFS_PORT} </dev/null"
+
+t=${TIMEOUT}
+for i in `seq 1 4`
+do
+  t=$((${t} * 2))
+  timeout ${TIMEOUT} ncat -4 -w${t} -v -z ${IPADDR} ${RPC_PORT} </dev/null >/dev/null 2>&1
+  rc=$?
+  if [ "${rc}" -eq ${EX_OK} ] ; then
+    break
+  fi
+done
 
 trap '' 0
 exit ${EX_OK}
