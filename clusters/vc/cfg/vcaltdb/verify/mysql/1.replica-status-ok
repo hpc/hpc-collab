@@ -1,0 +1,45 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcaltdb/verify/mysql/1.slave-status-ok
+
+VCLOAD=../../../provision/loader/shload.sh
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+
+if [ ! -f "${RESET_ALREADY_FLAG}" ] ; then
+  ErrExit ${EX_CONFIG} "Cannot find mysql password file"
+fi
+PW="$(cat ${RESET_ALREADY_FLAG})"
+AUTH="--user=root --password=${PW}"
+
+Rc ErrExit ${EX_OSERR} "mysql ${AUTH} -e \"exit\" 2>&1"
+
+# review my.cnf
+# At present, gtid=off so the following is not appropriate
+#  MASTER_AUTO_POSITION = 1
+mysql_slave_masternode=$(mysql --syslog --line-numbers ${AUTH} -e 'show slave status\g;' | head -2 | tail -1 | awk '{print $1}')
+masternode=$(cat dbmaster.node)
+
+if [[ "${mysql_slave_masternode}" != "${masternode}" ]] ; then
+  ErrExit ${EX_SOFTWARE} "slave status did not return any rows"
+fi
+
+trap '' 0
+exit ${EX_OK}
