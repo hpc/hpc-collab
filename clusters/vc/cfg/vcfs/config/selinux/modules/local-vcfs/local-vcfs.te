@@ -1,0 +1,42 @@
+
+module local-vcfs 1.0;
+
+require {
+	type public_content_rw_t;
+	type syslogd_t;
+	type user_home_t;
+	type rpcd_t;
+	type postfix_master_t;
+	type setroubleshootd_t;
+	class file { append getattr ioctl open read };
+	class dir { open read search };
+}
+
+#============= postfix_master_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow postfix_master_t public_content_rw_t:file open;
+
+#============= rpcd_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow rpcd_t public_content_rw_t:file open;
+
+#============= setroubleshootd_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow setroubleshootd_t public_content_rw_t:file { open read };
+
+#============= syslogd_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow syslogd_t public_content_rw_t:dir search;
+
+#!!!! This avc is allowed in the current policy
+allow syslogd_t public_content_rw_t:file { append getattr open read };
+
+#!!!! This avc is allowed in the current policy
+allow syslogd_t user_home_t:dir { open read search };
+
+#!!!! This avc is allowed in the current policy
+allow syslogd_t user_home_t:file { ioctl open read };

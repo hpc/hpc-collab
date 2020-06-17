@@ -1,0 +1,75 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcfs/config/nfs/3.chcon
+
+## @brief this marks the /home/vagrant/common fs hierarchy as having been successfully copied for its nfs clients
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+if [ ! -d modules ] ; then
+  ErrExit ${EX_CONFIG} "modules: missing"
+fi
+
+MODULES_D=${PWD}/modules
+MODULES=$(echo $(ls ${MODULES_D}))
+AUDIT_LOG_D=/var/log/audit
+AUDIT_LOG=${AUDIT_LOG_D}/audit.log
+TSTAMP=$(date +%y%m%d.%H%M)
+
+if [ ! -d "${AUDIT_LOG_D}" ] ; then
+  ErrExit ${EX_CONFIG} "AUDIT_LOG_D:${AUDIT_LOG_D} not directory"
+fi
+if [ ! -f "${AUDIT_LOG}" ] ; then
+  ErrExit ${EX_CONFIG} "AUDIT_LOG:${AUDIT_LOG} missing"
+fi
+
+if [ -n "${MODULES}" ] ; then
+  _msg="modules: "
+fi
+
+au_cmd="egrep -i 'avc.*denied' ${AUDIT_LOG} | audit2allow"
+for _m in ${MODULES}
+do
+  _d=${MODULES_D}/${_m}
+  # au command generates in local directory
+  cd ${_d}
+  _b=${_d}/${_m}
+  _p=${_b}.pp
+  _regenerate_msg=""
+  _regenerate_flag=${_d}/.regenerate
+
+  if [ ! -f ${_p} -o -f ${_regenerate_flag} ] ; then
+    if [ -f ${_regenerate_flag} ] ; then
+      _regenerate_msg=" [regenerate]"
+    fi
+
+    # generates .pp and .te
+    Rc ErrExit ${EX_OSERR} "${au_cmd} -M ${_m}"
+    Rc ErrExit ${EX_OSFILE} "mv -f ${_regenerate_flag} ${_regenerate_flag}.${TSTAMP}"
+  fi
+  _msg="${_msg} ${_m}${_regenerate_msg}"
+  Rc ErrExit ${EX_OSERR} "semodule -i ${_p}"
+  cd ${PWD}
+done
+Verbose " ${_msg}"
+
+trap '' 0
+exit ${EX_OK}

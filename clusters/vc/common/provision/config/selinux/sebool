@@ -1,5 +1,4 @@
 daemons_use_tcp_wrapper
-nfsd_disable_trans
 nfs_export_all_ro
 nfs_export_all_rw
 use_nfs_home_dirs

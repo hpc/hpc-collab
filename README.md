@@ -29,6 +29,13 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
  <LI><EM>vxlogin</EM>  - front-end/login node, provides vx-cluster job submission services</LI>
  </UL>
 
+<H5>Security Note</H5>
+<P>
+This software constructs models of production clusters which include security features. 
+The cluster models are constructed to automate experiments. This automation means that these
+cluster recipes are not in themselves secure.
+</P>
+
 To start:<BR>
 Set the BASE directory in bin/setpath.{c}sh. The default setting is the output of pwd, often $HOME/hpc-collab.</BR>
 ~~~

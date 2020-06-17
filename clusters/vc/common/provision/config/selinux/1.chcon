@@ -91,6 +91,7 @@ do
   fi
   Rc ErrExit ${EX_OSERR} "chcon -R ${_symlink_arg} ${_secontext} ${_dir_or_file}"
   Rc ErrExit ${EX_OSERR} "semanage fcontext -a -t ${_setype} ${_dir_or_file}\(/.*\)\?"
+  Rc ErrExit ${EX_OSERR} "restorecon -R -v ${_dir_or_file}"
 done < ${SEDIRSTYPES}
 
 trap '' 0
