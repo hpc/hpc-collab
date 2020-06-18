@@ -98,3 +98,6 @@ prerequisites prereq: $(PREREQ_LIST)
 
 $(SUBDIRS): $(PREREQ)
 	$(HUSH)$(MAKE) -s -C $@ $(MAKECMDGOALS)
+
+help:
+	make -s -C clusters/vc $@
