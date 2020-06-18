@@ -1,3 +1,0 @@
-where: swap
-what: vagrant	/vagrant	vboxsf	ro,defaults,noauto,_netdev	0 0
-

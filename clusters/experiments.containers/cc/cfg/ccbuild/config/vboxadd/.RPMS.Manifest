@@ -1,7 +1,0 @@
-bzip2
-dkms
-gcc
-kernel-devel
-kernel-headers
-make
-perl
