@@ -819,7 +819,7 @@ InstallRPMS() {
     	    timeout=${YUM_TIMEOUT_EARLY}
           if [ -n "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" ] ; then
             if [ -f ${YUM_LOCALREPO_DEF} ] ; then
-              _disable_localrepo_arg=" --disablerepo=${LOCAL_REPO_ID} "
+              _disable_localrepo_arg=" --disablerepo=${LOCAL_REPO_ID},local-base "
             fi
           fi
 	    ;;

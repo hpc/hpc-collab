@@ -45,7 +45,8 @@ if [ -n "${MODULES}" ] ; then
   _msg="modules: "
 fi
 
-au_cmd="egrep -i 'avc.*denied' ${AUDIT_LOG} | audit2allow"
+au_grep="egrep -i 'avc.*denied' ${AUDIT_LOG}"
+au_avc_denied=au_avc_denied.${TSTAMP}
 for _m in ${MODULES}
 do
   _d=${MODULES_D}/${_m}
@@ -62,8 +63,9 @@ do
     fi
 
     # generates .pp and .te
-    Rc ErrExit ${EX_OSERR} "${au_cmd} -M ${_m}"
-    Rc ErrExit ${EX_OSFILE} "mv -f ${_regenerate_flag} ${_regenerate_flag}.${TSTAMP}"
+    Rc ErrExit ${EX_OSERR} "${au_grep} > ${au_avc_denied}"
+    Rc ErrExit ${EX_OSERR} "audit2allow -M ${_m} < ${au_avc_denied}"
+    Rc ErrExit ${EX_OSFILE} "mv -f ${_regenerate_flag} ${_regenerate_flag}d.${TSTAMP}"
   fi
   _msg="${_msg} ${_m}${_regenerate_msg}"
   Rc ErrExit ${EX_OSERR} "semodule -i ${_p}"

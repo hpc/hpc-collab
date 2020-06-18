@@ -21,6 +21,10 @@ if [ -n "${OUT}" ] ; then
 fi
 
 declare -x JOB_TIME_LIMIT="00:10"
+declare -x MULTIPLE_LIMIT
+if [ -f multilimit ] ; then
+  MULTIPLE_LIMIT=$(cat multilimit)
+fi
 
 users=$(echo $(ls ${USERADD} | grep -v root))
 if [ -n "${users}" ] ; then
@@ -42,6 +46,9 @@ do
   fi
   if [ -z "${multiple}" ] ; then
     multiple=1
+  fi
+  if [ "${multiple}" -gt "${MULTIPLE_LIMIT}" ] ; then
+    multiple=${MULTIPLE_LIMIT}
   fi
   if ! [[ ${multiple} =~ ${numeric} ]] ; then
     ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"

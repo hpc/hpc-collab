@@ -1,1 +1,3 @@
-../../../../common/provision/config/selinux/sebool
+daemons_use_tcp_wrapper
+nfs_export_all_ro
+nfs_export_all_rw
