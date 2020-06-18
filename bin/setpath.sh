@@ -39,6 +39,8 @@ done
 #  <cluster>--	=> unprovision <cluster>
 #  <cluster>!	==> unprovision and then bring <cluster> up, without regard to its previous state
 
+computes=""
+
 for n in ${nodes}
 do
   declare -x cl=${n:0:2}
@@ -48,11 +50,27 @@ do
   alias	"${n}!"="set -b; (echo output in: ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out; sleep 1; tail -f ${n}.out) &"
   alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION; show"
 
+  if [[ ${n} = *?[0-9]* ]] ; then
+	  computes=$(echo ${computes} ${n}|sort|uniq)
+  fi
+
   # yes, this redefines the alias for multiple nodes; that is not costly
   alias	"${cl}"="set -b; (nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ; sleep 1; tail -f ${cl}.up.out) &"
   alias	"${cl}--"="make -C ${cluster_dir} unprovision; show"
   alias	"${cl}!"="set -b; (make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ; sleep 1; tail -f ${cl}.up.out; ) &"
 done
+
+computes=$(echo ${computes} | sort | uniq)
+computes_up="${computes// /;};"
+computes_unprovision="${computes// /--;}--;"
+computes_poweroff="${computes// /- ;}-;"
+computes_bounce="${computes// /! ;}!;"
+
+#XXX aliases don't reference each other
+alias "computes"='${computes_up}'
+alias "computes--"='${computes_unprovision}'
+alias "computes-"='${computes_poweroff}'
+alias "computes!"='${computes_bounce}'
 
 # common aliases for all clusters:
 alias "up"="set -b; (nohup make -s -C ${BASE} up 2>&1 >up.out ; echo output in: up.out ; sleep 1; tail -f up.out ) &"
