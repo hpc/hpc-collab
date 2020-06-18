@@ -263,7 +263,7 @@ help:	Makefile
 	$(HUSH)$(info )
 	$(HUSH)$(info   make todo			= shows the current working notes)
 	$(HUSH)$(info   make ingest-state		= force recollection of vagrant state)
-	$(HUSH)$(info   make savelogs			= collect cluster logs and db dump from running cluster
+	$(HUSH)$(info   make savelogs			= collect cluster logs and db dump from running cluster)
 	$(HUSH)$(info )
 	$(HUSH)$(info   "make up", "make <node>" or "make show"  will be of most use.)
 	$(HUSH)$(info )
