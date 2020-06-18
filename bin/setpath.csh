@@ -38,7 +38,7 @@ end
 
 set nodes=""
 foreach c (${ENABLED_CLUSTERS})
-  set nodes_dirs=`ls -d ${CLUSTERS}/${c}/cfg/*`
+  set nodes_dirs=`ls -d ${CLUSTERS}/${c}/cfg/* |& cat`
   foreach n (${nodes_dirs})
     if ( -d ${n} && ! -l ${n} ) then
       set nodes=(${nodes} `basename ${n}`)
@@ -56,6 +56,8 @@ end
 #  <cluster>--	=> unprovision <cluster>
 #  <cluster>!	==> unprovision and then bring <cluster> up, without regard to its previous state
 
+set computes=""
+
 foreach n ($nodes)
   set cl=`echo ${n}| cut -c1-2`
   set cluster_dir=${CLUSTERS}/${cl}
@@ -63,11 +65,27 @@ foreach n ($nodes)
   alias	"${n}!"		"make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n}"
   alias	"${n}--"	"make -C ${cluster_dir} ${n}_UNPROVISION; show"
 
+  set iscompute=`expr index ${n} '0123456789'`
+  if ( "${iscompute}" != 0 ) then
+    set computes=`echo ${computes} ${n} | sort | uniq`
+  endif
+
   # yes, this redefines the alias for multiple nodes; that's not costly in csh
   alias	"${cl}"		"nohup make -C ${cluster_dir} up; date"
   alias	"${cl}--"	"make -C ${cluster_dir} unprovision; show"
   alias	"${cl}!"	"make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up"
 end
+
+set computes="${computes} "
+set computes_up=`echo "${computes}" | sed 's/ /;/g'`
+set computes_unprovision=`echo "${computes}" | sed 's/ /-- ;/g'`
+set computes_poweroff=`echo "${computes}" | sed 's/ /- ;/g'`
+set computes_bounce=`echo "${computes}" | sed 's/ /! ;/g'`
+
+alias computes "${computes_up}"
+alias computes-- "${computes_unprovision}"
+alias computes- "${computes_poweroff}"
+alias computes! "${computes_bounce}"
 
 # common aliases for all clusters:
 alias "up"		"nohup make -s -C ${BASE} up; date"
