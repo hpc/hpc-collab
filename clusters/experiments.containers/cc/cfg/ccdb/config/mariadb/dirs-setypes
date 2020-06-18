@@ -1,5 +1,0 @@
-/var/lib/mysql				unconfined_u:object_r:mysqld_db_t:s0
-/var/lib/mariadb			unconfined_u:object_r:mysqld_db_t:s0
-/var/log/mariadb			unconfined_u:object_r:mysqld_log_t:s0
-/var/log/mariadb/mariadb.log		unconfined_u:object_r:mysqld_log_t:s0
-#/var/log/mariadb/mariadb.log		unconfined_u:object_r:var_log_t:s0

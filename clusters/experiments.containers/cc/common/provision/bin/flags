@@ -1,4 +1,0 @@
-#!/bin/sh
-
-cd $HOME/hpc-collab
-make flag

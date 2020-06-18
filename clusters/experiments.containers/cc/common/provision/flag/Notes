@@ -1,2 +1,0 @@
-Flags are shell variables in the provision.sh configuration script.
-By appending them with a tilde (~), we are turning them off. (exact string match)

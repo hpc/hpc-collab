@@ -1,3 +1,0 @@
-ifcommand: ping -n -c 1 proxyout.lanl.gov
-where: distroverpkg
-what: proxy=http://proxyout.lanl.gov:8080/

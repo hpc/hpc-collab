@@ -1,2 +1,0 @@
-appendwhere: pam_nologin.so
-appendwhat: account  required  pam_slurm.so
