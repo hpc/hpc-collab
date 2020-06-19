@@ -15,13 +15,13 @@ ENV["LC_ALL"] = "en_US.UTF-8"
 ENV["VC"]     = "#{clustername}"
 ENV["TZ"]     = "MST7MDT"
 
-nodes_file = "#{clustername_fullpath_raw}".chomp + "/Vagrantfile." + clustername + ".nodes"
-nodes_file_path = Pathname.new(nodes_file)
-if !File.exists?(nodes_file_path)
-  print "nodes_file_path:#{nodes_file_path} does not exist\n"
-  exit
-end
-load File.expand_path(nodes_file_path)
+### XXX nodes_file = "#{clustername_fullpath_raw}".chomp + "/Vagrantfile." + clustername + ".nodes"
+### XXX nodes_file_path = Pathname.new(nodes_file)
+### XXX if !File.exists?(nodes_file_path)
+### XXX   print "nodes_file_path:#{nodes_file_path} does not exist\n"
+### XXX   exit
+### XXX end
+### XXX load File.expand_path(nodes_file_path)
 
 ### XXX ### XXX ### XXX ###
 ### The ruby way is to define nodes in an external YAML file, rather than to define within ruby
@@ -95,8 +95,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vc1"			=> {  :ip	            => `grep vc1 #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vc1 #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vc1"			=> {  :ip	            => `grep ' vc1 ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vc1 ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vc1/attributes/memory],
 									:cpus           => %x[ls ./cfg/vc1/attributes/procs],
@@ -104,8 +104,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vc2"			=> {  :ip             => `grep vc2 #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vc2 #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vc2"			=> {  :ip             => `grep ' vc2 ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vc2 ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vc2/attributes/memory],
 									:cpus           => %x[ls ./cfg/vc2/attributes/procs],
