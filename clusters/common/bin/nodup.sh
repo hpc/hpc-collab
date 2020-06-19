@@ -83,9 +83,7 @@ do
     #Verbose " ${m}: provisioned [skipped]"
     continue
   fi
-  echo ${existing} | grep ${REQUESTED_HOST} >/dev/null 2>&1
-  rc=$?
-  if [ ${rc} -eq ${GREP_FOUND} ] ; then
+  if [ "${m}" = "${REQUESTED_HOST}" ] ; then
     ErrExit ${EX_ALREADY} "vagrant instance \"${REQUESTED_HOST}\" already exists, but was not fully provisioned.\nTo manually remove it: 'make -C ${REQUESTED_HOST:0:2} ${REQUESTED_HOST}_UNPROVISION'; make ${REQUESTED_HOST}\n [${m}]"
   fi
 
