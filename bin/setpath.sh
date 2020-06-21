@@ -42,7 +42,7 @@ done
 #  <cluster>--	=> unprovision <cluster>
 #  <cluster>!	==> unprovision and then bring <cluster> up, without regard to its previous state
 
-computes=""
+declare -x computes=""
 
 for n in ${nodes}
 do
@@ -54,27 +54,53 @@ do
   alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION; show"
 
   if [[ ${n} = *?[0-9]* ]] ; then
-	  computes_up="nohup make -C {cluster_dir} ${n}; ${computes_up}"
-	  computes_unprovision="nohup make -C {cluster_dir} ${n}--; ${computes_unprovision}"
-	  computes_poweroff="nohup make -C {cluster_dir} ${n}-; ${computes_poweroff}"
-	  computes_hardbounce="nohup make -C {cluster_dir} ${n}!; ${computes_hardbounce}"
+    computes="${computes} ${n}"
   fi
 
   # yes, this redefines the alias for multiple nodes; that is not costly
-  alias	"${cl}"="set -b; (nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ; sleep 1; tail -f ${cl}.up.out) &"
+  alias	"${cl}"="(nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ) &"
   alias	"${cl}--"="make -C ${cluster_dir} unprovision; show"
-  alias	"${cl}!"="set -b; (make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ; sleep 1; tail -f ${cl}.up.out; ) &"
+  alias	"${cl}!"="(make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out) &"
 done
 
-# aliases may reference aliases
-shopt -s expand_aliases
-shopt -s progcomp
-shopt -s progcomp_alias
+computes() {
+  for n in ${computes}
+  do
+    declare -x cl=${n:0:2}
+    declare -x cluster_dir=${CLUSTERS}/${cl}
+    make -C ${cluster_dir} ${n}
+  done
+}
 
-alias "computes"='${computes_up}'
-alias "computes--"='${computes_unprovision}'
-alias "computes-"='${computes_poweroff}'
-alias "computes!"='${computes_hardbounce}'
+computes_poweroff() {
+  for n in ${computes}
+  do
+    declare -x cl=${n:0:2}
+    declare -x cluster_dir=${CLUSTERS}/${cl}
+    make -C ${cluster_dir} ${n}-
+  done
+}
+alias computes-=computes_poweroff
+
+computes_unprovision() {
+  for n in ${computes}
+  do
+    declare -x cl=${n:0:2}
+    declare -x cluster_dir=${CLUSTERS}/${cl}
+    make -C ${cluster_dir} ${n}--
+  done
+}
+alias computes--=computes_unprovision
+
+computes_bounce() {
+  for n in ${computes}
+  do
+    declare -x cl=${n:0:2}
+    declare -x cluster_dir=${CLUSTERS}/${cl}
+    make -C ${cluster_dir} ${n}!
+  done
+}
+alias computes!=computes_bounce
 
 # common aliases for all clusters:
 alias "up"="(nohup make -s -C ${BASE} up 2>&1 >up.out ; echo output in: up.out ) &"
