@@ -2,6 +2,9 @@
 
 #BASE=${HOME}/hpc-collab
 BASE=${PWD}
+if [ $(basename "${BASE}") = "bin" ] ; then
+  BASE=${BASE}/..
+fi
 CLUSTERS=${BASE}/clusters
 provision_bin=${BASE}/bin
 clusters_bin=${CLUSTERS}/common/bin
@@ -46,12 +49,15 @@ do
   declare -x cl=${n:0:2}
 
   declare -x cluster_dir=${CLUSTERS}/${cl}
-  alias	"${n}"="set -b; (echo output in: ${n}.out; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out; sleep 1; tail -f ${n}.out) &"
-  alias	"${n}!"="set -b; (echo output in: ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out; sleep 1; tail -f ${n}.out) &"
+  alias	"${n}"="echo output in: ${n}.out; nohup make -C ${cluster_dir} ${n} &"
+  alias	"${n}!"="echo output in: ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out &"
   alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION; show"
 
   if [[ ${n} = *?[0-9]* ]] ; then
-	  computes=$(echo ${computes} ${n}|sort|uniq)
+	  computes_up="nohup make -C {cluster_dir} ${n}; ${computes_up}"
+	  computes_unprovision="nohup make -C {cluster_dir} ${n}--; ${computes_unprovision}"
+	  computes_poweroff="nohup make -C {cluster_dir} ${n}-; ${computes_poweroff}"
+	  computes_hardbounce="nohup make -C {cluster_dir} ${n}!; ${computes_hardbounce}"
   fi
 
   # yes, this redefines the alias for multiple nodes; that is not costly
@@ -60,20 +66,18 @@ do
   alias	"${cl}!"="set -b; (make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ; sleep 1; tail -f ${cl}.up.out; ) &"
 done
 
-computes=$(echo ${computes} | sort | uniq)
-computes_up="${computes// /;};"
-computes_unprovision="${computes// /--;}--;"
-computes_poweroff="${computes// /- ;}-;"
-computes_bounce="${computes// /! ;}!;"
+# aliases may reference aliases
+shopt -s expand_aliases
+shopt -s progcomp
+shopt -s progcomp_alias
 
-#XXX aliases don't reference each other
 alias "computes"='${computes_up}'
 alias "computes--"='${computes_unprovision}'
 alias "computes-"='${computes_poweroff}'
-alias "computes!"='${computes_bounce}'
+alias "computes!"='${computes_hardbounce}'
 
 # common aliases for all clusters:
-alias "up"="set -b; (nohup make -s -C ${BASE} up 2>&1 >up.out ; echo output in: up.out ; sleep 1; tail -f up.out ) &"
+alias "up"="(nohup make -s -C ${BASE} up 2>&1 >up.out ; echo output in: up.out ) &"
 for t in help show pkg prereq provision unprovision down
 do
   alias "${t}"="make -s -C ${BASE} ${t}"
