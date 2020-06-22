@@ -81,7 +81,8 @@ RemoveMarkProvisioned() {
   return
 }
 
-ClearVagrantfileSyncFolderDisabled $@
+# historical
+# ClearVagrantfileSyncFolderDisabled $@
 RemoveMarkProvisioned $@
 
 exit ${EX_OK}
