@@ -411,6 +411,7 @@ $(PROVISIONED_D)/%: $(XFR_PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 	  vagrant destroy -f $(@F) || exit 106								; \
 	fi								    			  	; \
 	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      			 	  \
+	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
 	  vagrant up --provision $(@F)									; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
@@ -423,6 +424,7 @@ $(PROVISIONED_D)/%: $(XFR_PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 
 $(RUNNING_D)/%: $(XFR_PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
+	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
 	  vagrant up --no-provision $(@F)							    	; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then								  	  \
@@ -430,6 +432,7 @@ $(RUNNING_D)/%: $(XFR_PREREQ) ingest-state
 	    exit 101											; \
 	  fi												; \
 	elif [ -f $(POWEROFF_D)/$(@F) ] ; then								  \
+	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
 	  vagrant up --no-provision $(@F)								; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \

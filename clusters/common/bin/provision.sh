@@ -82,7 +82,7 @@ fi
 # This structure allows us (eventually) to invoke each of these separately
 # for debugging and/or unprovisioning.
 
-declare -x CORE_ORDER_OF_OPERATIONS="SetFlags VerifyEnv SetupSecondDisk CopyHomeVagrant              \
+declare -x CORE_ORDER_OF_OPERATIONS="SetFlags VerifyEnv SetupSecondDisk CopyHomeVagrant    \
                                      CopyCommon OverlayRootFS AppendFilesRootFS CreateNFSMountPoints \
                                      InstallEarlyRPMS ConfigureLocalRepos WaitForPrerequisites       \
                                      InstallRPMS BuildSW InstallLocalSW ConfigSW SetServices UserAdd \
@@ -355,6 +355,7 @@ MarkNodeState() {
 MarkNodeProvisioned() {
   MarkNodeState "${STATE_PROVISIONED}"
   ClearNodeState "${STATE_RUNNING}"
+  Rc ErrExit ${EX_OSFILE} "mount -o remount,async,relatime /"
   return
 }
 
@@ -590,6 +591,9 @@ SetupSecondDisk() {
 CopyHomeVagrant() {
   local size
   local msg
+
+  Rc ErrExit ${EX_OSFILE} "mount -o remount,async,noatime /"
+
   if [ -L "${VC}" ] ; then
     ErrExit ${EX_OSFILE} "${VC} is a symlink"
   fi
@@ -1286,7 +1290,8 @@ TimeStamp() {
   else
     emit="previous: ${PREV_TIMESTAMP}, current: ${timestamp}"
   fi
-  Verbose " ${emit}"
+  #Verbose " ${emit}"
+  echo " ${emit}"
   return
 }
 
@@ -1648,6 +1653,7 @@ main() {
 
   Trap
 
+  TimeStamp
   local _m
   local _last=$(echo ${dowhat} | awk '{print $NF}')
   # _first or _second because SetFlags is first, but VERBOSE hasn't yet been set
@@ -1666,6 +1672,7 @@ main() {
     ${_m}
     Verbose "${separator}"
   done
+  TimeStamp
   Verbose "  "
   exit ${EX_OK}
 }
