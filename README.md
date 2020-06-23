@@ -42,6 +42,9 @@ Set the BASE directory in bin/setpath.{c}sh. The default setting is $HOME/hpc-co
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
 ~~~
+<P>
+Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM> reposistory.
+<P>
 Then ```make prereq``` to sanity check that there is sufficient storage to host this set of cluster recipes. Be prepared to point ```hpc-collab/tarballs``` and ```$HOME/VirtualBox VMs``` at a separate partition with more storage.
 
 Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
