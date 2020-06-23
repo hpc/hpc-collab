@@ -43,17 +43,18 @@ $(REPO_WORKSPACE_D): $(REPO_OS) $(REPO_UPDATES)
 
 # could be a bit more intelligent about manipulating the pattern to generate the rsync
 # and incorporate an estimated space check
+# depending upon where people are located on the network, outbound pings may be blocked.
+# Don't consider this fatal; it merely indicates checklist-security compliance.
 $(REPO_OS) $(REPO_UPDATES):
-	ping -c 1 -n -w 1 $(REPO_HOST) >/dev/null 2>&1		; \
-	rc=$$?							; \
-	if [ $${rc} -ne 0 ] ; then				  \
-		echo Cannot contact repository $(REPO_HOST)	; \
-		exit 99						; \
+	ping -c 1 -n -w 1 $(REPO_HOST) >/dev/null 2>&1			; \
+	rc=$$?								; \
+	if [ $${rc} -ne 0 ] ; then					  \
+		echo Warning: cannot ping repository $(REPO_HOST)	; \
 	fi
-	declare -x BEHIND_PROXY					; \
-	BEHIND_PROXY=$$(env | grep proxy)			; \
-	if [ -z "$${BEHIND_PROXY}" ] ; then			  \
-		mkdir -p $(@D)					; \
+	declare -x BEHIND_PROXY						; \
+	BEHIND_PROXY=$$(env | grep proxy)				; \
+	if [ -z "$${BEHIND_PROXY}" ] ; then				  \
+		mkdir -p $(@D)						; \
 		rsync --dry-run  -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D) ; \
 		rsync            -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D) ; \
 	else  \
