@@ -691,8 +691,12 @@ FlagSlashVagrant() {
   # XXX @todo add a per-node cfg file list of umounts, as needed
   for m in ${BUILDWHERE} ${BUILDWHERE/vagrant/${VC}}
   do
-    mountpoint ${m} >/dev/null 2>&1
-    rc=$?
+    local mountpoint=$(which mountpoint)
+    rc=${EX_OK}
+    if [ -x "${mountpoint}" ] ; then
+      ${mountpoint} ${m} >/dev/null 2>&1
+      rc=$?
+    fi
     if [ ${rc} -eq ${EX_OK} ] ; then
       Rc ErrExit ${EX_OSFILE} "umount -f ${m} >/dev/null 2>&1"
     fi
