@@ -689,12 +689,12 @@ FlagSlashVagrant() {
 
   # some mounts are not needed post configuration
   # XXX @todo add a per-node cfg file list of umounts, as needed
-  for m in ${BUILDWHERE}
+  for m in ${BUILDWHERE} ${BUILDWHERE/vagrant/${VC}}
   do
-    grep ${m} /proc/self/mountinfo >/dev/null 2>&1
+    mountpoint ${m} >/dev/null 2>&1
     rc=$?
-    if [ "${rc}" -eq "${GREP_FOUND}" ] ; then
-      Rc ErrExit ${EX_OSFILE} "umount ${m}"
+    if [ ${rc} -eq ${EX_OK} ] ; then
+      Rc ErrExit ${EX_OSFILE} "umount -f ${m} >/dev/null 2>&1"
     fi
   done
 
