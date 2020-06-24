@@ -11,6 +11,7 @@ assuming pwd = clusters/vc or clusters/vx, that is, clusters/<CL> = two-letter c
    cp -rv --preserve=context provision/useradd/User.Template provision/useradd/<new-user>
    mv provision/useradd/<new-user>/uid/# provision/useradd/<new-user>/uid/<uid>
    mv provision/useradd/<new-user>/gid/# provision/useradd/<new-user>/gid/<gid>
+   rm provision/useradd/<new-user>/Template
    mkdir common/home/<new-user>
 ```
  If this is a multiple account, such as for test drivers, with <NUMBER> test accounts
