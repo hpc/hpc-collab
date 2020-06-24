@@ -15,7 +15,7 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
  <LI><EM>vcbuild</EM>  - configured with a larger share of RAM and cpu cores, compilation HPC partition,<br>
                        builds software (slurm, lustre) as it is brought up, if necessary</LI>
  <LI><EM>vcdb</EM>     - provides mysql service, holds the slurm scheduling database daemon</LI>
- <LI><EM>vcaltdb</EM>  - provides an alternate mysql db, configured as a slave replicant of the primary data base</LI>
+ <LI><EM>vcaltdb</EM>  - provides an alternate mysql db, configured as a replicant of the primary data base</LI>
  <LI><EM>vcsched</EM>  - provides the slurm controller and scheduler service</LI>
  <LI><EM>vc[1-2]</EM>  - computational nodes</LI>
  <LI><EM>vclogin</EM>  - front-end/login node, provides vc-cluster job submission services</LI>
@@ -32,16 +32,21 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
 <H5>Security Note</H5>
 <P>
 This software constructs models of production clusters which include security features. 
-The cluster models are constructed to automate experiments. This automation means that these
-cluster recipes are not in themselves secure.
+The cluster models are constructed to automate experiments. <em>This automation means that these
+ cluster recipes are not in themselves secure.</em> New secure cluster recipes would be necessary
+ if this were to be used to create actual production cluster images.
 </P>
 
-To start:<BR>
-Set the BASE directory in bin/setpath.{c}sh. The default setting is $HOME/hpc-collab.</BR>
+<H5>To start</H5>
+<P>
+ Set the BASE directory in <EM>bin/setpath.{c}sh</EM>. The default setting is the output of pwd, often <EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
+
 ~~~
+         cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
 ~~~
+
 <P>
 Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM> reposistory.
 <P>
@@ -59,7 +64,7 @@ In the interest of documentation that matches actual code, makefile rules are in
   <LI><EM>make up</EM>          - provisions virtual cluster nodes</LI>
   <LI><EM>make unprovision</EM> - destroys virtual clusters, their nodes and underlying resources</LI>
  </UL>
- <P>
+
 Aliases are provided by the setpath helper. If using them, the appropriate Makefile is set so that one need not be in a cluster directory.<BR>
 <TABLE>
  <TR><TD><EM>provision</EM></TD>   <TD>make provision</TD></TR>
@@ -88,4 +93,7 @@ Components such as clusters, nodes and filesystems are standalone. Each includes
 Virtualbox, in particular, requires substantial RAM (>32Gb) and storage (~36Gb) for the default cluster recipe's run-time. During ingestion of prerequisites, ~20Gb storage is needed for a temporary local copy of a CentOS repository.
 
 The <EM>vc</EM> and <EM>vx</EM> clusters build in ~90 minutes on an Intel core i5 laptop with 64Gb RAM, assuming that the initial repository rsync and tarball creation of <EM>tarballs/repos.tgz</EM> is complete and successful.
+
+Use <EM>make prereq</EM> to validate the known storage space issues. Monitoring virtual memory footprints of the cluster images is also necessary.
+
 
