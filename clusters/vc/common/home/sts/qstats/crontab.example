@@ -1,0 +1,7 @@
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/cray_home/crayadm/bin:/opt/slurm/bin:/opt/slurm/sbin:/users/sts/bin:/root/bin
+MAILTO=sts@lanl.gov
+
+@reboot         qstats.sh --boot
+*/7  * * * *    qstats.sh --boot -a -c -C -d -s -b -B -f -F -L -l -w -q -r -u
+*/3  * * * *    qstats.sh -p -R -t -N -n
