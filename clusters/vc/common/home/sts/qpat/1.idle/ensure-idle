@@ -12,6 +12,7 @@ PWD=$(pwd)
 IAM=$(basename ${PWD})
 JOBNAME=${IAM}-
 TSTAMP=$(date +%y%m%d.%H%M)
+TIMEOUT=1
 
 QSTATS_PARAMETERS="-V -c -b -B -P -R"
 QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
@@ -19,6 +20,7 @@ QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
 prepOut() {
   mkdir -p ${LOGDIR}/${TSTAMP}
   touch "${LOGDIR}/${TSTAMP}/${IAM}"
+  return
 }
 
 dumpStats() {
@@ -27,13 +29,21 @@ dumpStats() {
   qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee ${LOGDIR}/${TSTAMP}/${IAM}
   qstats.sh ${QSTATS_PARAMETERS}
   logger -t ${IAM} -- "dump queue stats: end"
+  return
 }
 
 ensureIdle() {
-  queueLength=$(squeue --noheader | wc -l)
-  if [ ${queueLength} -ne 0 ] ; then
-    echo "Queue is not idle; queue length=${queueLength}" | tee "${LOGDIR}/${TSTAMP}/${IAM}"
-  fi
+	local limit=90 #two-second cycles
+
+  queueLength=$(squeue --format=%i --noheader | wc -l)
+  while [ ${queueLength} -gt 0 ] ; then
+  do
+    if [ ${queueLength} -ne 0 ] ; then
+      echo "Queue is not idle; queue length=${queueLength}" | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+    fi
+  done
+  sleep ${TIMEOUT}
+  return
 }
 
 main() {
@@ -42,8 +52,11 @@ main() {
   # collect default partition (shared)
   dumpStats
   #if a user is monitoring, give them a chance to review
-  sleep 3
+  sleep ${TIMEOUT}
+  return
 }
 
 main
 exit 0
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark
