@@ -1735,4 +1735,4 @@ exit ${EX_SOFTWARE}
 # 
 _USAGE_
 
-# vim: tabstop=2 shiftwidth=2 expandtab background=dark syntax=on
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

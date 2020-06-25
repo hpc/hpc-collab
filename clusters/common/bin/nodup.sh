@@ -95,3 +95,5 @@ fi
 
 trap '' 0
 exit ${EX_OK}
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

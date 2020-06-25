@@ -102,3 +102,5 @@ if [ -n "${no_state}" ] ; then
 fi
 
 exit 0
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark
