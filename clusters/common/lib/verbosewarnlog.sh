@@ -56,6 +56,7 @@ Verbose() {
   local tty=$(tty 2>&1)
   local columns
   local numeric="^[0-9]+$"
+  local tstamp
 
   if [[ ${tty} =~ /dev/* ]] ; then
     columns="${COLUMNS}:-$(stty size < ${tty} | awk '{print $2}')"
@@ -65,11 +66,14 @@ Verbose() {
   fi
   export COLUMNS=${columns}
   if [ -n "${VERBOSE}" ] ; then
+    if [ -n "${TIMESTAMPS}" ] ; then
+      tstamp="[$(date +%H-%M-%S-%N)] "
+    fi
     local has_stdbuf=$(which stdbuf)
     if [ -x "${has_stdbuf}" ] ; then
-      stdbuf -oL -eL printf "%-20s " "$*" | fmt -w ${COLUMNS}
+      stdbuf -oL -eL printf "${tstamp} %-20s " "$*" | fmt -w ${COLUMNS}
     else
-      printf "%-20s " "$*" | fmt -w ${COLUMNS}
+      printf "${tstamp} %-20s " "$*" | fmt -w ${COLUMNS}
     fi
   fi
 
