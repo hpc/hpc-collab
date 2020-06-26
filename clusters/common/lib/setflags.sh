@@ -141,8 +141,20 @@ SetFlags() {
         set_flags="${set_flags} SKIP_YUMDOWNLOAD"
         ;;
     TIMESTAMPS)
-	export TIMESTAMPS="true"
-        set_flags="${set_flags} TIMESTAMPS"
+        # if the TIMESTAMPS flag exists & is non-zero length, it may be a format for timestamps
+	# if DEFAULT_TIMESTAMP_FORMAT is set in the env. use it
+	DEFAULT_TIMESTAMP_FORMAT="${DEFAULT_TIMESTAMP_FORMAT:-+[%H-%M-%S-%N] }"
+        export TIMESTAMPS="${DEFAULT_TIMESTAMP_FORMAT}"
+	if [ -s ${FLAGS}/TIMESTAMPS ] ; then
+          TIMESTAMPS=$(cat ${FLAGS}/TIMESTAMPS)
+	  # date returns !EX_OK if its argument isn't a valid format
+	  date "${TIMESTAMPS}" >/dev/null 2>&1
+	  rc=$?
+	  if [ "${rc}" -ne ${EX_OK} ] ; then
+            TIMESTAMPS="${DEFAULT_TIMESTAMP_FORMAT}"
+	  fi
+	fi
+        set_flags="${set_flags} TIMESTAMPS:${TIMESTAMPS}"
 	;;
     esac
   done
