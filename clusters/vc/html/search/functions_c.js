@@ -1,4 +1,0 @@
-var searchData=
-[
-  ['rc',['Rc',['../rc_8sh.html#aabc5149cc0982ea11c27a12efc69186c',1,'rc.sh']]]
-];

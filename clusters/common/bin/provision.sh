@@ -82,7 +82,7 @@ fi
 # This structure allows us (eventually) to invoke each of these separately
 # for debugging and/or unprovisioning.
 
-declare -x CORE_ORDER_OF_OPERATIONS="SetFlags VerifyEnv SetupSecondDisk CopyHomeVagrant    \
+declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeStamp VerifyEnv SetupSecondDisk CopyHomeVagrant    \
                                      CopyCommon OverlayRootFS AppendFilesRootFS CreateNFSMountPoints \
                                      InstallEarlyRPMS ConfigureLocalRepos WaitForPrerequisites       \
                                      InstallRPMS BuildSW InstallLocalSW ConfigSW SetServices UserAdd \
@@ -91,7 +91,7 @@ declare -x CORE_ORDER_OF_OPERATIONS="SetFlags VerifyEnv SetupSecondDisk CopyHome
 declare -x DEBUG_DEFAULT_ORDER_OF_OPERATIONS="DebugNote VerbosePWD ClearSELinuxEnforce ${CORE_ORDER_OF_OPERATIONS}"
 
 
-declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} FlagSlashVagrant"
+declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} FlagSlashVagrant TimeStamp"
 
 declare -x REPO_DISK=/dev/sdb
 declare -x REPO_PART=${REPO_DISK}1
@@ -379,23 +379,31 @@ ConfigureLocalRepos() {
   local numeric="^[0-9]+$"
   local _ingested_tarball=""
   local _ingested_tarball_flagfile="${COMMON}/repos/._ingested_tarball"
+  local _have_repos=""
 
-  if [ ! -r ${XFR}/repos.tgz ] ; then
-    Verbose " ONLY_REMOTE_REPOS [${XFR}/repos.tgz unreadable or nonexistent])"
-    export ONLY_REMOTE_REPOS="true"
-    return
+  for tb in ${XFR}/repos ${XFR}/repos.tar ${XFR}/repos.tgz
+  do
+    for op in "! -r" "! -s" "-L"
+    do
+      if [ ${op} "${tb}" ] ; then
+        Verbose " skipped: ${tb} ${op}"
+        continue
+      fi
+    done
+
+    _have_repos=${tb}
+    break
+  done
+
+  if [ -z "${_have_repos}" ] ; then
+      Verbose "  cannot find XFR=${XFR} repos tarball or directory: ONLY_REMOTE_REPOS=true"
+      export ONLY_REMOTE_REPOS="true"
+      return
   fi
-  if [ -L ${XFR}/repos.tgz ] ; then
-    ## handled in prerequisites from NFS server
-    export NEED_NFS_REPOS="true"
-  else
-    if [ ! -s ${XFR}/repos.tgz ] ; then
-      ErrExit ${EX_CONFIG} "repos.tgz is 0 size"
-    fi
-  fi
-  repos_size=$(du -x -s -m ${XFR}/repos.tgz 2>&1 | awk '{print $1}')
+
+  repos_size=$(du -x -s -m ${_have_repos} 2>&1 | awk '{print $1}')
   if ! [[ ${repos_size} =~ ${numeric} ]] ; then
-    ErrExit ${EX_CONFIG} "repos.tgz is corrupt or empty: ${repos_size}"
+    ErrExit ${EX_CONFIG} "ingest repository is corrupt or empty: ${repos_size}"
   fi
   if [ ${repos_size} -lt 32 ] ; then
     ErrExit ${EX_CONFIG} "repos directory size is unrealistically low (${repos_size})"
@@ -406,7 +414,7 @@ ConfigureLocalRepos() {
   fi
 
   # only copy the repos area into this VM if we appear to be the one with repo-related tools installed
-  ## XXX key on actual per-host flag
+  ## XXX key on actual per-host attribute
   [ ! -x "${createrepo}" ] && return
   [ ! -x "${reposync}" ]   && return
   [ ! -x "${rsync}" ]      && return
@@ -431,14 +439,27 @@ ConfigureLocalRepos() {
   _enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo local-base | grep 'Repo-status' | sed 's/Repo-status.*://'))
   if ! [[ ${_enabled} =~ *enabled* ]] ; then
     if [ ! -f ${_ingested_tarball_flagfile} ] ; then
-      repos_size=$(du -x -s -m ${XFR}/repos.tgz | awk '{print $1}')
       repos_size=$(expr ${repos_size} / 1024)
-      Verbose " ingesting repos.tgz ${repos_size}Gb "
-      ## XXX nice to put out a progress bar but the way vagrant parses the output, a dot appears on separate lines, XXX send stderr via stdbuf, but not stdout?
+      Verbose " ingesting: ${_have_repos} ${repos_size}Gb "
+      ## XXX nice to put out a progress bar but the way vagrant parses the output, a dot appears on separate lines, XXX send stderr via stdbuf?
       ## XXX Rc ErrExit ${EX_OSFILE} "cd ${COMMON}; tar -${TAR_DEBUG_ARGS}${TAR_ARGS}f ${XFR}/repos.tgz --exclude='._*' --checkpoint-action=dot --checkpoint=4096"
-      Rc ErrExit ${EX_OSFILE} "cd ${COMMON}; tar -${TAR_DEBUG_ARGS}${TAR_ARGS}f ${XFR}/repos.tgz --exclude='._*'"
+
+      if [ -d ${_have_repos} ] ; then
+        # XXX choose a copy algorithm based on config flags
+        # rsync is ~50% slower than tar
+        # Rc ErrExit ${EX_OSFILE} "rsync -az ${_have_repos} ${COMMON}"
+        # - OR -
+        # cp is less reliable than the other two, but equivalent in speed to tar
+        # Rc ErrExit ${EX_OSFILE} " cp -arx --preserve=all ${_have_repos} ${COMMON}"
+        # - OR -
+        # use a tar ball & then extract
+        Rc ErrExit ${EX_OSFILE} "tar -cf - -C ${_have_repos} . | \
+                                  (cd ${COMMON}/repos ; tar -${TAR_DEBUG_ARGS}${TAR_ARGS}f - --exclude='._*')"
+      else
+        Rc ErrExit ${EX_OSFILE} "cd ${COMMON}; tar -${TAR_DEBUG_ARGS}${TAR_ARGS}f ${_have_repos} --exclude='._*'"
+      fi
       _ingested_tarball=true
-      touch ${_ingested_tarball_flagfile}
+      Rc ErrExit ${EX_OSFILE} "touch ${_ingested_tarball_flagfile}"
     fi
 
     if [ -r ${YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL} ] ; then
@@ -1669,7 +1690,6 @@ main() {
 
   Trap
 
-  TimeStamp
   local _m
   local _last=$(echo ${dowhat} | awk '{print $NF}')
   # _first or _second because SetFlags is first, but VERBOSE hasn't yet been set
@@ -1688,8 +1708,9 @@ main() {
     ${_m}
     Verbose "${separator}"
   done
-  TimeStamp
-  Verbose "  "
+  if [ -z "${TIMESTAMP}" ] ; then
+    Verbose "  "
+  fi
   exit ${EX_OK}
 }
 
@@ -1714,4 +1735,4 @@ exit ${EX_SOFTWARE}
 # 
 _USAGE_
 
-# vim: tabstop=2 shiftwidth=2 expandtab background=dark syntax=on
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

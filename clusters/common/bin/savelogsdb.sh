@@ -136,3 +136,5 @@ main $@
 
 ErrExit ${EX_SOFTWARE} "FAULTHROUGH"
 exit ${EX_SOFTWARE}
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

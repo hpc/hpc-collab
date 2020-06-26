@@ -136,10 +136,14 @@ SetFlags() {
         export SKIP_UPDATERPMS="true"
         set_flags="${set_flags} SKIP_UPDATERPMS"
         ;;
-     SKIP_YUMDOWNLOAD|SKIP_YUMDOWNLOADS)
+    SKIP_YUMDOWNLOAD|SKIP_YUMDOWNLOADS)
         export SKIP_YUMDOWNLOAD="true"
         set_flags="${set_flags} SKIP_YUMDOWNLOAD"
         ;;
+    TIMESTAMPS)
+	export TIMESTAMPS="true"
+        set_flags="${set_flags} TIMESTAMPS"
+	;;
     esac
   done
   Verbose "Flags: ${set_flags}"
