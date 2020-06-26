@@ -138,7 +138,7 @@ main() {
     exit ${EX_OK}
   fi
   if [ -f "${COMMON_HOME}/.undermount" ] ; then
-    Warn ${EX_OK} "Note: COMMON_HOME:${COMMON_HOME} marked as .undermount, skipped"
+    Warn ${EX_OK} "\nNote: COMMON_HOME:${COMMON_HOME}\n\t\t\tmarked as .undermount, skipped"
     exit ${EX_OK}
   fi
 
