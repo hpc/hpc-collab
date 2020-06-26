@@ -72,25 +72,14 @@ computes() {
   done
 }
 
-computes_poweroff() {
-  for n in ${computes}
-  do
-    declare -x cl=${n:0:2}
-    declare -x cluster_dir=${CLUSTERS}/${cl}
-    make -C ${cluster_dir} ${n}-
-  done
-}
-alias computes-=computes_poweroff
-
 computes_unprovision() {
   for n in ${computes}
   do
     declare -x cl=${n:0:2}
     declare -x cluster_dir=${CLUSTERS}/${cl}
-    make -C ${cluster_dir} ${n}--
+    make -C ${cluster_dir} ${n}_UNPROVISION
   done
 }
-alias computes--=computes_unprovision
 
 computes_bounce() {
   for n in ${computes}
@@ -112,3 +101,5 @@ alias  "savelogs"="( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/savelogsdb.sh )
 
 # when/if needed
 # ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key > /dev/null 2>&1
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

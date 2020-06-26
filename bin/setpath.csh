@@ -79,12 +79,10 @@ end
 set computes="${computes} "
 set computes_up=`echo "${computes}" | sed 's/ /;/g'`
 set computes_unprovision=`echo "${computes}" | sed 's/ /-- ;/g'`
-set computes_poweroff=`echo "${computes}" | sed 's/ /- ;/g'`
 set computes_bounce=`echo "${computes}" | sed 's/ /! ;/g'`
 
 alias computes "${computes_up}"
 alias computes-- "${computes_unprovision}"
-alias computes- "${computes_poweroff}"
 alias computes! "${computes_bounce}"
 
 # common aliases for all clusters:
@@ -97,3 +95,5 @@ alias  "savelogs"	"( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/savelogsdb.sh )
 
 # when/if needed
 #ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key >& /dev/null
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark
