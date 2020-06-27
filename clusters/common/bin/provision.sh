@@ -446,7 +446,7 @@ ConfigureLocalRepos() {
 
       if [ -d ${_have_repos} ] ; then
         # XXX choose a copy algorithm based on config flags
-        # rsync is ~50% slower than tar
+        # rsync is ~50% slower than tar or cp
         # Rc ErrExit ${EX_OSFILE} "rsync -az ${_have_repos} ${COMMON}"
         # - OR -
         # cp is less reliable than the other two, but equivalent in speed to tar

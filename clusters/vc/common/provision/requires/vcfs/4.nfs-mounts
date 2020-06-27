@@ -20,6 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 declare -x IPADDR=$(cat ipaddr)
 
 declare -x _d=${COMMON}/${HOSTNAME}.$$d
@@ -34,9 +36,7 @@ _nfs_mntpoints=$(findmnt -t nfs -F /etc/fstab -n | awk '{print $1}' | sort -d)
 for _m in ${_nfs_mntpoints}
 do
   fstyp=$(stat -f "${_m}" --format="%T")
-  if [ "${fstyp}" = "nfs" ] ; then
-    continue
-  fi
+  Verbose "     ${_m}"
   Rc ErrExit ${EX_OSFILE} "mount ${_m}"
 done
 

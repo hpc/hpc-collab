@@ -64,16 +64,16 @@ Verbose() {
   if ! [[ ${columns} =~ ${numeric} ]] ; then
     columns=${DEFAULT_COLUMNS}
   fi
-  export COLUMNS=${columns}
+  export COLUMNS=$(expr ${columns} - 1)
   if [ -n "${VERBOSE}" ] ; then
     if [ -n "${TIMESTAMPS}" ] ; then
-      tstamp="[$(date +%H-%M-%S-%N)] "
+      tstamp=$(date "${TIMESTAMPS}")
     fi
     local has_stdbuf=$(which stdbuf)
     if [ -x "${has_stdbuf}" ] ; then
-      stdbuf -oL -eL printf "${tstamp} %-20s " "$*" | fmt -w ${COLUMNS}
+      stdbuf -oL -eL printf "${tstamp}%-20s " "$*" | fmt -w ${COLUMNS}
     else
-      printf "${tstamp} %-20s " "$*" | fmt -w ${COLUMNS}
+      printf "${tstamp}%-20s " "$*" | fmt -w ${COLUMNS}
     fi
   fi
 
