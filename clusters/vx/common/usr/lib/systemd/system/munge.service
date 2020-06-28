@@ -8,6 +8,7 @@ After=remote-fs.target
 After=nfs-client.target
 ConditionDirectoryNotEmpty=/etc/munge
 ConditionFileNotEmpty=/etc/munge/munge.key
+ConditionFileNotEmpty=/etc/slurm/slurm.conf
 
 [Service]
 Type=forking

@@ -146,21 +146,72 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "shell", path:  "../common/bin/provision.sh"
 
-  config.vm.synced_folder ".",                "/vagrant",                       create: true, type: "virtualbox"
-  config.vm.synced_folder "../vc",            "/vc",                            create: true, type: "virtualbox"
-  config.vm.synced_folder "../vx",            "/vx",                            create: true, type: "virtualbox"
+  config.vm.synced_folder ".",                "/vagrant",                       create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3',
+                                             'rsize=131072', 'wsize=131072' ],
+                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async' ]
 
-  config.vm.synced_folder "../../tarballs",   "/vc/xfr",                        create: true, type: "virtualbox"
-  config.vm.synced_folder "../../tarballs",   "/vx/xfr",                        create: true, type: "virtualbox", mount_options: [ "ro" ]
+  config.vm.synced_folder "../vc",            "/vc",                            create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3',
+                                             'rsize=131072', 'wsize=131072' ],
+                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async' ]
+
+###  config.vm.synced_folder "../vx",            "/vx",                            create: true,
+###                            type: "nfs", nfs_udp: false, nfs_version: 4,
+###                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3',
+###                                             'rsize=131072', 'wsize=131072' ],
+###                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async' ]
+
+  config.vm.synced_folder "../../tarballs",   "/vc/xfr",                        create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3',
+                                             'rsize=131072', 'wsize=131072' ],
+                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async' ]
+
+  config.vm.synced_folder "../../tarballs",   "/vx/xfr",                        create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "rw", 'tcp', 'async', 'actimeo=3',
+                                             'rsize=131072', 'wsize=131072' ],
+                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async' ]
 
   # in-cluster tools
-  config.vm.synced_folder "../common/bin",    "/vagrant/cfg/provision/bin",     create: true, type: "virtualbox", mount_options: [ "ro" ]
+  config.vm.synced_folder "../common/bin",    "/vagrant/cfg/provision/bin",     create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60',
+                                             'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async' ]
 
-  config.vm.synced_folder "../common/env",    "/vc/cfg/provision/env",     create: true, type: "virtualbox", mount_options: [ "ro" ]
-  config.vm.synced_folder "../common/flag",   "/vc/cfg/provision/flag",    create: true, type: "virtualbox", mount_options: [ "ro" ]
-  config.vm.synced_folder "../common/inc",    "/vc/cfg/provision/inc",     create: true, type: "virtualbox", mount_options: [ "ro" ]
-  config.vm.synced_folder "../common/lib",    "/vc/cfg/provision/lib",     create: true, type: "virtualbox", mount_options: [ "ro" ]
-  config.vm.synced_folder "../common/loader", "/vc/cfg/provision/loader",  create: true, type: "virtualbox", mount_options: [ "ro" ]
+  config.vm.synced_folder "../common/env",    "/vc/cfg/provision/env",     create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60',
+                                             'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async' ]
+
+  config.vm.synced_folder "../common/flag",   "/vc/cfg/provision/flag",    create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60',
+                                             'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async' ]
+
+  config.vm.synced_folder "../common/inc",    "/vc/cfg/provision/inc",     create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60',
+                                             'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async' ]
+
+  config.vm.synced_folder "../common/lib",    "/vc/cfg/provision/lib",     create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60',
+                                             'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async' ]
+
+  config.vm.synced_folder "../common/loader", "/vc/cfg/provision/loader",  create: true,
+                            type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60',
+                                             'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async' ]
 
 # config.vm.network # eth0 will always be NAT (Vagrant requirement)
 
