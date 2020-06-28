@@ -1,9 +1,12 @@
 [Unit]
 Description=Slurm node daemon
 After=munge.service network.target remote-fs.target nfs-client.target
+RequiresMountsFor=/home/vagrant
+ConditionPathIsMountPoint=/home/vagrant
 ConditionPathExists=/etc/slurm/slurm.conf
-RequiresMountsFor=/home/vagrant/common
-ConditionPathIsMountPoint=/home/vagrant/common
+ConditionPathIsDirectory=/home/vagrant/common/etc/slurm
+ConditionPathIsSymbolicLink=/etc/slurm
+ConditionFileNotEmpty=/home/vagrant/common/etc/slurm/slurm.conf
 
 [Service]
 Type=forking

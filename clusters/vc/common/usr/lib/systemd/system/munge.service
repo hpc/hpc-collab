@@ -6,8 +6,10 @@ After=syslog.target
 After=time-sync.target
 After=remote-fs.target
 After=nfs-client.target
-RequiresMountsFor=/home/vagrant/common
-ConditionPathIsMountPoint=/home/vagrant/common
+RequiresMountsFor=/home/vagrant
+ConditionPathIsMountPoint=/home/vagrant
+ConditionDirectoryNotEmpty=/etc/munge
+ConditionFileNotEmpty=/etc/munge/munge.key
 
 [Service]
 Type=forking

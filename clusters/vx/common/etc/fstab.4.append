@@ -1,2 +1,2 @@
 appendwhere: build
-appendwhat: vcfs:/home/vagrant/common/var/log/rsyslog /home/vx/common/var/log/rsyslog nfs defaults,nofail,_netdev,nfsvers=4.2,nosharecache,rw,context=unconfined_u:object_r:var_log_t:s0 0 0
+appendwhat: vcfs:/home/vagrant/common/var/log/rsyslog /home/vx/common/var/log/rsyslog nfs defaults,nofail,_netdev,nfsvers=4.2,nosharecache,rw,actimeo=3,context=unconfined_u:object_r:var_log_t:s0 0 0

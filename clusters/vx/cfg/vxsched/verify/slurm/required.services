@@ -1,2 +1,3 @@
-slurmctld
 munge
+slurmctld
+bogus-service-to-force-check

@@ -25,6 +25,8 @@
 
 /home/vagrant/common/var/log/mariadb		system_u:object_r:mysqld_log_t:s0
 
+/home/vagrant/common/var/log/slurm		system_u:object_r:var_log_t:s0
+
 /home/vagrant/common/var/log/rsyslog		system_u:object_r:var_log_t:s0
 /home/vagrant/common/var/log/rsyslog/vc1	system_u:object_r:var_log_t:s0
 /home/vagrant/common/var/log/rsyslog/vc2	system_u:object_r:var_log_t:s0

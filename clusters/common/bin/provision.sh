@@ -301,7 +301,7 @@ VerifyEnv() {
     done
     if [ -n "${ro_mount}" ] ; then
       if [ -f ${STATE_PROVISIONED}/${HOSTNAME} ] ; then
-	if [ -f ${STATE_POWEROFF}/${HOSTNAME} ] ; then
+	      if [ -f ${STATE_POWEROFF}/${HOSTNAME} ] ; then
           Verbose " poweroff resumption;"
         fi
         Verbose " provisioned"
@@ -677,18 +677,27 @@ FlagSlashVagrant() {
     cd /
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
-    awk '{print $5}' < /proc/self/mountinfo | grep -s "^${VC}" >/dev/null 2>&1
+    awk '{print $5}' < /proc/self/mountinfo | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
+    fstype=$(stat -f --format "%T" ${BASEDIR})
     if [ $? -eq ${GREP_FOUND} ] ; then
       still_in_use=$(lsof | grep -i cwd | awk '{print $9}' | grep '/' | sort | uniq | egrep "^/${BASEDIR}")
+      needs_umount=$(findmnt -m | egrep '192.168.56.1|vboxsf' | awk '{print $1}')
       if [ -n "${still_in_use}" ] ; then
         Verbose " /${BASEDIR} is still in use. (${still_in_use})"
         Verbose " umount skipped."
       else
-        Rc Warn 32 "umount -f -a -t vboxsf"
-        rc=$? 
-        if [ ${rc} -eq ${EX_OK} ] ; then
-          Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
-        fi
+        any_failed_unmounts=""
+        for m in ${needs_umount}
+        do
+          umount -f ${m} >/dev/null 2>&1
+          rc=$? 
+          if [ ${rc} -ne ${EX_OK} ] ; then
+            any_failed_unmounts="${any_failed_unmounts} ${m}"
+          fi
+          if [ -z "${any_failed_unmounts}" ] ; then
+            Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
+          fi
+        done
       fi
     else
       Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
@@ -696,8 +705,7 @@ FlagSlashVagrant() {
     cd ${opwd}
   else
     if [ -d "${VC}" -a ! -L "${VC}" ] ; then
-      #XXX dev ErrExit ${EX_OSFILE} "mount -t vboxsf -o uid=1000,gid=1000 vagrant ${VC}"
-      Rc ErrExit ${EX_OSFILE} "mount -r -t vboxsf vagrant ${VC}"
+      Rc ErrExit ${EX_OSFILE} "mount -r -t ${fstype} vagrant ${VC}"
     fi
   fi
   # convenient short-cuts inside the cluster
@@ -719,7 +727,7 @@ FlagSlashVagrant() {
       rc=$?
     fi
     if [ ${rc} -eq ${EX_OK} ] ; then
-      Rc ErrExit ${EX_OSFILE} "umount -f ${m} >/dev/null 2>&1"
+      umount -f ${m} >/dev/null 2>&1
     fi
   done
 
@@ -783,7 +791,7 @@ AppendFilesRootFS() {
       local _rc=$?
       if [ ${GREP_NOTFOUND} -eq ${_rc} ] ; then
         local _hint=$(echo ${_appendwhat} | awk '{print $1}')
-        Verbose " ${_n} ${_hint}"
+        Verbose "  ${_n} ${_hint}"
 
         sed -i "/${_appendwhere}/a ${_appendwhat}" ${_target} >/dev/null 2>&1
         _rc=$?
