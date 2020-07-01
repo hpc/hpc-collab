@@ -615,6 +615,11 @@ CopyHomeVagrant() {
 
   Rc ErrExit ${EX_OSFILE} "mount -o remount,async,noatime /"
 
+  Rc ErrExit ${EX_OSFILE} "sysctl -w fs.xfs.xfssyncd_centisecs=720000"
+  Rc ErrExit ${EX_OSFILE} "sysctl -w fs.xfs.age_buffer_centisecs=3600"
+  Rc ErrExit ${EX_OSFILE} "sysctl -w fs.xfs.filestream_centisecs=7200"
+  Rc ErrExit ${EX_OSFILE} "sysctl -w fs.xfs.xfsbufd_centisecs=1800"
+
   if [ -L "${VC}" ] ; then
     ErrExit ${EX_OSFILE} "${VC} is a symlink"
   fi
@@ -945,7 +950,7 @@ InstallRPMS() {
     if [ -x $(which yumdownloader) ] ; then
       Rc ErrExit ${EX_IOERR} "timeout ${timeout} yumdownloader --resolve --destdir=${RPM}/${which} --archlist=${ARCH} \"${r}\" ; "
     else
-      ## change the downloaddir to the local repo rather than remain in the configuration tree
+      ## change the downloaddir to the local repo (${COMMON}/repos) rather than remain in the configuration tree
       Rc ErrExit ${EX_IOERR} "timeout ${timeout} ${YUM} ${_disable_localrepo_arg} --downloadonly --downloaddir=${RPM}/${which} --disableplugin=fastestmirror install \"${r}\" ; "
     fi
     Rc ErrExit ${EX_IOERR} "rm -f ${RPM}/${which}/\"${r}\" ; "
