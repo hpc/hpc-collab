@@ -39,8 +39,8 @@ ingestfromhost_vcfs_path = "./cfg/vcfs/attributes/ingestfromhost/path"
 ingestfromhost_vcfs_args = "./cfg/vcfs/attributes/ingestfromhost/args"
 
 nodes = {
-  "vcfs"		=> {  :ip             => `grep vcfs #{hosts}  | awk '{printf "%s",$1}'` ,
-									:mac            => `grep vcfs #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcfs"		=> {  :ip             => `grep ' vcfs ' #{hosts}  | awk '{printf "%s",$1}'` ,
+									:mac            => `grep ' vcfs ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcfs/attributes/memory],
 									:cpus           => %x[ls ./cfg/vcfs/attributes/procs],
@@ -50,8 +50,8 @@ nodes = {
 									:adddiskpath    => %x[cat cfg/vcfs/attributes/adddiskpath/path]
 								},
 
-  "vcsvc"		=> {  :ip             => `grep vcsvc #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcsvc #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcsvc"		=> {  :ip             => `grep ' vcsvc ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vcsvc ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcsvc/attributes/memory],
 									:cpus           => %x[ls ./cfg/vcsvc/attributes/procs],
@@ -59,8 +59,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vcbuild" => {  :ip             => `grep vcbuild #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcbuild #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcbuild" => {  :ip             => `grep ' vcbuild ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vcbuild ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcbuild/attributes/memory],
 									:cpus           => %x[ls ./cfg/vcbuild/attributes/procs],
@@ -68,8 +68,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vcdb" 		=> {  :ip             => `grep vcdb #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcdb #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcdb" 		=> {  :ip             => `grep ' vcdb ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vcdb ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcdb/attributes/memory],
 									:cpus           => %x[ls ./cfg/vcdb/attributes/procs],
@@ -77,8 +77,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vcaltdb" => {  :ip             => `grep vcaltdb #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcaltdb #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcaltdb" => {  :ip             => `grep ' vcaltdb ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vcaltdb ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcaltdb/attributes/memory],
 									:cpus           => %x[ls ./cfg/vcaltdb/attributes/procs],
@@ -86,8 +86,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vcsched" => {  :ip             => `grep vcsched #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcsched #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vcsched" => {  :ip             => `grep ' vcsched ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vcsched ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vcsched/attributes/memory],
 									:cpus	          => %x[ls ./cfg/vcsched/attributes/procs],
@@ -113,8 +113,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vclogin"		=> {:ip             => `grep vclogin #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vclogin #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
+  "vclogin"		=> {:ip             => `grep ' vclogin ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vclogin ' #{ethers} | awk '{printf "%s",$1}' | sed 's/://g'`,
 									:bridge         => nil,
 									:memory         => %x[ls ./cfg/vclogin/attributes/memory],
 									:cpus           => %x[ls ./cfg/vclogin/attributes/procs],
@@ -122,8 +122,8 @@ nodes = {
 									:adddiskpath    => nil
 								},
 
-  "vcgate"		=> {:ip             => `grep vcgate #{hosts}  | awk '{printf "%s",$1}'`,
-									:mac            => `grep vcgate #{ethers} | awk '{printf "%s", $1}' | sed 's/://g'`,
+  "vcgate"		=> {:ip             => `grep ' vcgate ' #{hosts}  | awk '{printf "%s",$1}'`,
+									:mac            => `grep ' vcgate ' #{ethers} | awk '{printf "%s", $1}' | sed 's/://g'`,
 									:bridge         => `/sbin/ip route | grep default | awk '{printf "%s", $5}'`,
 									:memory         => %x[ls cfg/vcgate/attributes/memory],
 									:cpus           => %x[ls cfg/vcgate/attributes/procs],
@@ -253,15 +253,22 @@ Vagrant.configure("2") do |config|
           end # override.trigger.before [:up]
 				end # manifest[:ingestfromhost]
 
-         if manifest[:adddiskpath] then
-           unless File.exist?(manifest[:adddiskpath])
-             vb.customize ['createhd', '--filename', manifest[:adddiskpath],
-														'--variant', 'Fixed', '--size', REPODISK_SIZE * 1024]
-           end # File.exit?(manifest[:adddiskpath])
+        # use host's dns resolver
+        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
 
-           vb.customize ['storageattach', :id,  '--storagectl', 'IDE Controller', '--port', 1, '--device', 0,
+        # allow IO to use additional cpu cores
+        vb.customize ["modifyvm", :id, "--ioapic", "on"]
+
+        if manifest[:adddiskpath] then
+          unless File.exist?(manifest[:adddiskpath])
+            vb.customize ['createhd', '--filename', manifest[:adddiskpath],
+														'--variant', 'Fixed', '--size', REPODISK_SIZE * 1024]
+        end # File.exit?(manifest[:adddiskpath])
+
+        vb.customize ['storageattach', :id,  '--storagectl', 'IDE Controller', '--port', 1, '--device', 0,
   													'--type', 'hdd', '--medium', manifest[:adddiskpath]]
-         end # manifest[:adddiskpath]
+        end # manifest[:adddiskpath]
 
         override.trigger.before [:destroy] do |unprovision|
           unprovision.run = {path: "../common/bin/unprovision.sh", args: hostnm }
