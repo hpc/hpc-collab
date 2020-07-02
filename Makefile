@@ -63,6 +63,7 @@ $(PREREQ_INGEST): $(PREREQ_STORAGE)
 prerequisites prereq: $(PREREQ_LIST)
 	$(MAKE) -C requires/storage
 	$(MAKE) -C requires/ingest
+	$(MAKE) -C requires/auth
 	$(HUSH)set first=""											; \
 	for f in $(sort $^)											; \
         do													  \

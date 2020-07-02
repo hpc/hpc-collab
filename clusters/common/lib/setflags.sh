@@ -143,7 +143,8 @@ SetFlags() {
     TIMESTAMPS)
         # if the TIMESTAMPS flag exists & is non-zero length, it may be a format for timestamps
 	# if DEFAULT_TIMESTAMP_FORMAT is set in the env. use it
-	DEFAULT_TIMESTAMP_FORMAT="${DEFAULT_TIMESTAMP_FORMAT:-+[%H-%M-%S-%N] }"
+	# gnuplot likes the format of: +%d-%H-%M-%S.%6N
+	DEFAULT_TIMESTAMP_FORMAT="${DEFAULT_TIMESTAMP_FORMAT:-+%d-%H-%M-%S.%6N }"
         export TIMESTAMPS="${DEFAULT_TIMESTAMP_FORMAT}"
 	if [ -s ${FLAGS}/TIMESTAMPS ] ; then
           TIMESTAMPS=$(cat ${FLAGS}/TIMESTAMPS)
