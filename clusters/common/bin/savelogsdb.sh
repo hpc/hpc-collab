@@ -59,9 +59,15 @@ SaveLogs() {
   any_up=""
   for d in ${PWD}/${PROVISIONED_D}/*
   do
-    any_up="${any_up} $(basename ${d})"
+    _n=$(basename ${d})
+    if [[ ${_n} != " +[a-zA-Z]+[0-9]+" ]] ; then
+      if [ -n "${any_up}" ] ; then
+        any_up="${any_up} ${_n}"
+      else
+        any_up="${_n}"
+      fi
+    fi
   done
-  any_up=$(echo ${any_up} | sed 's/..[0-9] //g')
   if [ -z "${any_up}" ] ; then
     ErrExit ${EX_CONFIG} "any_up: empty?"
   fi
