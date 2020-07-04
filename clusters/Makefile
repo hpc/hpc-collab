@@ -101,8 +101,8 @@ PKG_TARGETS =	pkg tarball
 export VC VIRTUALCLUSTER
 
 ## if not a known (to us) target, assume it may be a node name, look for a subdirectory that includes that node
-## assumes: 1st two characters of target name may be a cluster name
-## @todo XXX could look for ${_VC}/cfg/$
+## assumes: 1st two characters of target name is a cluster name
+
 .DEFAULT:
 	$(HUSH)export _NODE=$(@F)									; \
 	export _VC=$${_NODE:0:2}									; \

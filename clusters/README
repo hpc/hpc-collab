@@ -1,2 +1,5 @@
-Individual cluster recipes reside here. If they contain a Makefile and a Vagrantfile, they will attempt to be built.
-Makefiles assume that older versions of the xy cluster are in xy~, for example.
+Individual cluster recipes reside here.
+
+If they contain a Makefile and a Vagrantfile, they will attempt to be built.
+
+Vagrantfiles are "compiled" by the Makefile, provided that the cluster is not marked to be ignored by the presence of a marker file .ignore_cluster. Vagrantfiles are compiled by collecting the per-node data from cfg/<node-directories> and the per-node attributes specified in cfg/<node-directory>/attributes/*.
