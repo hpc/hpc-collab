@@ -1,5 +1,5 @@
 
-TARGETS			 = sudo-auth sudo-modify-exports modify-exports
+TARGETS			 = sudo-auth sudo-modify-exports modify-exports sudo-enable-nfs-through-firewall
 TARGETS_OPTIMISTIC	 = modify-exports sudo-auth sudo-modify-exports
 
 SUDO_CHECK		:= $(shell sudo id -n -u)
@@ -33,3 +33,6 @@ sudo-modify-exports:
 		touch $(NO_NFS_FLAG)	; \
 	fi
 
+sudo-enable-nfs-through-firewall:
+	sudo firewall-cmd --zone=trusted --add-interface=vboxnet0
+	sudo firewall-cmd --zone=trusted --add-service=nfs
