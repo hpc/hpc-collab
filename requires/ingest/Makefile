@@ -58,7 +58,7 @@ $(REPO_OS) $(REPO_UPDATES):
 	RSYNC_PROXY=$$(echo $$http_proxy | sed 's/http:\/\///')         ; \
 	mkdir -p $(@D)                                                  ; \
 	rsync --dry-run  -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D) ; \
-	rc=$$?
+	rc=$$?								; \
 	if [ "$${rc}" -ne 0 ] ; then                                        \
 		echo "Try: "                                            ; \
 		echo "  export RSYNC_PROXY=$${RSYNC_PROXY}"             ; \
