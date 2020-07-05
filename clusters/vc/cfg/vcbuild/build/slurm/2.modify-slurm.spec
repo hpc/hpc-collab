@@ -162,6 +162,9 @@ ed - ${tmpfile1} << __SED_BUMP_RELEASE_EOF__
 w
 q
 __SED_BUMP_RELEASE_EOF__
-Rc ErrExit ${EX_OSFILE} "cp -b --preserve=all ${tmpfile1} ${SLURM_SPEC}"
+#if not NFS:
+#Rc ErrExit ${EX_OSFILE} "cp -b --preserve=all ${tmpfile1} ${SLURM_SPEC}"
+#else:
+Rc ErrExit ${EX_OSFILE} "cp -b ${tmpfile1} ${SLURM_SPEC}"
 
 exit ${EX_OK}
