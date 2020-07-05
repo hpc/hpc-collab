@@ -38,7 +38,7 @@ all: $(TARGETS)
 $(TARGETS):
 
 $(REPO_WORKSPACE_D): $(REPO_OS) $(REPO_UPDATES)
-	@if [ ! -d $@ ] ; then    \
+	@if [ ! -d "$@" ] ; then    \
 		mkdir -p $@     ; \
 	fi
 
@@ -49,7 +49,7 @@ $(REPO_WORKSPACE_D): $(REPO_OS) $(REPO_UPDATES)
 $(REPO_OS) $(REPO_UPDATES):
 	ping -c 1 -n -w 1 $(REPO_HOST) >/dev/null 2>&1                  ; \
 	rc=$$?                                                          ; \
-	if [ $${rc} -ne 0 ] ; then                                        \
+	if [ "$${rc}" -ne 0 ] ; then                                        \
 		echo Warning: cannot ping repository $(REPO_HOST)       ; \
 	fi
 	declare -x BEHIND_PROXY                                         ; \
@@ -59,10 +59,10 @@ $(REPO_OS) $(REPO_UPDATES):
 	mkdir -p $(@D)                                                  ; \
 	rsync --dry-run  -4 -avz --delete --exclude=\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D) ; \
 	rc=$$?
-	if [ $${rc} -ne 0 ] ; then                                        \
+	if [ "$${rc}" -ne 0 ] ; then                                        \
 		echo "Try: "                                            ; \
 		echo "  export RSYNC_PROXY=$${RSYNC_PROXY}"             ; \
-		echo "  rsync -4 -avz --delete --exclude=\\\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)" ; \
+		echo "  rsync -4 -avz --delete --exclude=\\\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)"
 		echo " "                                                                                ; \
 		echo Cannot ingest: $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ to $(@D)            ; \
 		echo Please download repository copy from, for example,                                 ; \
@@ -70,6 +70,7 @@ $(REPO_OS) $(REPO_UPDATES):
 		echo "  to      $(@D) $(realpath $(@D))"                                                ; \
 		exit 99                                                                                 ; \
 	fi
+	rsync -4 -avz --delete --exclude=\\\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
 	touch $@
 
 # use this to pull a repo and roll a tarball
