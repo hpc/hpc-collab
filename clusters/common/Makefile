@@ -516,3 +516,4 @@ $(XFR_VBOXADD_ISO): $(TARBALLS_VBOXADD_ISO)
 	    rsync -LHcau $< $@										; \
 	fi
 
+# vim: background=dark
