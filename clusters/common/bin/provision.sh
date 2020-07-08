@@ -1200,6 +1200,19 @@ HOME=${HOME_BASEDIR}" ${ETC_DEFAULT_USERADD}
       Verbose " ${msg}"
       Verbose ""
       msg=""
+
+      if [ -d "${USERADD}/${U}" ] ; then
+        local _home=${HOME_BASEDIR}/${U}
+        local home_useradd=${_home}/useradd
+        local useradd_d=${USERADD}/${U}
+
+        Rc ErrExit ${EX_OSFILE} "chown -R -h ${U}:${U} ${useradd_d}"
+        if [ -d "${useradd_d}/useradd" ] ; then
+          Rc ErrExit ${EX_OSFILE} "ln -s ${useradd_d} ${home_useradd}"
+          Rc ErrExit ${EX_OSFILE} "chown -h ${U}:${U} ${home_useradd}"
+        fi
+      fi
+
     done
   done
 
