@@ -1,0 +1,1 @@
+%x[/sbin/ip route | grep default | awk '{printf "%s", $5}' | tail -1]
