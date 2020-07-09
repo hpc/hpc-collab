@@ -129,6 +129,12 @@ TARBALLS_VBOXADD_ISO	= $(TARBALLS_D)/$(VBOXADD_ISO_SUF)
 XFR_PREREQ_PREMOUNT	= $(XFR_VBOXADD_ISO) $(XFR_REPOS_TGZ)
 XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 
+VAGRANTFILE			= Vagrantfile
+VAGRANTFILE_D			= ../common/Vagrantfile.d
+VAGRANTFILE_SYNCEDFOLDERS_D	= $(VAGRANTFILE_D)/synced_folders.d
+VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)
+PREREQ				= $(VAGRANTFILE) $(XFR_PREREQ)
+
 ### XXX @todo generate COMPLETE from the inverse of QUICK
 FLAGS			= RSYNC_CENTOS_REPO  SKIP_UPDATERPMS  SKIP_SW  BUILD_LUSTRE_FLAG
 FLAGS_QUICK		= RSYNC_CENTOS_REPO~ SKIP_UPDATERPMS  SKIP_SW  BUILD_LUSTRE_FLAG~
@@ -146,6 +152,7 @@ UNPROVISION		= unprovision.sh
 MARK_PROVISIONED	= markprovisioned.sh
 VERIFY_LOCALENV		= verifylocalenv.sh
 SAVE_LOGSDB		= savelogsdb.sh
+COMPILE_VAGRANTFILE	= compilevagrantfile.sh
 
 # match entries in the directories defined by $(STATE_D)/<state>
 STATE_LIST	        = nonexistent poweroff running provisioned
@@ -176,14 +183,15 @@ HUMANFRIENDLY_FLAGS	= $(QUICK_HUMANFRIENDLY_FLAG_NAMES) \
 
 SAVELOGS_TARGETS	= savelogs save-logs savelog save-log collectlogs collect-logs collectlog collect-log
 
-HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum doc help							\
-				ingest-state show show-state show-vars status						\
-				todo verifylocalenv copyright pkg							\
+HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum compilevagrantfile copyright	\
+				doc help 							\
+				ingest-state scopyright how show-state show-vars status		\
+				todo verifylocalenv						\
 				$(SAVELOGS_TARGETS)
 
 PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
 
-.PHONY: $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
+.PHONY:	$(PHONY)
 
 .DELETE_ON_ERROR: $(NODES_STATE)
 
@@ -198,11 +206,12 @@ clean-state:
 	$(HUSH)vagrant global-status --prune >/dev/null 2>&1 &
 
 clean: $(NONEXISTENT_FLAGS)
+	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE) $(VAGRANTFILE)~
 	$(HUSH)$(DISABLE_RM) rm -f $(DOXYGEN_OUT)
 	$(HUSH)$(DISABLE_RM) rm -f $(PROVISIONED_D)/*
 	$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
 
-show show-state status:	$(STATE_DIRS_ALL) ingest-state
+show show-state status:	compilevagrantfile $(STATE_DIRS_ALL) ingest-state
 ifneq ($(NODES_STATE_PROVISIONED),)
 	$(info		provisioned: $(sort $(NODES_STATE_PROVISIONED)))
 endif
@@ -318,6 +327,11 @@ flags flag: | $(PROVISION_FLAG_D)
 
 ###
 
+compilevagrantfile: $(VAGRANTFILE_PREREQ)
+	$(HUSH)env VC=$(VC) $(COMPILE_VAGRANTFILE) >/dev/null 2>&1
+
+$(VAGRANTFILE): compilevagrantfile
+
 ingest-state: clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)
 
@@ -386,8 +400,8 @@ NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS = $(foreach n,$(NODES),$(addprefix 
 
 $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS):
 
-# XXX @todo 'vmtouch -d -L -q -t $(XFR_PREREQ)' provided they're not $(PHONY)
-$(PROVISIONED_D)/%: $(XFR_PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
+# XXX @todo 'vmtouch -d -L -q -t $(PREREQ)' provided they're not $(PHONY)
+$(PROVISIONED_D)/%: $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"		; \
 	for prereq in $^ $${_prereq_nodes}								; \
         do												  \
@@ -422,7 +436,7 @@ $(PROVISIONED_D)/%: $(XFR_PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 	  fi												; \
 	fi
 
-$(RUNNING_D)/%: $(XFR_PREREQ) ingest-state
+$(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
 	  vagrant --timestamp up --no-provision $(@F)						    	; \
