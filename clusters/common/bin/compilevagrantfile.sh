@@ -70,11 +70,12 @@ chkConfig() {
     fi
   done
   which_fs=$(cat ${DEFAULT_FSTYPE})
+  no_nfs=$(echo $(cat ${NO_NFS}))
 
   if [ ! -f "${NO_NFS}" ] ; then
     which_fs=nfs4
 
-  elif [ -s "${NO_NFS}" -a $(cat ${NO_NFS}) = "nfs4" ] ; then
+  elif [ -s "${NO_NFS}" -a "${no_nfs}" = "nfs4" ] ; then
     which_fs=nfs
   fi
 
