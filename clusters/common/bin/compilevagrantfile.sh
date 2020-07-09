@@ -265,6 +265,7 @@ main() {
 
 
   #Rc ErrExit ${EX_OSFILE} "cp -buv ${VAGRANTFILE_TMP} ${VAGRANTFILE_TARGET}"
+  Rc ErrExit ${EX_OSFILE} "sed -i -e \"/%CLUSTERNAME%/s//${env_VC}/g\" ${VAGRANTFILE_TMP} ;"
   Rc ErrExit ${EX_OSFILE} "rsync -cbv ${VAGRANTFILE_TMP} ${VAGRANTFILE_TARGET}"
   Rc ErrExit ${EX_OSFILE} "rm -f ${VAGRANTFILE_TMP}"
   trap '' 0

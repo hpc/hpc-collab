@@ -8,9 +8,9 @@
                             mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
                             linux__nfs_options: ['rw','no_subtree_check','all_squash','async','insecure' ]
 
-###  config.vm.synced_folder "../vx", "/vx", create: true, type: "nfs", nfs_udp: false,
-###                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
-###                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async','insecure' ]
+  config.vm.synced_folder "../vx", "/vx", create: true, type: "nfs", nfs_udp: false,
+                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
+                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async','insecure' ]
 
   config.vm.synced_folder "../../tarballs", "/vc/xfr", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
@@ -25,23 +25,23 @@
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 
-  config.vm.synced_folder "../common/env", "/vc/cfg/provision/env", create: true, type: "nfs", nfs_udp: false,
+  config.vm.synced_folder "../common/env", "/%CLUSTERNAME%/cfg/provision/env", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 
-  config.vm.synced_folder "../common/flag", "/vc/cfg/provision/flag", create: true, type: "nfs", nfs_udp: false,
+  config.vm.synced_folder "../common/flag", "/%CLUSTERNAME%/cfg/provision/flag", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 
-  config.vm.synced_folder "../common/inc", "/vc/cfg/provision/inc", create: true, type: "nfs", nfs_udp: false,
+  config.vm.synced_folder "../common/inc", "/%CLUSTERNAME%/cfg/provision/inc", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 
-  config.vm.synced_folder "../common/lib", "/vc/cfg/provision/lib", create: true, type: "nfs", nfs_udp: false,
+  config.vm.synced_folder "../common/lib", "/%CLUSTERNAME%/cfg/provision/lib", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 
-  config.vm.synced_folder "../common/loader", "/vc/cfg/provision/loader", create: true, type: "nfs", nfs_udp: false,
+  config.vm.synced_folder "../common/loader", "/%CLUSTERNAME%/cfg/provision/loader", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 

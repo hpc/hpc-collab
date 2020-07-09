@@ -175,9 +175,9 @@ Vagrant.configure("2") do |config|
                             mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
                             linux__nfs_options: ['rw','no_subtree_check','all_squash','async','insecure' ]
 
-###  config.vm.synced_folder "../vx", "/vx", create: true, type: "nfs", nfs_udp: false, nfs_version: 4,
-###                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
-###                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async','insecure' ]
+  config.vm.synced_folder "../vx", "/vx", create: true, type: "nfs", nfs_udp: false, nfs_version: 4,
+                            mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
+                            linux__nfs_options: ['rw','no_subtree_check','all_squash','async','insecure' ]
 
   config.vm.synced_folder "../../tarballs", "/vc/xfr", create: true, type: "nfs", nfs_udp: false, nfs_version: 4,
                             mount_options: [ 'rw', 'tcp', 'async', 'actimeo=3', 'rsize=131072', 'wsize=131072' ],
