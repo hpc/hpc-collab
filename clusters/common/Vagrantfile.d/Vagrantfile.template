@@ -16,128 +16,9 @@ ENV["VC"]     = "#{clustername}"
 
 # the following will be replaced per-cluster with the constructed nodes table
 
-nodes = {
- "vcfs" => {
-    :ip  => "192.168.56.79",
-    :mac => "5CA1AB1E00F5",
-    :bridge => nil,
-    :memory => "6656",
-    :cpus => "4",
-    :ingestfromhost => {	
-      path: "../../bin/ingestfromhost.sh",
-      args: "vcfs :DOTFILES :DOTSSH"
-    },
-    :adddiskpath => "/tmp/vcfs_repodisk.vdi"
- },
- "vcsvc" => {
-    :ip  => "192.168.56.71",
-    :mac => "5CA1AB1E051C",
-    :bridge => nil,
-    :memory => "768",
-    :cpus => "2",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vcbuild" => {
-    :ip  => "192.168.56.75",
-    :mac => "5CA1AB1E00B1",
-    :bridge => nil,
-    :memory => "2560",
-    :cpus => "2",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vcaltdb" => {
-    :ip  => "192.168.56.76",
-    :mac => "5CA1AB1EA1DB",
-    :bridge => nil,
-    :memory => "1024",
-    :cpus => "2",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vcdb" => {
-    :ip  => "192.168.56.77",
-    :mac => "5CA1AB1E00DB",
-    :bridge => nil,
-    :memory => "2304",
-    :cpus => "2",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vcsched" => {
-    :ip  => "192.168.56.64",
-    :mac => "5CA1AB1E0000",
-    :bridge => nil,
-    :memory => "1024",
-    :cpus => "2",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vc1" => {
-    :ip  => "192.168.56.65",
-    :mac => "5CA1AB1E0001",
-    :bridge => nil,
-    :memory => "1024",
-    :cpus => "1",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vc2" => {
-    :ip  => "192.168.56.66",
-    :mac => "5CA1AB1E0002",
-    :bridge => nil,
-    :memory => "1280",
-    :cpus => "1",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vclogin" => {
-    :ip  => "192.168.56.73",
-    :mac => "5CA1AB1E0106",
-    :bridge => nil,
-    :memory => "1280",
-    :cpus => "1",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- },
- "vcgate" => {
-    :ip  => "192.168.56.69",
-    :mac => "5CA1AB1E005A",
-    :bridge => nil,
-    :memory => "1280",
-    :cpus => "1",
-    :ingestfromhost => {	
-      path: nil,
-      args: nil
-    },
-    :adddiskpath => nil
- }
-}
+### ### ### ### ### ### ###  ###
+### ###  _insert_nodes_  ### ###
+### ### ### ### ### ### ###  ###
 
 # the above  will be replaced per-cluster with the constructed nodes table
 
@@ -166,29 +47,9 @@ Vagrant.configure("2") do |config|
 
 # the following will be replaced per-cluster with the synced_folder table
 
-
-# configuration recipe
-  config.vm.synced_folder ".",               "/vagrant", create: true, type: "virtualbox"
-
-# ingestion
-  config.vm.synced_folder "../../tarballs",   "/vc/xfr", create: true, type: "virtualbox"
-  config.vm.synced_folder "../../tarballs",   "/vx/xfr", create: true, type: "virtualbox"
-
-# tools
-  config.vm.synced_folder "../common/bin",    "/vagrant/cfg/provision/bin",          create: true, type: "virtualbox"
-  config.vm.synced_folder "../common/env",    "/vc/cfg/provision/env",    create: true, type: "virtualbox"
-  config.vm.synced_folder "../common/flag",   "/vc/cfg/provision/flag",   create: true, type: "virtualbox"
-  config.vm.synced_folder "../common/inc",    "/vc/cfg/provision/inc",    create: true, type: "virtualbox"
-  config.vm.synced_folder "../common/lib",    "/vc/cfg/provision/lib",    create: true, type: "virtualbox"
-  config.vm.synced_folder "../common/loader", "/vc/cfg/provision/loader", create: true, type: "virtualbox"
-
-# this cluster configuration
-  config.vm.synced_folder "../vx",            "/vx",            create: true, type: "virtualbox"
-  config.vm.synced_folder "../vc",            "/vc",            create: true, type: "virtualbox"
-  config.vm.synced_folder "../vc", "/vc", create: true, type: "virtualbox"
-
-# -*- mode: ruby -*-
-# vim: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+### ### ### ### ### ### ### ### ### ### #
+### ###  _insert_synced_folders_  ### ###
+### ### ### ### ### ### ### ### ### ### #
  
 # the above will be replaced per-cluster with the synced_folder table
  

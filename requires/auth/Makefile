@@ -6,7 +6,7 @@ SUDO_CHECK		:= $(shell sudo id -n -u)
 SUDO_NEED		 = root
 
 FLAG_D			 = ../../clusters/common/flag
-NO_NFS_FLAG		 = $(FLAG_D)/NFS_NOTAUTH
+NO_NFS_FLAG		 = $(FLAG_D)/NO_NFS
 
 EXPORTS_UNPRIV		 = $(shell touch $(ETC_EXPORTS) 2>&1)
 
@@ -27,10 +27,10 @@ ifneq ($(SUDO_CHECK), $(SUDO_NEED))
 endif
 
 sudo-modify-exports:
-	sudo touch $(ETC_EXPORTS)	; \
-	rc=$$?				; \
-	if [ $${rc} -ne 0 ] ; then	  \
-		touch $(NO_NFS_FLAG)	; \
+	sudo touch $(ETC_EXPORTS)			; \
+	rc=$$?						; \
+	if [ $${rc} -ne 0 ] ; then			  \
+		echo NOT_AUTH_touch > $(NO_NFS_FLAG)	; \
 	fi
 
 sudo-enable-nfs-through-firewall:

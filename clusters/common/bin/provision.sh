@@ -613,7 +613,8 @@ CopyHomeVagrant() {
   local size
   local msg
 
-  Rc ErrExit ${EX_OSFILE} "mount -o remount,async,noatime /"
+  # These clusters are *transient*. All data can be reproduced, replayed, regenerated with reprovisioning.
+  Rc ErrExit ${EX_OSFILE} "mount -o remount,async,noatime,nobarrier /"
 
   Rc ErrExit ${EX_OSFILE} "sysctl -w fs.xfs.xfssyncd_centisecs=720000"
   Rc ErrExit ${EX_OSFILE} "sysctl -w fs.xfs.age_buffer_centisecs=3600"
@@ -686,7 +687,7 @@ FlagSlashVagrant() {
     fstype=$(stat -f --format "%T" ${BASEDIR})
     if [ $? -eq ${GREP_FOUND} ] ; then
       still_in_use=$(lsof | grep -i cwd | awk '{print $9}' | grep '/' | sort | uniq | egrep "^/${BASEDIR}")
-      needs_umount=$(findmnt -m | egrep '192.168.56.1|vboxsf' | awk '{print $1}')
+      needs_umount=$(findmnt -m | egrep '192.168.56.1|vboxsf' | awk '{print $1}' | sort -r)
       if [ -n "${still_in_use}" ] ; then
         Verbose " /${BASEDIR} is still in use. (${still_in_use})"
         Verbose " umount skipped."
@@ -1199,6 +1200,19 @@ HOME=${HOME_BASEDIR}" ${ETC_DEFAULT_USERADD}
       Verbose " ${msg}"
       Verbose ""
       msg=""
+
+      if [ -d "${USERADD}/${U}" ] ; then
+        local _home=${HOME_BASEDIR}/${U}
+        local home_useradd=${_home}/useradd
+        local useradd_d=${USERADD}/${U}
+
+        Rc ErrExit ${EX_OSFILE} "chown -R -h ${U}:${U} ${useradd_d}"
+        if [ -d "${useradd_d}/useradd" ] ; then
+          Rc ErrExit ${EX_OSFILE} "ln -s ${useradd_d} ${home_useradd}"
+          Rc ErrExit ${EX_OSFILE} "chown -h ${U}:${U} ${home_useradd}"
+        fi
+      fi
+
     done
   done
 

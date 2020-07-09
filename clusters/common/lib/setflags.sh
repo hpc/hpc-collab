@@ -157,6 +157,14 @@ SetFlags() {
 	fi
         set_flags="${set_flags} TIMESTAMPS:${TIMESTAMPS}"
 	;;
+    NO_NFS)
+        if [ -s ${FLAGS}/NO_NFS ] ; then
+	  NO_NFS=$(cat ${FLAGS}/NO_NFS)
+          set_flags="${set_flags} NO_NFS:${NO_NFS}"
+        else
+          set_flags="${set_flags} NO_NFS"
+	fi
+	;;
     esac
   done
   Verbose "Flags: ${set_flags}"
