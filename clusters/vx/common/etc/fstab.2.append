@@ -1,3 +1,3 @@
-appendwhere: swap
-appendwhat: vcfs:/home/vx/common /home/vx/common	nfs	defaults,nofail,_netdev,nfsvers=4.2,nosharecache,actimeo=3,context=unconfined_u:object_r:public_content_rw_t:s0 0 0
+appendwhere: boot
+appendwhat: vcfs:/home/vagrant/common /home/vx/common	nfs	defaults,nofail,_netdev,nfsvers=4.2,nosharecache,actimeo=3,context=unconfined_u:object_r:public_content_rw_t:s0 0 0
 

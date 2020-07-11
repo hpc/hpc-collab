@@ -2,9 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcsched/config/slurm/2.start-slurmctld-early
-
-## @brief start slurmctld service early
+## @file vclogin/config/slurm/4.configure-slurm-db
 
 VCLOAD=../../../provision/loader/shload.sh
 
@@ -22,13 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-declare -x SLURMCONF=${ETCSLURM}/slurm.conf
-
-slurmctld=$(which slurmctld)
-
-Rc ErrExit ${EX_OSFILE} "test -x ${slurmctld}"
-Rc ErrExit ${EX_OSFILE} "test -r ${SLURMCONF}"
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${slurmctld} -v"
+SetFlags >/dev/null 2>&1
+Verbose "  "
 
 trap '' 0
 exit ${EX_OK}

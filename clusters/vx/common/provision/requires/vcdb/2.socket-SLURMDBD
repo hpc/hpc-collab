@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file .../requires/vcdb/2.socket-SLURMDBD
+## @file vxsched/requires/vcdb/2.socket-SLURMDBD
 
 ## @brief verifies connectivity to slurmdbd service port
 
@@ -23,16 +23,22 @@ if [ -n "${OUT}" ] ; then
 fi
 
 declare -x IPADDR=$(cat ipaddr)
+declare -x ETCSLURM=/etc/slurm
+declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 
 Rc ErrExit ${EX_OSFILE} "test -f ${SLURMDBDCONF}"
-Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
+#Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
 
-dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//')
-if [ -z "${dbdport}" ] ; then
-  _dbdport=$(grep -i AccountingStoragePort ${SLURMCONF} | tr '[:upper:]' '[:lower:]' | sed 's/accountingstorageport=//' | tr -d '\n')
-  if [[ ${_dbdport} != "#" ]] ; then
-    dbdport=${_dbdport}
+if [ -f ${SLURMCONF} -a -f ${SLURMDBDCONF} ] ; then
+  dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//')
+  if [ -z "${dbdport}" ] ; then
+    _dbdport=$(grep -i AccountingStoragePort ${SLURMCONF} | tr '[:upper:]' '[:lower:]' | sed 's/accountingstorageport=//' | tr -d '\n')
+    if [[ ${_dbdport} != "#" ]] ; then
+      dbdport=${_dbdport}
+    fi
   fi
+# else
+#   Warn EX_OK "  Warning: slurm.conf:${SLURMCONF} or\nslurmdbd.conf:${SLURMDBDCONF} are not present"
 fi
 
 if [ -z "${dbdport}" ] ; then
@@ -40,7 +46,7 @@ if [ -z "${dbdport}" ] ; then
 fi
 numeric='^[0-9]+$'
 if ! [[ ${dbdport} =~ $numeric ]] ; then
-  echo "  Warning: dbdport (\"${dbdport}\") is not numeric, using DEFAULT_DBDPORT:${DEFAULT_DBDPORT}"
+  Warn EX_OK "  Warning: dbdport (\"${dbdport}\") is not numeric, using DEFAULT_DBDPORT:${DEFAULT_DBDPORT}"
   dbdport=${DEFAULT_DBDPORT}
 fi
 if [ -z "${dbdport}" -o '#' = "${dbdport}" ] ; then

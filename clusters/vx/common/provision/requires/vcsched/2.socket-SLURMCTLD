@@ -23,8 +23,8 @@ if [ -n "${OUT}" ] ; then
 fi
 
 declare -x IPADDR=$(cat ipaddr)
-
-Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
+declare -x ETCSLURM=/etc/slurm
+declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 
 ctldport=$(grep -i slurmctldport ${SLURMCONF} | tr '[:upper:]' '[:lower:]' | sed 's/slurmctldport=//')
 

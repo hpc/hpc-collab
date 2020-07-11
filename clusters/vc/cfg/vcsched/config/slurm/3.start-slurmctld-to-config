@@ -23,7 +23,6 @@ if [ -n "${OUT}" ] ; then
 fi
 
 declare -x SLURMCONF=${ETCSLURM}/slurm.conf
-declare -x COMMON_SLURMCONF=${COMMON}/${SLURMCONF}
 
 slurmctld=$(which slurmctld)
 
@@ -32,9 +31,6 @@ Rc ErrExit ${EX_OSFILE}   "test -r ${SLURMCONF}"
 
 Rc ErrExit ${EX_SOFTWARE} "timeout ${TIMEOUT} chmod 0444 ${SLURMCONF}"
 Rc ErrExit ${EX_SOFTWARE} "timeout ${TIMEOUT} chown -h root:root ${SLURMCONF}"
-
-Rc ErrExit ${EX_SOFTWARE} "timeout ${TIMEOUT} chmod 0444 ${COMMON_SLURMCONF}"
-Rc ErrExit ${EX_SOFTWARE} "timeout ${TIMEOUT} chown root:root ${COMMON_SLURMCONF}"
 
 Rc ErrExit ${EX_SOFTWARE} "timeout ${TIMEOUT} ${slurmctld} -v"
 

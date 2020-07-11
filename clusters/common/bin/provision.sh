@@ -422,8 +422,11 @@ ConfigureLocalRepos() {
 # [ ! -b "${REPO_PART}" ]  && return
   [ -z "${REPO_MOUNT}" ]   && return
 
-  Rc ErrExit ${EX_OSERR}  "mkdir -p ${REPO_MOUNT}  2>&1"
-  Rc ErrExit ${EX_OSERR}  "mount ${REPO_MOUNT}     2>&1"
+  Rc ErrExit ${EX_OSERR}  "mkdir -p ${REPO_MOUNT} 2>&1"
+  Rc ErrExit ${EX_OSERR}  "mount ${REPO_MOUNT}    2>&1"
+
+  declare -x CREATEREPO_CACHE=/run/createrepo/cache
+  Rc ErrExit ${EX_OSERR}  "mkdir -p ${CREATEREPO_CACHE}  2>&1"
 
   ## XXX collect an attribute of the host from somewhere? yes, we have it in slurm.conf, but that's not (really) available yet
   houses_storage="fs$"
@@ -467,8 +470,9 @@ ConfigureLocalRepos() {
       Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^enabled=0/s/=0/=1/ ${YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL}"
       for r in $(grep baseurl ${YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL} | sed 's/^#.*//' | sed 's/baseurl=file:\/\///')
       do
+        # @todo #workers from node attributes
         if [ ! -d ${r}/repodata ] ; then
-          Rc ErrExit ${EX_CONFIG} "export basearch=${ARCH} releasever=${YUM_CENTOS_RELEASEVER} ; createrepo ${r}"
+          Rc ErrExit ${EX_CONFIG} "export basearch=${ARCH} releasever=${YUM_CENTOS_RELEASEVER} ; createrepo --workers 4 --cachedir ${CREATEREPO_CACHE} ${r}"
         fi
       done
     fi
@@ -546,7 +550,7 @@ ConfigureLocalRepos() {
     if [ ! -d ${d} ] ; then
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
     fi
-    Rc ErrExit ${EX_OSERR} "${createrepo} --update ${d}"
+    Rc ErrExit ${EX_OSERR} "${createrepo} --update --workers 4 --cachedir ${CREATEREPO_CACHE} ${d}"
   done
   return
 }
@@ -701,12 +705,16 @@ FlagSlashVagrant() {
             any_failed_unmounts="${any_failed_unmounts} ${m}"
           fi
           if [ -z "${any_failed_unmounts}" ] ; then
-            Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
+            if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 
+              Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
+            fi
           fi
         done
       fi
     else
-      Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
+      if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 
+        Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
+      fi
     fi
     cd ${opwd}
   else
@@ -1514,7 +1522,8 @@ BuildSW(){
   SW build $@
   if [ ! -d "${COMMON_LOCALREPO}/repodata" -a -x "${createrepo}" ] ; then
     Verbose " createrepo COMMON_LOCALREPO:${COMMON_LOCALREPO}"
-    ${createrepo} ${COMMON_LOCALREPO}
+    mkdir -p /run/createrepo/cache
+    ${createrepo} --workers 2 --cachedir /run/createrepo/cache ${COMMON_LOCALREPO}
   fi
   VERBOSE="${verbose_was}"
   return

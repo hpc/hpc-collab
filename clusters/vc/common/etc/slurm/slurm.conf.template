@@ -37,9 +37,9 @@ ProctrackType=proctrack/cgroup
 #ProctrackType=proctrack/pgid
 Prolog=/etc/slurm/prolog.d/*
 PrologFlags=Alloc,X11
-#CliFilterPlugins=x11  # 175192
+#CliFilterPlugins=x11
 X11Parameters=local_xauthority,use_raw_hostname
-#PrologSlurmctld=/etc/slurm/filelinkprolog_slurm.sh - replaced by on-node colorize.sh
+#PrologSlurmctld=
 #PropagatePrioProcess=0
 #PropagateResourceLimits=
 PropagateResourceLimitsExcept=MEMLOCK
@@ -150,7 +150,7 @@ SlurmSchedLogLevel=3
 # POWER SAVE SUPPORT FOR IDLE NODES (optional)
 #SuspendProgram=
 #ResumeProgram=
-ResumeFailProgram=/cfg/provision/bin/provision.sh
+#ResumeFailProgram=
 #SuspendTimeout=
 #ResumeTimeout=
 #ResumeRate=
@@ -164,19 +164,20 @@ ResumeFailProgram=/cfg/provision/bin/provision.sh
 #
 NodeName=DEFAULT Feature=centos7 Weight=1
 ### virtual cluster aka vc
-NodeName=vc1     Feature=compute,odd                    State=UNKNOWN RealMemory=640
-NodeName=vc2     Feature=compute,even                   State=UNKNOWN RealMemory=640
+NodeName=vc1     Feature=compute,allocatable,odd        State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vc2     Feature=compute,allocatable,even       State=UNKNOWN RealMemory=%NODE_MEM%
 
-NodeName=vcbuild Feature=compile                        State=UNKNOWN RealMemory=1280
-NodeName=vclogin Feature=login                          State=UNKNOWN RealMemory=640
+NodeName=vcbuild Feature=compute,allocatable,compile    State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vclogin Feature=compute,allocatable,login      State=UNKNOWN RealMemory=%NODE_MEM%
 
-NodeName=vcsched Feature=controller,scheduler,slurmctld State=FUTURE  RealMemory=1024
-NodeName=vcfs    Feature=storage,filesystem,common      State=FUTURE  RealMemory=4096
-NodeName=vcdb    Feature=storage,slurmdb                State=FUTURE  RealMemory=768
-NodeName=vcaltdb Feature=storage,slurmdb-replicant      State=FUTURE  RealMemory=768
-NodeName=vcsvc   Feature=service,ntp,domain,syslog      State=FUTURE  RealMemory=512
-NodeName=vcgate  Feature=gate                           State=FUTURE  RealMemory=512
+NodeName=vcsched Feature=controller,scheduler,slurmctld State=FUTURE  RealMemory=%NODE_MEM%
+NodeName=vcfs    Feature=storage,filesystem,common      State=FUTURE  RealMemory=%NODE_MEM%
+NodeName=vcdb    Feature=storage,slurmdb                State=FUTURE  RealMemory=%NODE_MEM%
+NodeName=vcaltdb Feature=storage,slurmdb-replicant      State=FUTURE  RealMemory=%NODE_MEM%
+NodeName=vcsvc   Feature=service,ntp,domain,syslog      State=FUTURE  RealMemory=%NODE_MEM%
+NodeName=vcgate  Feature=gate                           State=FUTURE  RealMemory=%NODE_MEM%
 
+# enable all (of these) nodes to be reported by tools such as 'sinfo' and 'scontrol show node'
 DownNodes=vcsched Reason="slurm scheduler and controller node"
 DownNodes=vcfs Reason="common filesystem storage node"
 DownNodes=vcdb Reason="slurm and mysql data base service node"

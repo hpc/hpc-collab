@@ -6,7 +6,7 @@ CryptoType=crypto/munge
 DisableRootJobs=NO
 #Epilog=/etc/slurm/epilog.d/*
 #EpilogSlurmctld=
-FirstJobId=100000
+FirstJobId=200000
 #MaxJobId=999999
 #GresTypes=
 #GroupUpdateForce=0
@@ -36,13 +36,13 @@ ProctrackType=proctrack/cgroup
 #ProctrackType=proctrack/pgid
 Prolog=/etc/slurm/prolog.d/*
 PrologFlags=Alloc,X11
-#CliFilterPlugins=x11  # 175192
+#CliFilterPlugins=x11
 X11Parameters=local_xauthority,use_raw_hostname
-#PrologSlurmctld=/etc/slurm/filelinkprolog_slurm.sh - replaced by on-node colorize.sh
+#PrologSlurmctld=
 #PropagatePrioProcess=0
 #PropagateResourceLimits=
 PropagateResourceLimitsExcept=MEMLOCK
-#RebootProgram=
+RebootProgram=/sbin/reboot
 ReturnToService=2
 SallocDefaultCommand="srun -n1 -N1 --mem-per-cpu=0 --pty --preserve-env $SHELL"
 SlurmctldPidFile=/var/run/slurmctld.pid
@@ -160,11 +160,12 @@ SlurmSchedLogLevel=3
 #
 NodeName=DEFAULT Feature=centos7 Weight=1
 ### virtual cluster aka vx
-NodeName=vx1     Feature=compute,odd                    State=UNKNOWN RealMemory=530
-NodeName=vx2     Feature=compute,even                   State=UNKNOWN RealMemory=530
+NodeName=vx1     Feature=compute,allocatable,odd                State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vx2     Feature=compute,allocatable,even               State=UNKNOWN RealMemory=%NODE_MEM%
 
-NodeName=vxlogin Feature=login                          State=UNKNOWN RealMemory=740
-NodeName=vxsched Feature=controller,scheduler,slurmctld State=UNKNOWN RealMemory=1376
+# enable all (of these) nodes to be reported by tools such as 'sinfo' and 'scontrol show node'
+NodeName=vxlogin Feature=login,allocatable                      State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vxsched Feature=controller,scheduler,slurmctld		State=UNKNOWN RealMemory=%NODE_MEM%
 
 #
 # Two separate partitions which map to the same nodes:
