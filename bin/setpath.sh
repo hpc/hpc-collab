@@ -1,5 +1,7 @@
 #!/bin/bash
 
+shopt -s expand_aliases
+
 #BASE=${HOME}/hpc-collab
 BASE=${PWD}
 if [ $(basename "${BASE}") = "bin" ] ; then
