@@ -75,7 +75,6 @@ TAR_STAMP		= $(TAR_STEM),$(TSTAMP)
 TAR_GET			= $(TARBALLS_D)/$(TAR_STAMP)$(tgz_suffix)
 TAR_GET_CKSUM		= $(TARBALLS_D)/$(TAR_STAMP)$(cksum_suffix)
 
-TAR_ARGS		= $(TAR_EXCLUDE_ARGS) -czf $(TAR_GET) $(TAR_CHECKPOINT_ARGS)
 TAR_VERBOSE_ARGS	= $(TAR_EXCLUDE_ARGS) -cvzf $(TAR_GET) $(TAR_CHECKPOINT_ARGS)
 TAR_ARGS		= $(TAR_EXCLUDE_ARGS) -czf $(TAR_GET) $(TAR_CHECKPOINT_ARGS)
 
@@ -87,12 +86,12 @@ SLURM_TARBALL		= $(TARBALLS_D)/slurm-$(SLURM_VERSION).tar.bz2
 TARGETS		= clusters show-vars show_vars vars show all
 
 # VC_TARGETS are passed through to enabled clusters
-VC_TARGETS	= up ready provision				\
-		  poweroff					\
-		  down unprovision				\
-		  clean-state clean				\
-		  show						\
-		  save-logs savelogs save-log savelog		\
+VC_TARGETS	= up ready provision					\
+		  poweroff						\
+		  down unprovision					\
+		  clean-state clean					\
+		  show							\
+		  save-logs savelogs save-log savelog			\
 		  collect-logs collectlogs collect-log collectlog
 
 PKG_TARGETS =	pkg tarball
@@ -134,10 +133,16 @@ export VC VIRTUALCLUSTER
 	  fi												; \
 	fi
 
-$(VC_TARGETS):
-	$(HUSH)for _c in $(ENABLED_CLUSTERS)										; \
-	do														  \
-		env VC=$${_c} VIRTUALCLUSTER=$${_c} $(MAKE) --quiet -s VC=$${_c} -C $${_c} $(MAKECMDGOALS)		; \
+Vagrantfile:
+	$(HUSH)for _c in $(ENABLED_CLUSTERS)								; \
+	do												  \
+		env VC=$${_c} VIRTUALCLUSTER=$${_c} $(MAKE) --quiet -s VC=$${_c} -C $${_c} Vagrantfile	; \
+	done
+
+$(VC_TARGETS): Vagrantfile
+	$(HUSH)for _c in $(ENABLED_CLUSTERS)									; \
+	do													  \
+		env VC=$${_c} VIRTUALCLUSTER=$${_c} $(MAKE) --quiet -s VC=$${_c} -C $${_c} $(MAKECMDGOALS)	; \
 	done
 
 show_vars show-vars vars: clusters
@@ -188,3 +193,4 @@ $(VC_TGZ): $(TARBALLS_D) $(TAR_GET)
 $(VC_CKSUM): $(TARBALLS_D) $(VC_TGZ)
 	$(HUSH)cksum $(VC_TGZ) > $(VC_CKSUM)
 
+# vim: background=dark
