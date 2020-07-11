@@ -56,7 +56,8 @@ do
   fi
 done
 
-Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --revision ${tstamp} --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}"
+Rc ErrExit ${EX_OSFILE} "mkdir -p /run/createrepo/cache"
+Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --revision ${tstamp} --cachedir /run/createrepo/cache --workers 2 --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}"
 Rc ErrExit ${EX_OSERR} "yum clean all"
 for _r in $(cat ${RPMS})
 do

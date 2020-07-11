@@ -93,9 +93,10 @@ done
 
 for _n in ${nodes_installable}
 do
-  Rc ErrExit 20 "ssh -oStrictHostKeyChecking=no ${_n} createrepo --update ${COMMON_LOCALREPO}"
-  Rc ErrExit 21 "ssh -oStrictHostKeyChecking=no ${_n} yum clean expire-cache"
-  Rc ErrExit 22 "ssh -oStrictHostKeyChecking=no ${_n} yum info slashcluster"
+  Rc ErrExit 20 "mkdir -p /run/createrepo/cache"
+  Rc ErrExit 21 "ssh -oStrictHostKeyChecking=no ${_n} createrepo --update --cachedir /run/createrepo/cache ${COMMON_LOCALREPO}"
+  Rc ErrExit 22 "ssh -oStrictHostKeyChecking=no ${_n} yum clean expire-cache"
+  Rc ErrExit 23 "ssh -oStrictHostKeyChecking=no ${_n} yum info slashcluster"
 done
 for _n in ${nodes_installable}
 do

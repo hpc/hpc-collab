@@ -20,8 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-declare -x COMMON_ETCSLURM=${COMMON}/etc/slurm
-declare -x SLURMCONF=${COMMON_ETCSLURM}/slurm.conf
+declare -x ETCSLURM=/etc/slurm
+declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 
 if [ -z "${SLURMCONF}" ] ; then
   ErrExit ${EX_OSFILE} "empty SLURMCONF"

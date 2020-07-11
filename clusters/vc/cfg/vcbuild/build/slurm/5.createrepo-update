@@ -36,6 +36,7 @@ RPMBUILD=${BUILDWHERE}/rpmbuild
 ARCH=${ARCH:-$(uname -m)}
 RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
+CREATEREPO_CACHE=/run/createrepo/cache
 
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
@@ -49,13 +50,13 @@ if [ ! -d "${COMMON_LOCALREPO}" ] ; then
   ErrExit ${EX_OSFILE}  "COMMON_LOCALREPO:${COMMON_LOCALREPO} not directory"
 fi
 
-for d in ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}
+for d in ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH} ${CREATEREPO_CACHE}
 do
   if [ ! -d ${d} ] ; then
     Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
   fi
 done
 
-Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --revision ${tstamp} --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}"
+Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --cachedir ${CREATEREPO_CACHE} --workers 2 --revision ${tstamp} --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}"
 
 exit ${EX_OK}

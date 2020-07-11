@@ -22,7 +22,7 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-declare -x SLURMCONF=${COMMON}/${ETCSLURM}/slurm.conf
+declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 
 slurmctld=$(which slurmctld)
 

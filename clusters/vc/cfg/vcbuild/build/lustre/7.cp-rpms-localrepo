@@ -57,7 +57,8 @@ cd ${LUSTRE_RELEASE_D} || ErrExit ${EX_CONFIG} "cd ${LUSTRE_RELEASE_D}"
 
 Rc ErrExit ${EX_SOFTWARE} "cp -bpuv ${LUSTRE_RELEASE_D}/*.${ARCH}.rpm ${LOCALREPO_ARCH}"
 Rc ErrExit ${EX_SOFTWARE} "yum --disableplugin=fastestmirror makecache"
-Rc ErrExit ${EX_SOFTWARE} "createrepo --update ${LOCALREPO}"
+Rc ErrExit ${EX_SOFTWARE} "mkdir -p /run/createrepo/cache"
+Rc ErrExit ${EX_SOFTWARE} "createrepo --update --workers 2 --cachedir /run/createrepo/cache ${LOCALREPO}"
 Rc ErrExit ${EX_SOFTWARE} "yum -y update"
 
 exit ${EX_OK}

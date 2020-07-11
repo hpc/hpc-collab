@@ -56,8 +56,9 @@ if [ ! -d ${REPO_ARCH} ] ; then
   ErrExit 21 "REPO_ARCH:${REPO_ARCH} not a directory"
 fi
 
+Rc ErrExit 21 "mkdir -p /run/createrepo/cache"
 Rc ErrExit 22 "cp -puv ${RPMS_ARCH}/${PRODUCT}* ${REPO_ARCH}"
-Rc ErrExit 23 "createrepo --update ${COMMON_LOCALREPO}"
+Rc ErrExit 23 "createrepo --cachedir /run/createrepo/cache --update ${COMMON_LOCALREPO}"
 Rc ErrExit 24 "yum search ${PRODUCT}"
 
 Rc ErrExit 30 "yum -y install slashcluster"
