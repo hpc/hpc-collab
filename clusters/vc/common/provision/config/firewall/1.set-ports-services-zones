@@ -9,7 +9,7 @@
 VCLOAD=../../../provision/loader/shload.sh
 
 if [ ! -f "${VCLOAD}" ] ; then
-  echo "${0}: missing: ${VCLOAD}"
+  echo "${0}: missing: ${VCLOAD}" >/dev/tty
   exit 99
 fi
 source ${VCLOAD}
@@ -21,7 +21,7 @@ if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
   exec > >(tee -a "${OUT}") 2>&1
 fi
-SetFlags >/dev/null 2>&1
+SetFlags
 
 ## @brief This library file contain the firewall configuration function(s).
 
