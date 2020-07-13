@@ -1,5 +1,3 @@
-# Note that order matters in this file, as types are applied recursively to contained objects.
-#
 /etc/ethers					system_u:object_r:net_conf_t:s0
 /etc/hosts					system_u:object_r:net_conf_t:s0
 /etc/idmapd.conf				system_u:object_r:etc_t:s0
@@ -41,5 +39,3 @@
 /home/vx					unconfined_u:object_r:public_content_rw_t:s0
 
 /home/vx/common					system_u:object_r:public_content_rw_t:s0
-
-#/var/log/mariadb				system_u:object_r:mysqld_log_t:s0
