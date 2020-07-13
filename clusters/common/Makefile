@@ -328,7 +328,7 @@ flags flag: | $(PROVISION_FLAG_D)
 ###
 
 compilevagrantfile: $(VAGRANTFILE_PREREQ)
-	$(HUSH)env VC=$(VC) $(COMPILE_VAGRANTFILE) >/dev/null 2>&1
+	$(HUSH)env VC=$(VC) $(COMPILE_VAGRANTFILE)
 
 $(VAGRANTFILE): compilevagrantfile
 
