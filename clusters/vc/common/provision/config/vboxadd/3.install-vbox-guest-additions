@@ -54,13 +54,13 @@ if [ "${VBOXGUESTADDITIONS_VERSION}" != "${existing_vbox_guest_additions}" ] ; t
   fi
 fi
 
-Verbose " $(TSTAMP)"
+Verbose " ${TSTAMP}"
 if [ -n "${NEED_INSTALL_GUEST_ADDITIONS}" ] ; then
   ## always returns exit code = 2, so don't use 'Rc ...'
   sh ${NEED_INSTALL_GUEST_ADDITIONS} --nox11 ${OUT}
 fi
 TSTAMP=$(date +%Y.%m.%d.%H.%M)
-Verbose " $(TSTAMP)"
+Verbose " ${TSTAMP}"
 
 Rc ErrExit 5 "umount -f ${MNT}"
 Rc ErrExit 6 "rm -f /usr/lib/VBoxGuestAdditions"
