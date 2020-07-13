@@ -131,6 +131,19 @@ SetFlags() {
     SKIP_SW)
         export SKIP_SW=$(cat ${FLAGS}/SKIP_SW)
         set_flags="${set_flags} SKIP_SW:\"${SKIP_SW}\""
+
+	if [ -n "${NO_NFS}" ] ; then
+		if [[ "${SKIP_SW}" != *vboxadd* ]] ; then
+			( Warn ${EX_CONFIG} "  Virtualbox shared folders (vboxsf) are enabled (not skipped)"
+			  Warn ${EX_CONFIG} "  but NO_NFS is set, also."
+			  Warn ${EX_CONFIG} "  Provisioning would halt with no source upon upgrading the"
+			  Warn ${EX_CONFIG} "  the virtualbox guest additions."
+			  Warn ${EX_CONFIG} "  To remediate: set clusters/common/flag/SKIP_SW to 'vboxadd'"
+			  Warn ${EX_CONFIG} "  To remediate:     or remove NO_NFS flag"
+			) > /dev/tty
+			ErrExit ${EX_CONFIG} "SKIP_SW:${SKIP_SW} && NO_NFS"
+		fi
+	fi
         ;;
     SKIP_UPDATERPMS)
         export SKIP_UPDATERPMS="true"
@@ -162,7 +175,18 @@ SetFlags() {
 	  NO_NFS=$(cat ${FLAGS}/NO_NFS)
           set_flags="${set_flags} NO_NFS:${NO_NFS}"
         else
+          export NO_NFS="NO_NFS"
           set_flags="${set_flags} NO_NFS"
+	fi
+	if [[ "${SKIP_SW}" = *vboxadd* ]] ; then
+		( Warn ${EX_CONFIG} "  Virtualbox shared folders (vboxsf) are enabled (not skipped)"
+		  Warn ${EX_CONFIG} "  but NO_NFS is set, also."
+		  Warn ${EX_CONFIG} "  Provisioning would halt with no source upon upgrading the"
+		  Warn ${EX_CONFIG} "  the virtualbox guest additions."
+		  Warn ${EX_CONFIG} "  To remediate: set clusters/common/flag/SKIP_SW to 'vboxadd'"
+		  Warn ${EX_CONFIG} "  To remediate:     or remove NO_NFS flag"
+		) > /dev/tty
+		ErrExit ${EX_CONFIG} "SKIP_SW:${SKIP_SW} && NO_NFS"
 	fi
 	;;
     esac
