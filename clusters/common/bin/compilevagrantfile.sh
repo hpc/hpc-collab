@@ -37,7 +37,7 @@ if [ ! -d "$(cd ${VC}; pwd)" ] ; then
   ErrExit ${EX_CONFIG} "echo VC:${VC} not a directory?"
 fi
 
-declare -x NO_NFS=$(realpath ${PROVISION_SRC_FLAG_D}/NO_NFS)
+declare -x NO_NFS_F=$(realpath ${PROVISION_SRC_FLAG_D}/NO_NFS)
 declare -x VAGRANTFILE_D=$(realpath ${ANCHOR}/Vagrantfile.d)
 declare -x VAGRANTFILE_TEMPLATE=$(realpath ${VAGRANTFILE_D}/Vagrantfile.template)
 declare -x SYNCEDFOLDERS_D=$(realpath ${VAGRANTFILE_D}/synced_folders.d)
@@ -57,6 +57,7 @@ chkConfig() {
       exit ${EX_CONFIG}
     fi
   done
+
   for f in DEFAULT_FSTYPE VAGRANTFILE_TEMPLATE
   do
     local _f="${!f}"
@@ -69,17 +70,25 @@ chkConfig() {
       exit ${EX_CONFIG}
     fi
   done
-  which_fs=$(cat ${DEFAULT_FSTYPE})
-  no_nfs=""
-  if [ -f ${NO_NFS} ] ; then
-    no_nfs=$(echo $(cat ${NO_NFS}))
+
+  if [ ! -d "${CFG}" ] ; then
+    echo "EX_CONFIG:   VC:${VC}, but CFG:${CFG} ! dir"
+    exit ${EX_CONFIG}
   fi
 
-  if [ ! -f "${NO_NFS}" ] ; then
+  default_fs=$(cat ${DEFAULT_FSTYPE})
+  which_fs=${default_fs}
+  no_nfs=""
+
+  if [ ! -f "${NO_NFS_F}" ] ; then
     which_fs=nfs4
 
-  elif [ -s "${NO_NFS}" -a "${no_nfs}" = "nfs4" ] ; then
-    which_fs=nfs
+  else
+    no_nfs=$(echo $(cat ${NO_NFS_F}))
+  fi
+
+  if [ -s "${NO_NFS_F}" -a "${which_nfs}" = "nfs4" ] ; then
+    which_fs=$(echo $(cat ${NO_NFS_F}))
   fi
 
   if [ -z "${which_fs}" ] ; then
@@ -91,22 +100,17 @@ chkConfig() {
     "nfs4"|"nfs"|"virtualbox")
       ;;
     *|"")
-      echo "EX_CONFIG:  which_fs:${which_fs} != nfs4, nfs nor virtualbox"
-      exit ${EX_CONFIG}
+      echo "Warning: EX_CONFIG:  which_fs:${which_fs} != nfs4, nfs nor virtualbox, using default_fs:${default_fs}"
+      which_fs=${default_fs}
       ;;
   esac
-
-  if [ ! -d "${CFG}" ] ; then
-    echo "EX_CONFIG:   VC:${VC}, but CFG:${CFG} ! dir"
-    exit ${EX_CONFIG}
-  fi
 
   echo ${which_fs}
   return
 }
 
 main() {
-  SetFlags
+  SetFlags >/dev/null 2>&1
 
   configParams=($(chkConfig))
   rc=$?
