@@ -21,7 +21,7 @@ if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
   exec > >(tee -a "${OUT}") 2>&1
 fi
-SetFlags
+SetFlags >/dev/null 2>&1
 
 ## @brief This library file contain the firewall configuration function(s).
 
