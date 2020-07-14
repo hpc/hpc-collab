@@ -209,7 +209,7 @@ clean: $(NONEXISTENT_FLAGS)
 	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE) $(VAGRANTFILE)~
 	$(HUSH)$(DISABLE_RM) rm -f $(DOXYGEN_OUT)
 	$(HUSH)$(DISABLE_RM) rm -f $(PROVISIONED_D)/*
-	$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
+	#$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
 
 show show-state status:	compilevagrantfile $(STATE_DIRS_ALL) ingest-state
 ifneq ($(NODES_STATE_PROVISIONED),)
