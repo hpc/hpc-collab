@@ -330,9 +330,15 @@ ClearNodeState() {
     ErrExit ${EX_SOFTWARE} "HOSTNAME empty"
   fi
   if [ "${scope}" = "_all_" -o "${scope}" = "all" ] ; then
-    scope="${STATE_D}/*"
+     local _d
+     for _d in ${STATE_NONEXISTENT} ${STATE_POWEROFF} ${STATE_RUNNING} ${STATE_PROVISIONED}
+     do
+       ClearNodeState ${_d}
+     done
+  else
+     Rc ErrExit ${EX_SOFTWARE} "rm -f ${scope}/${HOSTNAME}"
   fi
-  Rc ErrExit ${EX_SOFTWARE} "rm -f ${scope}/${HOSTNAME}"
+  return
 }
 
 ## @fn MarkNodeState()
@@ -1679,7 +1685,7 @@ UserVerificationJobs() {
           echo ' '
         fi
         if [ ${EX_OK} -eq ${_rc} ] ; then
-          Rc ErrExit ${EX_OSFILE} "rm -f ${out} >/dev/null 2>&1"
+          Rc ErrExit ${EX_OSFILE} "echo '[DISABLED]' rm -f ${out} >/dev/null 2>&1"
         else
           ClearNodeState "${STATE_PROVISIONED}"
           MarkNodeState "${STATE_RUNNING}"
