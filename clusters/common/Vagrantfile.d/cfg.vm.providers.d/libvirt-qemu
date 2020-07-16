@@ -1,11 +1,9 @@
 
-      cfg.vm.provider :kvm do |kvm, override|
-        kvm.driver = "kvm"
-        kvm.host = 'localhost'
-        kvm.uri = 'qemu:///system'
+      cfg.vm.provider :libvirt do |lv, override|
+        lv.driver = "qemu"
 
-        kvm.memory_size = manifest[:memory].chomp
-        kvm.cpus = manifest[:cpus].chomp
+        lv.memory = manifest[:memory].chomp
+        lv.cpus = manifest[:cpus].chomp
 
         override.vm.hostname = hostnm
 				override.vm.graceful_halt_timeout = 10
@@ -41,7 +39,7 @@
 				end # manifest[:ingestfromhost]
 
         if manifest[:adddiskpath] then
-          kvm.storage :file => manifest[:adddiskpath],
+          lv.storage :file => manifest[:adddiskpath],
                      :size => REPODISK_SIZE * 1024,
                      :type => 'raw'
         end # manifest[:adddiskpath]

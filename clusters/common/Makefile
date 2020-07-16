@@ -132,7 +132,11 @@ XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 VAGRANTFILE			= Vagrantfile
 VAGRANTFILE_D			= ../common/Vagrantfile.d
 VAGRANTFILE_SYNCEDFOLDERS_D	= $(VAGRANTFILE_D)/synced_folders.d
-VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)
+VAGRANTFILE_PROVIDERS_D		= $(VAGRANTFILE_D)/cfg.vm.providers.d
+VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template		\
+				  $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)	\
+				  $(wildcard $(VAGRANTFILE_PROVIDERS_D)/*)
+
 PREREQ				= $(VAGRANTFILE) $(XFR_PREREQ)
 
 ### XXX @todo generate COMPLETE from the inverse of QUICK
