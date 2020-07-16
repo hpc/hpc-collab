@@ -1,5 +1,8 @@
 # -*- mode: ruby -*-
 # vim: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+# 
+# Note: this Vagrantfile is generated from the content of Vagrantfile.d.
+# Changes made directly in this file will be over-written.
 
 require 'pathname'
 
@@ -37,7 +40,7 @@ Vagrant.configure("2") do |config|
 
   if Vagrant.has_plugin?("vagrant-proxyconf")
     config.proxy.http = ENV["http_proxy"]
-    config.proxy.no_proxy = ".lanl.gov,128.165"
+    config.proxy.no_proxy = ENV["no_proxy"]
     config.yum_proxy.http = ENV["http_proxy"]
     # config.proxy.RSYNC_PROXY = ENV["RSYNC_PROXY"]
   end
@@ -58,64 +61,15 @@ Vagrant.configure("2") do |config|
 
   nodes.each_with_index do |(hostnm,manifest), index|
     config.vm.define hostnm do |cfg|
-      cfg.vm.provider :virtualbox do |vb, override|
-        vb.memory = manifest[:memory].chomp
-        vb.cpus = manifest[:cpus].chomp
 
-        override.vm.hostname = hostnm
-				override.vm.graceful_halt_timeout = 10
-        override.vm.network "private_network", nic_type: "virtio",
-															:ip => manifest[:ip],
-															:mac => manifest[:mac]
+# the following will be replaced per-cluster with the provider iterator
 
-        if manifest[:bridge] then
-          override.vm.network "public_network",
-															:ip => manifest[:ip],
-															nic_type: "virtio",
-															:bridge => manifest[:bridge]
-        end # manifest[:bridge]
+### ### ### ### ### ### ### ### ### ### #
+### ### ###  _insert_provider_  ### ### #
+### ### ### ### ### ### ### ### ### ### #
+ 
+# the above will be replaced per-cluster with the provider iterator
 
-        override.trigger.before [:up] do |noduplicate|
-          noduplicate.run = {path: "../common/bin/nodup.sh", args: hostnm }
-        end # override.trigger.before[:up]
-
-				if #{manifest[:ingestfromhost]}.chomp then
-          override.trigger.before [:up] do |ingestfromhost|
-
-### XXX FIXME
-### XXX     manifest[:ingestfromhost].each do |key,value|
-### XXX       print "       ", "#{key}  #{value}\n"
-### XXX     end
-### XXX Doesn't execute unless run method is set, but need to set path and args
-
-            ingestfromhost.run = { path: "../common/bin/ingestfromhost.sh" , args: "vcfs :DOTFILES :DOTSSH" }
-### XXX FIXME ingestfromhost.run = { path: manifest[:ingestfromhost[#{path}]], args: manifest[:ingestfromhost[#{:args}]] }
-
-          end # override.trigger.before [:up]
-				end # manifest[:ingestfromhost]
-
-        # use host's dns resolver
-        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-        vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
-
-        # allow IO to use additional cpu cores
-        vb.customize ["modifyvm", :id, "--ioapic", "on"]
-
-        if manifest[:adddiskpath] then
-          unless File.exist?(manifest[:adddiskpath])
-            vb.customize ['createhd', '--filename', manifest[:adddiskpath],
-														'--variant', 'Fixed', '--size', REPODISK_SIZE * 1024]
-        end # File.exit?(manifest[:adddiskpath])
-
-        vb.customize ['storageattach', :id,  '--storagectl', 'IDE Controller', '--port', 1, '--device', 0,
-  													'--type', 'hdd', '--medium', manifest[:adddiskpath]]
-        end # manifest[:adddiskpath]
-
-        override.trigger.before [:destroy] do |unprovision|
-          unprovision.run = {path: "../common/bin/unprovision.sh", args: hostnm }
-        end # override.trigger.before
-
-      end # cfg.vm.provider
     end # config.vm
   end # nodes
 end # configure

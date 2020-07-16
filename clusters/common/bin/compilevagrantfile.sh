@@ -42,14 +42,18 @@ declare -x VAGRANTFILE_D=$(realpath ${ANCHOR}/Vagrantfile.d)
 declare -x VAGRANTFILE_TEMPLATE=$(realpath ${VAGRANTFILE_D}/Vagrantfile.template)
 declare -x SYNCEDFOLDERS_D=$(realpath ${VAGRANTFILE_D}/synced_folders.d)
 declare -x DEFAULT_FSTYPE=$(realpath ${SYNCEDFOLDERS_D}/default_fstype)
+declare -x CFG_VM_PROVIDERS_D=$(realpath ${VAGRANTFILE_D}/cfg.vm.providers.d)
+declare -x DEFAULT_PROVIDER=$(realpath ${CFG_VM_PROVIDERS_D}/default_provider)
 declare -x TSTAMP=$(date +%Y.%m.%d.%H%M)
-declare -x VAGRANTFILE_TMP=${TMP}/${IAM}.${TSTAMP}.tmp
+declare -x VAGRANTFILE_TMP1=${TMP}/${IAM}.${TSTAMP}.tmp1
+declare -x VAGRANTFILE_TMP2=${TMP}/${IAM}.${TSTAMP}.tmp2
 declare -x VAGRANTFILE_TARGET=$(realpath ${VC}/Vagrantfile)
 
 chkConfig() {
   local which_fs=""
+  local which_provider=""
 
-  for d in ANCHOR VAGRANTFILE_D SYNCEDFOLDERS_D
+  for d in ANCHOR VAGRANTFILE_D SYNCEDFOLDERS_D CFG_VM_PROVIDERS_D
   do
     local _d="${!d}"
     if [ ! -d "${_d}" ] ; then
@@ -58,7 +62,7 @@ chkConfig() {
     fi
   done
 
-  for f in DEFAULT_FSTYPE VAGRANTFILE_TEMPLATE
+  for f in DEFAULT_FSTYPE DEFAULT_PROVIDER VAGRANTFILE_TEMPLATE
   do
     local _f="${!f}"
     if [ ! -f "${_f}" ] ; then
@@ -105,12 +109,22 @@ chkConfig() {
       ;;
   esac
 
-  echo ${which_fs}
+  default_provider=$(cat ${DEFAULT_PROVIDER})
+  which_provider=${default_provider}
+  if [ ! -f ${CFG_VM_PROVIDERS_D}/${which_provider} ] ; then
+    echo "EX_CONFIG: VC:${VC} default_provider:${default_provider} does not exist"
+    exit ${EX_CONFIG}
+  fi
+
+  echo ${which_fs} ${which_provider}
   return
 }
 
 main() {
   SetFlags >/dev/null 2>&1
+  local argprovider=${1:-_default_provider_}
+  local fstype=""
+  local provider=""
 
   configParams=($(chkConfig))
   rc=$?
@@ -122,26 +136,41 @@ main() {
   fi
 
   fstype=$(echo ${configParams[0]})
+  if [ "${argprovider}" = "_default_provider_" ] ; then
+    provider=$(echo ${configParams[1]})
+  fi
+
+  if [ "${fstype}" = "virtualbox" -a "${provider}" != "virtualbox" ] ; then
+    Warn ${EX_CONFIG} "Warning: fs:${fstype}, but provider:${provider} cannot provide fs:${fstype}; forcing fstype:nfs4"
+    fstype=nfs4
+  fi
 
 ## Using VC,
 ##   construct node list
 ##   construct Vagrantfile from
 ##     1) template,
 ##     2) per-node attributes
-##     3) synced_folder.d/<which-fs>
+##     3) synced_folder.d/<fstype>
+##     4) cfg.vm.provider/<provider>
 
-#  trap "rm ${VAGRANTFILE_TMP}" 0
+#  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2}" 0
 
   INSERT_NODES_PATTERN="_insert_nodes_"
   INSERT_NODES_LINENO=$(sed -n -e "/${INSERT_NODES_PATTERN}/=" < ${VAGRANTFILE_TEMPLATE})
   TRIM=$((${INSERT_NODES_LINENO} - 2))
-  Rc ErrExit ${EX_OSFILE} "sed -n -e \"1,${TRIM}p\" < ${VAGRANTFILE_TEMPLATE} > ${VAGRANTFILE_TMP}"
-  NODESAPPEND=$((${INSERT_NODES_LINENO} + 2))
+  Rc ErrExit ${EX_OSFILE} "sed -n -e \"1,${TRIM}p\" < ${VAGRANTFILE_TEMPLATE} > ${VAGRANTFILE_TMP1}"
+  NODES_APPEND=$((${INSERT_NODES_LINENO} + 2))
 
   SYNCEDFOLDERS_PATTERN="_insert_synced_folders_"
   SYNCEDFOLDERS_LINENO=$(sed -n -e "/${SYNCEDFOLDERS_PATTERN}/=" < ${VAGRANTFILE_TEMPLATE})
   SYNCEDFOLDERS_TRIM=$((SYNCEDFOLDERS_LINENO - 2))
   SYNCEDFOLDERS_APPEND=$((SYNCEDFOLDERS_LINENO + 2))
+
+  INSERT_PROVIDER_PATTERN="_insert_provider_"
+  INSERT_PROVIDER_LINENO=$(sed -n -e "/${INSERT_PROVIDER_PATTERN}/=" < ${VAGRANTFILE_TEMPLATE})
+  INSERT_PROVIDER_TRIM=$((${INSERT_PROVIDER_LINENO} - 2))
+  INSERT_PROVIDER_APPEND=$((${INSERT_PROVIDER_LINENO} + 2))
+  sed -n -e "${INSERT_PROVIDER_APPEND},\$p" < ${VAGRANTFILE_TEMPLATE} > ${VAGRANTFILE_TMP2}
 
   NODESTAB_PREFIX="nodes = {"
   ip=""
@@ -266,16 +295,17 @@ main() {
     done
     # nodes table terminator
 		echo "}${separator}"
-    sed -n -e "${NODESAPPEND},${SYNCEDFOLDERS_TRIM}p" < ${VAGRANTFILE_TEMPLATE}
+    sed -n -e "${NODES_APPEND},${SYNCEDFOLDERS_TRIM}p" < ${VAGRANTFILE_TEMPLATE}
     cat ${SYNCEDFOLDERS_D}/${fstype}
-    sed -n -e "${SYNCEDFOLDERS_APPEND},\$p" < ${VAGRANTFILE_TEMPLATE}
-  ) >> ${VAGRANTFILE_TMP}
 
+    sed -n -e "${SYNCEDFOLDERS_APPEND},${INSERT_PROVIDER_TRIM}p" < ${VAGRANTFILE_TEMPLATE}
+    cat ${CFG_VM_PROVIDERS_D}/${provider} ${VAGRANTFILE_TMP2}
+  ) >> ${VAGRANTFILE_TMP1}
 
-  #Rc ErrExit ${EX_OSFILE} "cp -buv ${VAGRANTFILE_TMP} ${VAGRANTFILE_TARGET}"
-  Rc ErrExit ${EX_OSFILE} "sed -i -e \"/%CLUSTERNAME%/s//${env_VC}/g\" ${VAGRANTFILE_TMP} ;"
-  Rc ErrExit ${EX_OSFILE} "rsync -cbv ${VAGRANTFILE_TMP} ${VAGRANTFILE_TARGET}"
-  Rc ErrExit ${EX_OSFILE} "rm -f ${VAGRANTFILE_TMP}"
+  #Rc ErrExit ${EX_OSFILE} "cp -buv ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TARGET}"
+  Rc ErrExit ${EX_OSFILE} "sed -i -e \"/%CLUSTERNAME%/s//${env_VC}/g\" ${VAGRANTFILE_TMP1} ;"
+  Rc ErrExit ${EX_OSFILE} "rsync -cbv ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TARGET}"
+  Rc ErrExit ${EX_OSFILE} "rm -f ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2}"
   trap '' 0
   exit ${EX_OK}
 }

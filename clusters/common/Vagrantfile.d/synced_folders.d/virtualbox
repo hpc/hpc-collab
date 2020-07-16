@@ -2,6 +2,11 @@
 # configuration recipe
   config.vm.synced_folder ".",               "/vagrant", create: true, type: "virtualbox"
 
+# this cluster configuration
+  config.vm.synced_folder "../vx",            "/vx",            create: true, type: "virtualbox"
+  config.vm.synced_folder "../vc",            "/vc",            create: true, type: "virtualbox"
+# config.vm.synced_folder "../%CLUSTERNAME%",            "/%CLUSTERNAME%", create: true, type: "virtualbox"
+
 # ingestion
   config.vm.synced_folder "../../tarballs",   "/vc/xfr", create: true, type: "virtualbox"
   config.vm.synced_folder "../../tarballs",   "/vx/xfr", create: true, type: "virtualbox"
@@ -13,11 +18,6 @@
   config.vm.synced_folder "../common/inc",    "/%CLUSTERNAME%/cfg/provision/inc",    create: true, type: "virtualbox"
   config.vm.synced_folder "../common/lib",    "/%CLUSTERNAME%/cfg/provision/lib",    create: true, type: "virtualbox"
   config.vm.synced_folder "../common/loader", "/%CLUSTERNAME%/cfg/provision/loader", create: true, type: "virtualbox"
-
-# this cluster configuration
-  config.vm.synced_folder "../vx",            "/vx",            create: true, type: "virtualbox"
-  config.vm.synced_folder "../vc",            "/vc",            create: true, type: "virtualbox"
-  config.vm.synced_folder "../%CLUSTERNAME%", "/%CLUSTERNAME%", create: true, type: "virtualbox"
 
 # -*- mode: ruby -*-
 # vim: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :

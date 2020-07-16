@@ -328,7 +328,8 @@ flags flag: | $(PROVISION_FLAG_D)
 ###
 
 compilevagrantfile: $(VAGRANTFILE_PREREQ)
-	$(HUSH)env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	vagrant validate >/dev/null 2>&1
 
 $(VAGRANTFILE): compilevagrantfile
 
@@ -439,10 +440,11 @@ $(PROVISIONED_D)/%: $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  vagrant --timestamp up --no-provision $(@F)						    	; \
+	  vagrant up --no-provision $(@F)						    	; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then								  	  \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	    echo Consider resetting default vagrant virtualization provider to virtualbox.		; \
 	    exit 101											; \
 	  fi												; \
 	elif [ -f $(POWEROFF_D)/$(@F) ] ; then								  \
