@@ -32,18 +32,33 @@ Vagrant.configure("2") do |config|
   config.ssh.forward_agent = true
   config.ssh.forward_x11   = true
 
-  # useful so that the environment's proxy can be set very early, such as to install the NFS plugin
-  unless Vagrant.has_plugin?("vagrant-proxyconf")
-    puts 'Installing vagrant-proxyconf plugin...'
-    system('vagrant plugin install vagrant-proxyconf')
-  end
-
-  if Vagrant.has_plugin?("vagrant-proxyconf")
-    config.proxy.http = ENV["http_proxy"]
-    config.proxy.no_proxy = ENV["no_proxy"]
-    config.yum_proxy.http = ENV["http_proxy"]
-    # config.proxy.RSYNC_PROXY = ENV["RSYNC_PROXY"]
-  end
+# ## ## disabled 16 Jul 2020
+# conflicting dependencies fog-libvirt (>= 0.6.0) and fog-libvirt (= 0.5.0)
+#   Activated fog-libvirt-0.5.0
+#     which does not match conflicting dependency (>= 0.6.0)
+#
+#       Conflicting dependency chains:
+#           fog-libvirt (= 0.5.0), 0.5.0 activated
+#
+#       versus:
+#           vagrant-libvirt (> 0), 0.1.0 activated, depends on
+#           fog-libvirt (>= 0.6.0)
+# ## ## ##
+#
+#
+#  # useful so that the environment's proxy can be set very early, such as to install the NFS plugin
+#  unless Vagrant.has_plugin?("vagrant-proxyconf")
+#    puts 'Installing vagrant-proxyconf plugin...'
+#    system('vagrant plugin install vagrant-proxyconf')
+#  end
+#
+#  if Vagrant.has_plugin?("vagrant-proxyconf")
+#    config.proxy.http = ENV["http_proxy"]
+#    config.proxy.no_proxy = ENV["no_proxy"]
+#    config.yum_proxy.http = ENV["http_proxy"]
+#    # config.proxy.RSYNC_PROXY = ENV["RSYNC_PROXY"]
+#  end
+# ## ## ##
 
   config.vm.provision "shell", path:  "../common/bin/provision.sh"
 
