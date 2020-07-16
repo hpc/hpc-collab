@@ -17,6 +17,9 @@ endif
 Makefile	= */Makefile
 Vagrantfile	= */Vagrantfile
 
+COMMON_D	= common
+FLAG_D		= $(COMMON_D)/flag
+
 SUBDIRS_CONTAINING_MAKEFILE_RAW		= $(wildcard $(Makefile))
 SUBDIRS_CONTAINING_MAKEFILE		= $(dir $(SUBDIRS_CONTAINING_MAKEFILE_RAW))
 SUBDIRS_CONTAINING_MAKEFILE_NOSLASH	= $(SUBDIRS_CONTAINING_MAKEFILE:/=)
@@ -133,7 +136,8 @@ export VC VIRTUALCLUSTER
 	  fi												; \
 	fi
 
-Vagrantfile:
+# changing ingestion from NFS to vboxsf or vice versa requires updating the Vagrantfile
+Vagrantfile: $(FLAG_D)/NO_NFS $(FLAG_D)/SKIP_SW
 	$(HUSH)for _c in $(ENABLED_CLUSTERS)								; \
 	do												  \
 		env VC=$${_c} VIRTUALCLUSTER=$${_c} $(MAKE) --quiet -s VC=$${_c} -C $${_c} Vagrantfile	; \

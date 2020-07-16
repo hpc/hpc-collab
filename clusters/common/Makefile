@@ -132,7 +132,11 @@ XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 VAGRANTFILE			= Vagrantfile
 VAGRANTFILE_D			= ../common/Vagrantfile.d
 VAGRANTFILE_SYNCEDFOLDERS_D	= $(VAGRANTFILE_D)/synced_folders.d
-VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)
+VAGRANTFILE_PROVIDERS_D		= $(VAGRANTFILE_D)/cfg.vm.providers.d
+VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template		\
+				  $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)	\
+				  $(wildcard $(VAGRANTFILE_PROVIDERS_D)/*)
+
 PREREQ				= $(VAGRANTFILE) $(XFR_PREREQ)
 
 ### XXX @todo generate COMPLETE from the inverse of QUICK
@@ -209,7 +213,7 @@ clean: $(NONEXISTENT_FLAGS)
 	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE) $(VAGRANTFILE)~
 	$(HUSH)$(DISABLE_RM) rm -f $(DOXYGEN_OUT)
 	$(HUSH)$(DISABLE_RM) rm -f $(PROVISIONED_D)/*
-	$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
+	#$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
 
 show show-state status:	compilevagrantfile $(STATE_DIRS_ALL) ingest-state
 ifneq ($(NODES_STATE_PROVISIONED),)
@@ -328,7 +332,8 @@ flags flag: | $(PROVISION_FLAG_D)
 ###
 
 compilevagrantfile: $(VAGRANTFILE_PREREQ)
-	$(HUSH)env VC=$(VC) $(COMPILE_VAGRANTFILE) >/dev/null 2>&1
+	env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	vagrant validate >/dev/null 2>&1
 
 $(VAGRANTFILE): compilevagrantfile
 
@@ -439,10 +444,11 @@ $(PROVISIONED_D)/%: $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  vagrant --timestamp up --no-provision $(@F)						    	; \
+	  vagrant up --no-provision $(@F)						    	; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then								  	  \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	    echo Consider resetting default vagrant virtualization provider to virtualbox.		; \
 	    exit 101											; \
 	  fi												; \
 	elif [ -f $(POWEROFF_D)/$(@F) ] ; then								  \

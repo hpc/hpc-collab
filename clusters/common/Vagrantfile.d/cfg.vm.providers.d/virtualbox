@@ -1,0 +1,62 @@
+
+      cfg.vm.provider :virtualbox do |vb, override|
+        vb.memory = manifest[:memory].chomp
+        vb.cpus = manifest[:cpus].chomp
+
+        override.vm.hostname = hostnm
+				override.vm.graceful_halt_timeout = 10
+        override.vm.network "private_network", nic_type: "virtio",
+															:ip => manifest[:ip],
+															:mac => manifest[:mac]
+
+        if manifest[:bridge] then
+          override.vm.network "public_network",
+															:ip => manifest[:ip],
+															nic_type: "virtio",
+															:bridge => manifest[:bridge]
+        end # manifest[:bridge]
+
+        override.trigger.before [:up] do |noduplicate|
+          noduplicate.run = {path: "../common/bin/nodup.sh", args: hostnm }
+        end # override.trigger.before[:up]
+
+				if #{manifest[:ingestfromhost]}.chomp then
+          override.trigger.before [:up] do |ingestfromhost|
+
+### XXX FIXME
+### XXX     manifest[:ingestfromhost].each do |key,value|
+### XXX       print "       ", "#{key}  #{value}\n"
+### XXX     end
+### XXX Doesn't execute unless run method is set, but need to set path and args
+
+            ingestfromhost.run = { path: "../common/bin/ingestfromhost.sh" , args: "vcfs :DOTFILES :DOTSSH" }
+### XXX SHOULDBE ingestfromhost.run = { path: manifest[:ingestfromhost[#{path}]], args: manifest[:ingestfromhost[#{:args}]] }
+
+          end # override.trigger.before [:up]
+				end # manifest[:ingestfromhost]
+
+        # use host's dns resolver
+        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+
+        # allow IO to use additional cpu cores
+        vb.customize ["modifyvm", :id, "--ioapic", "on"]
+
+        if manifest[:adddiskpath] then
+          unless File.exist?(manifest[:adddiskpath])
+            vb.customize ['createhd', '--filename', manifest[:adddiskpath],
+														'--variant', 'Fixed', '--size', REPODISK_SIZE * 1024]
+        end # File.exit?(manifest[:adddiskpath])
+
+        vb.customize ['storageattach', :id,  '--storagectl', 'IDE Controller', '--port', 1, '--device', 0,
+  													'--type', 'hdd', '--medium', manifest[:adddiskpath]]
+        end # manifest[:adddiskpath]
+
+        override.trigger.before [:destroy] do |unprovision|
+          unprovision.run = {path: "../common/bin/unprovision.sh", args: hostnm }
+        end # override.trigger.before
+
+      end # cfg.vm.provider
+
+	# vim: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+

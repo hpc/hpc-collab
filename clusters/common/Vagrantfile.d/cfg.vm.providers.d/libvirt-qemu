@@ -1,0 +1,54 @@
+
+      cfg.vm.provider :libvirt do |lv, override|
+        lv.driver = "qemu"
+
+        lv.memory = manifest[:memory].chomp
+        lv.cpus = manifest[:cpus].chomp
+
+        override.vm.hostname = hostnm
+				override.vm.graceful_halt_timeout = 10
+        override.vm.network "private_network",
+                              nic_type: "virtio",
+															:ip => manifest[:ip],
+															:mac => manifest[:mac]
+
+        if manifest[:bridge] then
+          override.vm.network "public_network",
+															nic_type: "virtio",
+															:ip => manifest[:ip],
+															:bridge => manifest[:bridge]
+        end # manifest[:bridge]
+
+        override.trigger.before [:up] do |noduplicate|
+          noduplicate.run = {path: "../common/bin/nodup.sh", args: hostnm }
+        end # override.trigger.before[:up]
+
+				if #{manifest[:ingestfromhost]}.chomp then
+          override.trigger.before [:up] do |ingestfromhost|
+
+### XXX FIXME
+### XXX     manifest[:ingestfromhost].each do |key,value|
+### XXX       print "       ", "#{key}  #{value}\n"
+### XXX     end
+### XXX Doesn't execute unless run method is set, but need to set path and args
+
+            ingestfromhost.run = { path: "../common/bin/ingestfromhost.sh" , args: "vcfs :DOTFILES :DOTSSH" }
+### XXX SHOULDBE ingestfromhost.run = { path: manifest[:ingestfromhost[#{path}]], args: manifest[:ingestfromhost[#{:args}]] }
+
+          end # override.trigger.before [:up]
+				end # manifest[:ingestfromhost]
+
+        if manifest[:adddiskpath] then
+          lv.storage :file => manifest[:adddiskpath],
+                     :size => REPODISK_SIZE * 1024,
+                     :type => 'raw'
+        end # manifest[:adddiskpath]
+
+        override.trigger.before [:destroy] do |unprovision|
+          unprovision.run = {path: "../common/bin/unprovision.sh", args: hostnm }
+        end # override.trigger.before
+
+      end # cfg.vm.provider
+
+	# vim: set ft=ruby tabstop=2 shiftwidth=2 syntax=on background=dark :
+

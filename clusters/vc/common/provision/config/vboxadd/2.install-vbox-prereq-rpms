@@ -34,9 +34,11 @@ declare -x VBOXISO_TMP=${TMP}/${VBOXISO}
 declare -x VBOXISO_PATH=${ISOS}/${VBOXISO}
 declare -x VBOXLINUXADD=${MNT}/VBoxLinuxAdditions.run
 declare -x NEED_INSTALL_GUEST_ADDITONS=""
-declare -x VBOXGUESTADDITIONS_PREREQRPMS="gcc kernel-devel kernel-headers dkms make bzip2 perl"
+declare -x VBOXGUESTADDITIONS_PREREQRPMS="bzip2 dkms elfutils-libelf-devel gcc kernel-devel kernel-headers make perl"
 
 IsLANL
+
+SetFlags >/dev/null 2>&1
 
 existing_vbox_guest_additions=$(basename /opt/VBoxGuestAdditions* | sed 's/VBoxGuestAdditions-//')
 
