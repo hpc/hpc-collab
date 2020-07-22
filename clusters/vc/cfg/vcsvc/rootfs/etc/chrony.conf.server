@@ -23,9 +23,9 @@ rtcsync
 #minsources 2
 
 # Allow NTP client access from local network.
-allow 192.168.78.0/24
+allow 192.168.56.0/24
 allow 127.0.0.1
-bindaddress 192.168.78.71
+bindaddress 192.168.56.71
 
 # Serve time even if not synchronized to a time source.
 #local stratum 10
