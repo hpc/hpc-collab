@@ -25,7 +25,11 @@ MAKEFILE_DIR	= $(CURDIR)
 BASE_DIR	= $(realpath $(MAKEFILE_DIR)/../..)
 CLUSTERS_DIR	= $(BASE_DIR)/clusters
 
+ifeq ($(WHERE_INVOKED),clusters)
+VIRTUALCLUSTER	= vc
+else
 VIRTUALCLUSTER ?= $(IAM)
+endif
 export VC	   ?= $(VIRTUALCLUSTER)
 
 CFG	        = cfg
@@ -157,6 +161,7 @@ MARK_PROVISIONED	= markprovisioned.sh
 VERIFY_LOCALENV		= verifylocalenv.sh
 SAVE_LOGSDB		= savelogsdb.sh
 COMPILE_VAGRANTFILE	= compilevagrantfile.sh
+GENERATE_PROVIDER_FILES	= generateproviderfiles.sh
 
 # match entries in the directories defined by $(STATE_D)/<state>
 STATE_LIST	        = nonexistent poweroff running provisioned
@@ -176,6 +181,9 @@ NODES_POWEROFF		= $(foreach n,$(NODES),$(POWEROFF_D)/$(n))
 NODES_NONEXISTENT	= $(foreach n,$(NODES),$(NONEXISTENT_D)/$(n))
 NODES_UNPROVISION	= $(foreach n,$(NODES),$(n)_UNPROVISION)
 
+SRC_PROVIDER_FILES	= $(shell find $(CLUSTERS_DIR)/$(VC) -name \*%\*% -type f)
+TARGET_PROVIDER_FILES	= $(foreach f,$(SRC_PROVIDER_FILES),$(basename $(f)))
+
 QUICK_HUMANFRIENDLY_FLAG_NAMES    = quick quick-flag flag-quick flags-quick flag-quicker \
 					flags-quicker flags-faster flag-faster provision-flags-quick
 NORMAL_HUMANFRIENDLY_FLAG_NAMES   = normal normal-flag flag-normal flags-normal provision-flags-normal
@@ -187,16 +195,17 @@ HUMANFRIENDLY_FLAGS	= $(QUICK_HUMANFRIENDLY_FLAG_NAMES) \
 
 SAVELOGS_TARGETS	= savelogs save-logs savelog save-log collectlogs collect-logs collectlog collect-log
 
-HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum compilevagrantfile copyright	\
-				doc help 							\
-				ingest-state scopyright how show-state show-vars status		\
-				todo verifylocalenv						\
+HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum compilevagrantfile generateproviderfiles	\
+				doc help 								\
+				ingest-state copyright show show-state show-vars status			\
+				todo verifylocalenv							\
 				$(SAVELOGS_TARGETS)
 
 PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
 
 .PHONY:	$(PHONY)
 
+#.DELETE_ON_ERROR: $(NODES_STATE) $(GENERATED_PROVIDERFILES_TARGETS)
 .DELETE_ON_ERROR: $(NODES_STATE)
 
 all:	show
@@ -213,6 +222,7 @@ clean: $(NONEXISTENT_FLAGS)
 	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE) $(VAGRANTFILE)~
 	$(HUSH)$(DISABLE_RM) rm -f $(DOXYGEN_OUT)
 	$(HUSH)$(DISABLE_RM) rm -f $(PROVISIONED_D)/*
+	$(HUSH)$(DISABLED_RM) rm -f $(GENERATED_PROVIDERFILES_TARGETS)
 	#$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
 
 show show-state status:	compilevagrantfile $(STATE_DIRS_ALL) ingest-state
@@ -235,16 +245,21 @@ todo:
 
 show-vars:
 	$(HUSH)$(info )
-	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
-	$(HUSH)$(info PATH:		$(PATH))
-	$(HUSH)$(info PATH:		$${PATH})
 	$(HUSH)$(info )
-	$(HUSH)$(info FLAGS:		$(FLAGS))
-	$(HUSH)$(info FLAGS_OFF:	$(FLAGS_OFF))
-	$(HUSH)$(info FLAGS_ON:		$(FLAGS_ON))
-	$(HUSH)$(info FLAGS_QUICK:	$(FLAGS_QUICK))
-	$(HUSH)$(info FLAGS_COMPLETE:	$(FLAGS_COMPLETE))
+	$(HUSH)$(info SRC_PROVIDER_FILES: $(SRC_PROVIDER_FILES))
+	$(HUSH)$(info TARGET_PROVIDER_FILES: $(TARGET_PROVIDER_FILES))
+	$(HUSH)$(info GENERATED_PROVIDER_FILES: $(GENERATED_PROVIDER_FILES))
 	$(HUSH)$(info )
+#	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
+#	$(HUSH)$(info PATH:		$(PATH))
+#	$(HUSH)$(info PATH:		$${PATH})
+#	$(HUSH)$(info )
+#	$(HUSH)$(info FLAGS:		$(FLAGS))
+#	$(HUSH)$(info FLAGS_OFF:	$(FLAGS_OFF))
+#	$(HUSH)$(info FLAGS_ON:		$(FLAGS_ON))
+#	$(HUSH)$(info FLAGS_QUICK:	$(FLAGS_QUICK))
+#	$(HUSH)$(info FLAGS_COMPLETE:	$(FLAGS_COMPLETE))
+#	$(HUSH)$(info )
 
 ## @todo use graphviz on Makefile to self-generate this
 help:	Makefile
@@ -331,11 +346,18 @@ flags flag: | $(PROVISION_FLAG_D)
 
 ###
 
+### XXX use $(VC)
+
+generateproviderfiles: $(TARGET_PROVIDER_FILES)
+
+$(TARGET_PROVIDER_FILES): $(SRC_PROVIDER_FILES)
+	cd $(CLUSTERS_DIR)/vc ; env VC=vc $(GENERATE_PROVIDER_FILES)
+
 compilevagrantfile: $(VAGRANTFILE_PREREQ)
+
+$(VAGRANTFILE): $(VAGRANTFILE_PREREQ) $(TARGET_PROVIDER_FILES)
 	env VC=$(VC) $(COMPILE_VAGRANTFILE)
 	vagrant validate >/dev/null 2>&1
-
-$(VAGRANTFILE): compilevagrantfile
 
 ingest-state: clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)

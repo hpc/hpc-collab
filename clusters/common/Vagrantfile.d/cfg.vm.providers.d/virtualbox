@@ -5,14 +5,15 @@
 
         override.vm.hostname = hostnm
 				override.vm.graceful_halt_timeout = 10
-        override.vm.network "private_network", nic_type: "virtio",
+        override.vm.network "private_network",
+                              nic_type: "virtio",
 															:ip => manifest[:ip],
 															:mac => manifest[:mac]
 
         if manifest[:bridge] then
           override.vm.network "public_network",
-															:ip => manifest[:ip],
 															nic_type: "virtio",
+															:ip => manifest[:ip],
 															:bridge => manifest[:bridge]
         end # manifest[:bridge]
 

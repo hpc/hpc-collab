@@ -93,8 +93,10 @@ declare -x DEBUG_DEFAULT_ORDER_OF_OPERATIONS="DebugNote VerbosePWD ClearSELinuxE
 
 declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} FlagSlashVagrant TimeStamp"
 
-declare -x REPO_DISK=/dev/sdb
-declare -x REPO_PART=${REPO_DISK}1
+declare -a REPO_DISK_LIST=( '/dev/vdb' '/dev/sdb' )
+declare -x REPO_DISK
+declare -x REPO_PART
+declare -x REPO_PART_NO=1
 
 ## yes, there's a bash one-liner to do this, but no, this may be more readable
 if [ -n "${DEBUG}" ] ; then
@@ -424,9 +426,9 @@ ConfigureLocalRepos() {
   [ ! -x "${createrepo}" ] && return
   [ ! -x "${reposync}" ]   && return
   [ ! -x "${rsync}" ]      && return
-  [ ! -b "${REPO_DISK}" ]  && return
-# [ ! -b "${REPO_PART}" ]  && return
   [ -z "${REPO_MOUNT}" ]   && return
+  [ ! -b "${REPO_DISK}" ]  && return 
+  [ ! -b "${REPO_PART}" ]  && return 
 
   Rc ErrExit ${EX_OSERR}  "mkdir -p ${REPO_MOUNT} 2>&1"
   Rc ErrExit ${EX_OSERR}  "mount ${REPO_MOUNT}    2>&1"
@@ -595,25 +597,32 @@ CopyCommon() {
 ##
 SetupSecondDisk() {
 
-  if [ -z "${REPO_DISK}" ] ; then
-    return
-  fi
-  if [ ! -b ${REPO_DISK} ] ; then
-    return
-  fi
-
-#  Rc ErrExit ${EX_CONFIG} "yes | parted ${REPO_DISK} --align opt mklabel gpt 2>&1"
-#  Rc ErrExit ${EX_CONFIG} "yes | parted ${REPO_DISK} mkpart primary 2048s 20G 2>&1"
-#  Rc ErrExit ${EX_CONFIG} "mkfs.xfs -L repos ${REPO_PART} 2>&1"
-#  Rc ErrExit ${EX_CONFIG} "xfs_repair ${REPO_PART} 2>&1"
-#  Verbose " ${REPO_PART} ${REPO_MOUNT}"
-
   export REPO_MOUNT=${COMMON}/repos
   export REPO_LOCAL=${REPO_MOUNT}/local
 
-  Rc ErrExit ${EX_CONFIG} "mkfs.xfs -f -L repos ${REPO_DISK} 2>&1"
-  Rc ErrExit ${EX_CONFIG} "xfs_repair ${REPO_DISK} 2>&1"
-  Verbose " ${REPO_DISK} ${REPO_MOUNT}"
+  # Sensibly skip these: so, if we don't have a 2nd disk, but could otherwise proceed, continue
+  for dsk in ${REPO_DISK_LIST[@]}
+  do
+    if [ ! -b "${dsk}" ] ; then
+      continue
+    fi
+    REPO_DISK=${dsk}
+    REPO_PART=${dsk}${REPO_PART_NO}
+    break
+  done
+
+  if [ -z "${REPO_DISK}" ] ; then
+    return
+  fi
+
+  if [ ! -b "${REPO_PART}" ] ; then
+    Rc ErrExit ${EX_CONFIG} "yes | parted ${REPO_DISK} --align opt mklabel gpt 2>&1"
+    Rc ErrExit ${EX_CONFIG} "yes | parted ${REPO_DISK} mkpart primary 2048s 16G 2>&1"
+  fi
+  Rc ErrExit ${EX_CONFIG} "mkfs.xfs -f -L repos ${REPO_PART} 2>&1"
+  Rc ErrExit ${EX_CONFIG} "xfs_repair ${REPO_PART} 2>&1"
+  echo "${REPO_PART}  ${COMMON}/repos  xfs rw,defaults,noatime,async,nobarrier 0 0" >> /etc/fstab
+  Verbose " ${REPO_PART} ${REPO_MOUNT}"
   return
 }
 
@@ -1274,10 +1283,12 @@ SetServices() {
   local _on
   local _off
   local turnsvcmsg=""
+  local virt_type=""
 
   if [ -f /.docker.env ] ; then
     Verbose " docker, skipped"
   fi
+  virt_type=$(echo $(virt-what))
 
   for _d in ${SERVICES_D} ${SERVICES_ON} ${SERVICES_OFF}
   do
@@ -1307,6 +1318,12 @@ SetServices() {
       local _c
       if [[ ${_sysctl_do} = *"No such file or directory"* ]] ; then
         continue
+      fi
+      if [ "${_s}" = "vboxadd" ] ; then
+        if [[ "${virt}" != *virtualbox* ]] ; then
+          Verbose "  ${_s} [skipped]"
+          continue
+        fi
       fi
       svcs_msg="${svcs_msg} ${_s}"
       for _c in ${_sysctl_do}

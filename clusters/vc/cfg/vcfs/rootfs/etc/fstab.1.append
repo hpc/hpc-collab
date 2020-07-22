@@ -1,3 +1,0 @@
-appendwhere: boot.*xfs
-appendwhat: /dev/sdb	/home/vagrant/common/repos	xfs	rw,defaults,noatime,async,nobarrier	0 0
-

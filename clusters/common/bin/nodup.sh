@@ -76,7 +76,7 @@ fi
 
 ## @todo collect the provider from the Vagrantfile and select which mechanism to list, or use vagrant commands
 #existing=$(VBoxManage list vms)
-existing=$(echo $(vagrant global-status | egrep 'running|poweroff|suspend' | awk '{print $2}'))
+existing=$(echo $(vagrant global-status | egrep 'running|poweroff|suspend|shutoff' | awk '{print $2}'))
 for m in ${existing}
 do
   if [ -f ${STATE_PROVISIONED}/${m} ] ; then
