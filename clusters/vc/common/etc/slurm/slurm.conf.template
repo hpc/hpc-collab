@@ -1,4 +1,4 @@
-SlurmctldHost=vcsched(192.168.78.64)
+SlurmctldHost=vcsched(192.168.56.64)
 AuthType=auth/munge
 CryptoType=crypto/munge
 DisableRootJobs=NO

@@ -1,5 +1,5 @@
 default				0.0.0.0
 loopback			127.0.0.0
 link-local			169.254.0.0
-vc-net				192.168.78	virtual-cluster-net test-cluster-net
+vc-net				192.168.56	virtual-cluster-net test-cluster-net
 nat-ext-net			10.0.2.0	nat-external
