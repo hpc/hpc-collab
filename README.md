@@ -10,11 +10,8 @@ and common baseline hpc cluster models. In short, extend the "systems as cattle 
 <A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into
 the realm of "clusters as cattle, not pets."
 
-The initial release requires local enablers: gmake, vagrant and virtualbox and/or libvirt. Lighterweight
-and multi-node mechanisms are planned. Virtualbox can be slower than libvirt provisioning although it is
-<A HREF="https://github.com/hpc/hpc-collab/issues/158">more consistent</A> and
-<A HREF="https://github.com/hpc/hpc-collab/issues/159">reliable</A> and does not require administrative
-privileges for a <A HREF="https://www.vagrantup.com/docs/synced-folders/nfs.html">local NFS server</A>.
+The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified, libvirt.
+Lighterweight and multi-node mechanisms are planned.
 
 Two representative HPC cluster recipes are provided.
 Cluster recipes are in the <EM>clusters</EM> directory.
@@ -77,15 +74,22 @@ necessary if individual nodes require a proxy server to establish yum installati
 
 <P>
 The virtualization provider is set in <EM>clusters/common/Vagrantfile.d/cfg.vm.providers/default_provider</EM>.
-It is set to <EM>virtualbox</EM> by default. Too, the configuration flag <EM>clusters/common/flag/NO_NFS</EM>
-is set by default. This combination requires no elevated privileges and has the fewest installation and
-compatibility issues.
+By default it is <EM>virtualbox</EM>. and the configuration flag <EM>clusters/common/flag/NO_NFS</EM>
+is set. This combination requires no elevated privileges and has the fewest installation and
+compatibility issues.</P>
+<P>
+Virtualbox can be slower than libvirt provisioning although it is
+<A HREF="https://github.com/hpc/hpc-collab/issues/158">more consistent</A> and
+<A HREF="https://github.com/hpc/hpc-collab/issues/159">reliable</A> and does not require administrative
+privileges for a <A HREF="https://www.vagrantup.com/docs/synced-folders/nfs.html">local NFS server</A>.
+</P>
+<P>
+Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.</P>
+<P>
+In the interest of documentation that matches actual code, preliminary work has been done with <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.</P>
 
-Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
-
-In the interest of documentation that matches actual code, preliminary work has been done with <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.
-
-<P>Make systematizes dependencies and invocations.
+<P>
+Make systematizes dependencies and invocations.
  <UL>
   <LI><EM>cd clusters/vc; make Vagrantfile</EM>	- to construct initial Vagrantfile<BR></LI>
   <LI><EM>make prereq</EM>      - simplistic check of underlying prerequisites</LI>
@@ -95,7 +99,7 @@ In the interest of documentation that matches actual code, preliminary work has 
   <LI><EM>make unprovision</EM> - destroys virtual clusters, their nodes and underlying resources</LI>
  </UL>
 </P>
-
+<P>
 Aliases are provided by the setpath helper. If using them, the appropriate Makefile is set so that one need not be in a cluster directory.<BR>
 <TABLE>
  <TR><TD><EM>provision</EM></TD>   <TD>make provision</TD></TR>
@@ -104,6 +108,7 @@ Aliases are provided by the setpath helper. If using them, the appropriate Makef
  <TR><TD><EM>unprovision</EM></TD> <TD>make unprovision</TD></TR>
  <TR><TD><EM>savelogs</EM>         <TD>make savelogs</TD></TR>
 </TABLE>
+</P>
 
 ~~~
 for <nodename>:
@@ -116,15 +121,17 @@ for all nodes in the cluster:
 <CL>--		  = equivalent to 'make nodename_UNPROVISION'
 <CL>!		  = equivalent to 'make nodename_UNPROVISION; make nodename' - unprovision and force reprovisioning
 ~~~
-
+</P>
+<P>
 Components such as clusters, nodes and filesystems are standalone. Each includes code and configuration to establish prerequisites, configure, install, and verify. Common configuration implementations, <A HREF="https://github.com/hpc/hpc-collab/issues/9">such as ansible</A>, are planned.
+</P>
 
 <H4>Resource Usage</H4>
-
-Virtualbox, in particular, requires substantial RAM (>32Gb) and storage (~36Gb) for the default cluster recipe's run-time. During ingestion of prerequisites, ~20Gb storage is needed for a temporary local copy of a CentOS repository.
-
-The <EM>vc</EM> and <EM>vx</EM> clusters build in ~90 minutes on an Intel core i5 laptop with 64Gb RAM, assuming that the initial repository rsync and tarball creation of <EM>tarballs/repos.tgz</EM> is complete and successful.
-
-Use <EM>make prereq</EM> to validate the known storage space issues. Monitoring virtual memory footprints of the cluster images is also necessary.
+<P>
+Virtualbox, in particular, requires substantial RAM (>32Gb) and storage (~36Gb) for the default cluster recipe's run-time. During ingestion of prerequisites, ~20Gb storage is needed for a temporary local copy of a CentOS repository.</P>
+<P>
+The <EM>vc</EM> and <EM>vx</EM> clusters build in ~90 minutes on an Intel core i5 laptop with 64Gb RAM, assuming that the initial repository rsync and tarball creation of <EM>tarballs/repos.tgz</EM> is complete and successful.</P>
+<P>
+Use <EM>make prereq</EM> to validate the known storage space issues. Monitoring virtual memory footprints of the cluster images is also necessary.</P>
 
 
