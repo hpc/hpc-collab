@@ -2,13 +2,22 @@
 
 This project provides provisioned HPC cluster models using underlying virtualization mechanisms. 
 
-The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been used for education, distributed collaboration, tool development colaboration, failure signature discovery, local HPC debugging and cluster configuration comparisons, enabled by construction and use of short-lived and common baseline hpc cluster models. In short, extend the "systems as cattle not pets" <A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">[1]</A> <A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into the realm of "clusters as cattle, not pets."
+The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been
+used for education, distributed collaboration, tool development colaboration, failure signature discovery,
+local HPC debugging and cluster configuration comparisons, enabled by construction and use of short-lived
+and common baseline hpc cluster models. In short, extend the "systems as cattle not pets" 
+<A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">[1]</A> 
+<A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into
+the realm of "clusters as cattle, not pets."
 
-The initial release requires local enablers: gmake, vagrant and virtualbox and/or libvirt. Lighterweight and multi-node mechanisms, such as containers, jails and pods, are planned. Virtualbox is slower than libvirt provisioning by 50%, although
-<A HREF="https://github.com/hpc/hpc-collab/issues/158">more consistent</A> and
+The initial release requires local enablers: gmake, vagrant and virtualbox and/or libvirt. Lighterweight
+and multi-node mechanisms are planned. Virtualbox can be slower than libvirt provisioning by up to ~50%,
+although <A HREF="https://github.com/hpc/hpc-collab/issues/158">more consistent</A> and
 <A HREF="https://github.com/hpc/hpc-collab/issues/159">reliable</A>.
 
-Two representative HPC cluster recipes are provided. Cluster recipes are in the <EM>clusters</EM> directory.  Presently, recipes generate clusters local to the installation host. 
+Two representative HPC cluster recipes are provided.
+Cluster recipes are in the <EM>clusters</EM> directory.
+Presently, recipes generate clusters local to the installation host, only.
 
  <b>vc</b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
@@ -33,15 +42,16 @@ Two representative HPC cluster recipes are provided. Cluster recipes are in the 
 
 <H5>Security Note</H5>
 <P>
-This software constructs models of production clusters which include security features. 
-The cluster models are constructed to automate experiments. <em>This automation means that these
- cluster recipes are not in themselves secure.</em> New secure cluster recipes would be necessary
- if this were to be used to create actual production cluster images.
+This software constructs models of production clusters which include enabled and enforcing security features.
+However, since the cluster models are constructed to automate and compare cluster experiments,
+<b>these cluster recipes are not in themselves secure</b>.</em> Different cluster recipes would be required
+to construct cluster images with security guarantees.
 </P>
 
 <H5>To start</H5>
 <P>
- Set the BASE directory in <EM>bin/setpath.{c}sh</EM>. The default setting is the output of pwd, often <EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
+ Set the BASE directory in <EM>bin/setpath.{c}sh</EM>. The default setting is the output of pwd, often
+<EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
 
 ~~~
          cd hpc-collab
@@ -50,15 +60,22 @@ The cluster models are constructed to automate experiments. <em>This automation 
 ~~~
 
 <P>
-Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM> reposistory.
+Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM>
+reposistory.
 <P>
 Then <EM>make prereq</EM> to sanity check that there is sufficient storage to host this set of
 cluster recipes and to construct the appropriate <EM>Vagrantfile</EM>s for the local environment.
 Be prepared to point <EM>hpc-collab/tarballs</EM> and <EM>$HOME/VirtualBox VMs</EM> at a separate
 partition with more storage. Examine <EM>requires/sw/*</EM> to determine whether additional software
-needs to be installed onto the host, such as the vagrant <A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">libvirt</A> plugin.</P>
+needs to be installed onto the host, such as vagrant
+<A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">libvirt</A>
+<A HREF="https://github.com/hashicorp/vagrant/wiki/Available-Vagrant-Plugins">plugin</A>.
+The <A HREF="https://github.com/tmatilai/vagrant-proxyconf">vagrant-proxyconf</A> may be
+necessary if individual nodes require a proxy server to establish yum installation connections.
+</P>
+
 <P>
-The virtualization provider is set in <EM>clusters/common/cfg.vm.provider/default_provider</EM>.
+The virtualization provider is set in <EM>clusters/common/Vagrantfile.d/cfg.vm.providers/default_provider</EM>.
 It is set to <EM>virtualbox</EM> by default. Too, the configuration flag <EM>clusters/common/flag/NO_NFS</EM>
 is set by default. This combination requires no elevated privileges and has the fewest installation and
 compatibility issues.

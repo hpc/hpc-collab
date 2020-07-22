@@ -205,7 +205,7 @@ PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
 
 .PHONY:	$(PHONY)
 
-.DELETE_ON_ERROR: $(NODES_STATE) $(GENERATED_PROVIDERFILES_TARGETS)
+.DELETE_ON_ERROR: $(NODES_STATE) $(TARGET_PROVIDER_FILES)
 
 all:	$(PREREQ) show
 
@@ -218,11 +218,13 @@ clean-state:
 	$(HUSH)vagrant global-status --prune >/dev/null 2>&1 &
 
 clean: $(NONEXISTENT_FLAGS)
-	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE) $(VAGRANTFILE)~
+	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE)~
 	$(HUSH)$(DISABLE_RM) rm -f $(DOXYGEN_OUT)
 	$(HUSH)$(DISABLE_RM) rm -f $(PROVISIONED_D)/*
-	$(HUSH)$(DISABLED_RM) rm -f $(GENERATED_PROVIDERFILES_TARGETS)
-	#$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
+	$(HUSH)$(DISABLE_RM) rm -f $(TARGET_PROVIDER_FILES)
+
+dist-clean: clean
+	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE)
 
 show show-state status:	$(VAGRANTFILE) compilevagrantfile $(STATE_DIRS_ALL) ingest-state
 ifneq ($(NODES_STATE_PROVISIONED),)
@@ -242,12 +244,12 @@ PAGER	?= less
 todo:
 	$(PAGER) ../Notes ../todo todo
 
+# mostly for debugging
 show-vars:
 	$(HUSH)$(info )
 	$(HUSH)$(info )
 	$(HUSH)$(info SRC_PROVIDER_FILES: $(SRC_PROVIDER_FILES))
 	$(HUSH)$(info TARGET_PROVIDER_FILES: $(TARGET_PROVIDER_FILES))
-	$(HUSH)$(info GENERATED_PROVIDER_FILES: $(GENERATED_PROVIDER_FILES))
 	$(HUSH)$(info )
 #	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
 #	$(HUSH)$(info PATH:		$(PATH))
@@ -398,7 +400,7 @@ vpath % $(PROVISIONED_D)
 # bulk NODE states
 #  ie. all PROVISIONED, all POWEROFF, all UNPROVISION
 
-up provision: verifylocalenv $(PROVISIONED_FLAGS) ingest-state
+up provision: $(VAGRANTFILE) verifylocalenv $(PROVISIONED_FLAGS) ingest-state
 up! provision!: unprovision up ingest-state
 
 running ready on: verifylocalenv $(RUNNING_FLAGS)
