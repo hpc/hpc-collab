@@ -8,6 +8,7 @@
 
 VCLOAD=../../../provision/loader/shload.sh
 declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+declare -x HOSTNAME_FQDN=$(hostname -f)
 
 if [ ! -f "${VCLOAD}" ] ; then
   echo "${0}: missing: ${VCLOAD}"
@@ -59,9 +60,11 @@ mysql --syslog --line-numbers --user=root --password="${INITIAL_AUTH}" --connect
 SET PASSWORD = '${NEW_PW}';
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${NEW_PW}';
 CREATE USER 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME_FQDN}' IDENTIFIED BY '${NEW_PW}';
 CREATE USER 'root'@'${VC_NET}' IDENTIFIED BY '${NEW_PW}';
 GRANT ALL ON *.* TO 'root'@'${VC_NET}';
 GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME_FQDN}';
 GRANT ALL ON *.* TO 'root'@'localhost';
 FLUSH PRIVILEGES;
 _MYSQL_PW_COMMANDS_

@@ -27,8 +27,9 @@ if [ -z "${chrony_sources}" ] ; then
   Rc ErrExit 3 "chrony: no sources"
 fi 
 
-Rc ErrExit 4 "systemctl restart chronyd"
-Rc ErrExit 5 "systemctl status chronyd"
+Rc ErrExit 4 "cp -b /etc/chrony.conf.server /etc/chrony.conf"
+Rc ErrExit 5 "systemctl restart chronyd"
+Rc ErrExit 6 "systemctl status chronyd"
 
 trap '' 0
 exit ${EX_OK}

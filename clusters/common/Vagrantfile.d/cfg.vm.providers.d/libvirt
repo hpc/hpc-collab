@@ -1,21 +1,50 @@
 
       cfg.vm.provider :libvirt do |lv, override|
-        lv.memory = manifest[:memory].chomp
-        lv.cpus = manifest[:cpus].chomp
-
         override.vm.hostname = hostnm
-				override.vm.graceful_halt_timeout = 10
-        override.vm.network "private_network",
-                              nic_type: "virtio",
-															:ip => manifest[:ip],
-															:mac => manifest[:mac]
 
+        # @see: https://fedoraproject.org/wiki/Changes/Vagrant_2.2_with_QEMU_Session
+        lv.qemu_use_session = false
+
+        # @see: https://bugzilla.redhat.com/show_bug.cgi?id=1283989
+        lv.cpu_mode = 'host-passthrough'
+
+# ## this may be necessary if the initial virtual host configuration fails
+# ## at least on some linux/qemu variants
+# ##       lv.management_network_device = 'virbr0'
+# ##       lv.uri = 'qemu:///system'
+# ##       lv.host = 'localhost'
+# ##       lv.driver = 'kvm'
+
+        lv.memory = manifest[:memory].chomp
+        lv.cpus   = manifest[:cpus].chomp
+
+        # eth0
+        # override.vm.network "public_network"
+        
+        # eth1
+        override.vm.network "private_network",
+                             :ip                    => manifest[:ip]
+
+        # claimed to address indefinite wait for "waiting for IP address" error, but causes:
+        # "Call to virDomainCreateWithFlags failed: Unable to get index for interface eth0: No such device"
+        #                    :libvirt__dhcp_enabled => false
+        
+        # eth2, if it exists
         if manifest[:bridge] then
           override.vm.network "public_network",
-															nic_type: "virtio",
-															:ip => manifest[:ip],
+															:ip     => manifest[:ip],
 															:bridge => manifest[:bridge]
         end # manifest[:bridge]
+
+        if manifest[:adddiskpath] then
+          lv.storage :file,
+            #
+            # Libvirt provider: "absolute volume paths like '/tmp/vcfs_repodisk.vdi' not yet supported"
+            #        :path           => manifest[:adddiskpath],
+            #
+                     :size           => REPODISK_SIZE * 1024,
+                     :allow_existing => true
+        end # manifest[:adddiskpath]
 
         override.trigger.before [:up] do |noduplicate|
           noduplicate.run = {path: "../common/bin/nodup.sh", args: hostnm }
@@ -35,12 +64,6 @@
 
           end # override.trigger.before [:up]
 				end # manifest[:ingestfromhost]
-
-        if manifest[:adddiskpath] then
-          lv.storage :file => manifest[:adddiskpath],
-                     :size => REPODISK_SIZE * 1024,
-                     :type => 'raw'
-        end # manifest[:adddiskpath]
 
         override.trigger.before [:destroy] do |unprovision|
           unprovision.run = {path: "../common/bin/unprovision.sh", args: hostnm }

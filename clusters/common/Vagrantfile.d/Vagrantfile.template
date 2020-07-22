@@ -27,6 +27,8 @@ ENV["VC"]     = "#{clustername}"
 
 Vagrant.configure("2") do |config|
   config.vm.box = "generic/centos7"
+  config.vm.box_check_update = false
+  config.vm.graceful_halt_timeout = 15
 
   config.ssh.forward_env   = ["TZ", "LC_ALL", "VC"]
   config.ssh.forward_agent = true

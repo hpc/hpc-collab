@@ -30,7 +30,7 @@ fi
 
 # slurmdbd isn't ready immediately to start servicing requests
 # if seeing "Connection refused" messages in slurmdbd status, may need to increase this
-sleep 2
+sleep 3
 
 Rc ErrExit 3 "sacctmgr show cluster -n"
 

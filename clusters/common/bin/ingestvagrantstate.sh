@@ -81,7 +81,7 @@ do
 			${DISABLE_RM} rm -f ${running}/${n}
 		fi
 		;;
-	"poweroff")
+	"poweroff"|"shutoff")
 		touch ${poweroff}/${n}
 		${DISABLE_RM} rm -f ${running}/${n} ${nonexistent}/${n}
 		;;
