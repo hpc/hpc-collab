@@ -19,6 +19,9 @@
 ## Project Author: Damien Nadé <github@livna.org>
 ##
 
+## This file is covered by the above copyright notice, only.
+## It is not authored or claimed by the general copyright notice for this project.
+
 /^## \+@fn/{
     :step
     /@param [^ ]\+ .*$/{

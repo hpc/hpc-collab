@@ -52,11 +52,16 @@ The cluster models are constructed to automate experiments. <em>This automation 
 <P>
 Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM> reposistory.
 <P>
-Then <EM>make prereq</EM> to sanity check that there is sufficient storage to host this set of cluster recipes and
-to construct the appropriate <EM>Vagrantfile</EM>s for the local environment.
-Be prepared to point <EM>hpc-collab/tarballs</EM> and <EM>$HOME/VirtualBox VMs</EM> at a separate partition with
-more storage. Examine requires/sw/\* to determine whether additional software needs to be installed onto the host,
-such as the vagrant <A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">libvirt</A>.</P>
+Then <EM>make prereq</EM> to sanity check that there is sufficient storage to host this set of
+cluster recipes and to construct the appropriate <EM>Vagrantfile</EM>s for the local environment.
+Be prepared to point <EM>hpc-collab/tarballs</EM> and <EM>$HOME/VirtualBox VMs</EM> at a separate
+partition with more storage. Examine <EM>requires/sw/*</EM> to determine whether additional software
+needs to be installed onto the host, such as the vagrant <A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">libvirt</A> plugin.</P>
+<P>
+The virtualization provider is set in <EM>clusters/common/cfg.vm.provider/default_provider</EM>.
+It is set to <EM>virtualbox</EM> by default. Too, the configuration flag <EM>clusters/common/flag/NO_NFS</EM>
+is set by default. This combination requires no elevated privileges and has the fewest installation and
+compatibility issues.
 
 Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
 
@@ -64,6 +69,7 @@ In the interest of documentation that matches actual code, makefile rules are in
 
 <P>Make systematizes dependencies and invocations.
  <UL>
+  <LI><EM>cd clusters/vc; <EM>make Vagrantfile</EM>	- to construct initial Vagrantfile<BR></LI>
   <LI><EM>make prereq</EM>      - simplistic check of underlying prerequisites</LI>
   <LI><EM>make provision</EM>   - identical to 'make up'</LI>
   <LI><EM>make show</EM>        - shows virtual cluster nodes and their state</LI>
