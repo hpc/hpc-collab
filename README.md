@@ -11,9 +11,10 @@ and common baseline hpc cluster models. In short, extend the "systems as cattle 
 the realm of "clusters as cattle, not pets."
 
 The initial release requires local enablers: gmake, vagrant and virtualbox and/or libvirt. Lighterweight
-and multi-node mechanisms are planned. Virtualbox can be slower than libvirt provisioning by up to ~50%,
-although <A HREF="https://github.com/hpc/hpc-collab/issues/158">more consistent</A> and
-<A HREF="https://github.com/hpc/hpc-collab/issues/159">reliable</A>.
+and multi-node mechanisms are planned. Virtualbox can be slower than libvirt provisioning although it is
+<A HREF="https://github.com/hpc/hpc-collab/issues/158">more consistent</A> and
+<A HREF="https://github.com/hpc/hpc-collab/issues/159">reliable</A> and does not require administrative
+privileges for <A HREF="https://www.vagrantup.com/docs/synced-folders/nfs.html">local NFS server</A>.
 
 Two representative HPC cluster recipes are provided.
 Cluster recipes are in the <EM>clusters</EM> directory.
@@ -65,10 +66,10 @@ reposistory.
 <P>
 Then <EM>make prereq</EM> to sanity check that there is sufficient storage to host this set of
 cluster recipes and to construct the appropriate <EM>Vagrantfile</EM>s for the local environment.
-Be prepared to point <EM>hpc-collab/tarballs</EM> and <EM>$HOME/VirtualBox VMs</EM> at a separate
-partition with more storage. Examine <EM>requires/sw/*</EM> to determine whether additional software
-needs to be installed onto the host, such as vagrant
-<A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">libvirt</A>
+Be prepared to point <EM>hpc-collab/tarballs</EM> and <EM>$HOME/VirtualBox VMs</EM> and
+<EM>/var/lib/libvirt/images</EM> at a separate partition with more storage. Examine
+<EM>requires/sw/*</EM> to determine whether additional software needs to be installed onto the host,
+such as vagrant <A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">libvirt</A>
 <A HREF="https://github.com/hashicorp/vagrant/wiki/Available-Vagrant-Plugins">plugin</A>.
 The <A HREF="https://github.com/tmatilai/vagrant-proxyconf">vagrant-proxyconf</A> may be
 necessary if individual nodes require a proxy server to establish yum installation connections.
@@ -82,17 +83,18 @@ compatibility issues.
 
 Cluster recipes are driven by configuration stored in skeleton file systems. <A HREF="https://www.vagrantup.com/">Vagrant</A> <A HREF="https://www.vagrantup.com/docs/vagrantfile">Vagrantfile</A> and GNU make rules ingest the settings from the <EM>cfg/&lt;nodenames&gt;</EM> directories.
 
-In the interest of documentation that matches actual code, makefile rules are included for graphviz, doxygen and <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.
+In the interest of documentation that matches actual code, preliminary work has been done with <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.
 
 <P>Make systematizes dependencies and invocations.
  <UL>
-  <LI><EM>cd clusters/vc; <EM>make Vagrantfile</EM>	- to construct initial Vagrantfile<BR></LI>
+  <LI><EM>cd clusters/vc; make Vagrantfile</EM>	- to construct initial Vagrantfile<BR></LI>
   <LI><EM>make prereq</EM>      - simplistic check of underlying prerequisites</LI>
   <LI><EM>make provision</EM>   - identical to 'make up'</LI>
   <LI><EM>make show</EM>        - shows virtual cluster nodes and their state</LI>
   <LI><EM>make up</EM>          - provisions virtual cluster nodes</LI>
   <LI><EM>make unprovision</EM> - destroys virtual clusters, their nodes and underlying resources</LI>
  </UL>
+</P>
 
 Aliases are provided by the setpath helper. If using them, the appropriate Makefile is set so that one need not be in a cluster directory.<BR>
 <TABLE>
