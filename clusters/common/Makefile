@@ -205,10 +205,9 @@ PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
 
 .PHONY:	$(PHONY)
 
-#.DELETE_ON_ERROR: $(NODES_STATE) $(GENERATED_PROVIDERFILES_TARGETS)
-.DELETE_ON_ERROR: $(NODES_STATE)
+.DELETE_ON_ERROR: $(NODES_STATE) $(GENERATED_PROVIDERFILES_TARGETS)
 
-all:	show
+all:	$(PREREQ) show
 
 copyright:
 	$(HUSH)copyright.sh
@@ -225,7 +224,7 @@ clean: $(NONEXISTENT_FLAGS)
 	$(HUSH)$(DISABLED_RM) rm -f $(GENERATED_PROVIDERFILES_TARGETS)
 	#$(HUSH)find . -name ._\* -type f -exec $(DISABLE_RM) rm -f \{\} \;
 
-show show-state status:	compilevagrantfile $(STATE_DIRS_ALL) ingest-state
+show show-state status:	$(VAGRANTFILE) compilevagrantfile $(STATE_DIRS_ALL) ingest-state
 ifneq ($(NODES_STATE_PROVISIONED),)
 	$(info		provisioned: $(sort $(NODES_STATE_PROVISIONED)))
 endif
@@ -359,10 +358,10 @@ $(VAGRANTFILE): $(VAGRANTFILE_PREREQ) $(TARGET_PROVIDER_FILES)
 	env VC=$(VC) $(COMPILE_VAGRANTFILE)
 	vagrant validate >/dev/null 2>&1
 
-ingest-state: clean-state
+ingest-state: $(VAGRANTFILE) clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)
 
-verifylocalenv: $(STATE_DIRS_ALL)
+verifylocalenv: $(VAGRANTFILE) $(STATE_DIRS_ALL)
 	$(HUSH)env VC=$(VC) $(VERIFY_LOCALENV)
 
 ### ### ### ### ###
