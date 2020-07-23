@@ -21,24 +21,24 @@
 ##
 
 ### vx - conjoined virtual minicluster
-192.168.56.49 vxsched.tc vxsched vxsched.test-cluster vxsched.testcluster
-192.168.56.50 vx1.tc vx1 vx1.test-cluster vx1.testcluster
-192.168.56.51 vx2.tc vx2 vx2.test-cluster vx2.testcluster
-192.168.56.52 vxlogin.tc vxlogin vxlogin.test-cluster vxlogin.testcluster
+192.168.78.49 vxsched.tc vxsched vxsched.test-cluster vxsched.testcluster
+192.168.78.50 vx1.tc vx1 vx1.test-cluster vx1.testcluster
+192.168.78.51 vx2.tc vx2 vx2.test-cluster vx2.testcluster
+192.168.78.52 vxlogin.tc vxlogin vxlogin.test-cluster vxlogin.testcluster
 ### vx
 
 ### vc - virtual cluster, fully populated
-192.168.56.64 vcsched.tc vcsched vcsched.test-cluster vcsched.testcluster
-192.168.56.65 vc1.tc vc1 vc1.test-cluster vc1.testcluster
-192.168.56.66 vc2.tc vc2 vc2.test-cluster vc2.testcluster
+192.168.78.64 vcsched.tc vcsched vcsched.test-cluster vcsched.testcluster
+192.168.78.65 vc1.tc vc1 vc1.test-cluster vc1.testcluster
+192.168.78.66 vc2.tc vc2 vc2.test-cluster vc2.testcluster
 
-192.168.56.69 vcgate.tc vcgate vcgate.test-cluster vcgate.testcluster vc-gate.tc vc-gate vc-gate.test-cluster vc-gate.testcluster gate.tc gate.test-cluster gate.testcluster
-192.168.56.71 vcsvc.tc vcsvc vcsvc.test-cluster vcsvc.testcluster vcloghost vcloghost.tc vcloghost.test-cluster vcloghost.testcluster
-192.168.56.73 vclogin.tc vclogin vclogin.test-cluster vclogin.testcluster
-192.168.56.75 vcbuild.tc vcbuild vcbuild.test-cluster vcbuild.testcluster
-192.168.56.76 vcaltdb.tc vcaltdb vcaltdb.test-cluster vcaltdb.testcluster
-192.168.56.77 vcdb.tc vcdb vcdb.test-cluster vcdb.testcluster
-192.168.56.79 vcfs.tc vcfs vcfs.test-cluster vcfs.testcluster
+192.168.78.69 vcgate.tc vcgate vcgate.test-cluster vcgate.testcluster vc-gate.tc vc-gate vc-gate.test-cluster vc-gate.testcluster gate.tc gate.test-cluster gate.testcluster
+192.168.78.71 vcsvc.tc vcsvc vcsvc.test-cluster vcsvc.testcluster vcloghost vcloghost.tc vcloghost.test-cluster vcloghost.testcluster
+192.168.78.73 vclogin.tc vclogin vclogin.test-cluster vclogin.testcluster
+192.168.78.75 vcbuild.tc vcbuild vcbuild.test-cluster vcbuild.testcluster
+192.168.78.76 vcaltdb.tc vcaltdb vcaltdb.test-cluster vcaltdb.testcluster
+192.168.78.77 vcdb.tc vcdb vcdb.test-cluster vcdb.testcluster
+192.168.78.79 vcfs.tc vcfs vcfs.test-cluster vcfs.testcluster
 ### vc
 
 # following line is used as a marker for hosts.append; be sure it is unique and terminal
