@@ -1,0 +1,4 @@
+Caution: do not change the contents of default_provider while virtual nodes are running.
+
+Doing this may cause unprovisioning of the running nodes to use incorrect hypervisor interfaces,
+leaving nodes in an indeterminate, and possibly unrecoverable, state.
