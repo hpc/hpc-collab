@@ -10,8 +10,13 @@ and common baseline hpc cluster models. In short, extend the "systems as cattle 
 <A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into
 the realm of "clusters as cattle, not pets."
 
-The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified, libvirt.
-Lighterweight and multi-node mechanisms are planned.
+The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified,
+<A HREF="https://libvirt.org/">libvirt</A>, and its accompanying
+<A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">vagrant-libvirt plugin</A>.
+<A HREF="https://graphviz.org/">Graphviz</A>, <A HREF="https://www.doxygen.nl/index.html">doxygen</A>
+and <A HREF="https://github.com/hoytech/vmtouch">vmtouch</A> are recommended, but not required. A
+local copy of the clever <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen</A> sed filter
+is included.  Lighterweight and multi-node mechanisms are planned.
 
 Two representative HPC cluster recipes are provided.
 Cluster recipes are in the <EM>clusters</EM> directory.
