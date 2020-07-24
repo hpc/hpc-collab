@@ -211,7 +211,7 @@ GetOSVersion() {
 declare -A RequiredCommands
 # @todo build this via introspection of ourselves
 # [base] linux-distribution independent required commands
-RequiredCommands[base]="awk base64 basename cat dirname echo fmt grep head hostname logger ls mkdir pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
+RequiredCommands[base]="awk base64 basename cat dirname echo env fmt grep head hostname ifconfig ip logger ls mkdir pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
 # [cray] Cray-specific required commands
 RequiredCommands[cray]=""
 # [rhel] RHEL or RHEL-alike (TOSS, CentOS, &c) required commands
@@ -316,6 +316,10 @@ VerifyEnv() {
   do
     Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${d}"
   done
+
+  ## host-only private network tuning
+  ## @todo jumbo frames
+  ##   ifconfig eth1 mtu 9000
 
   ClearNodeState all
   MarkNodeState "${STATE_RUNNING}"
