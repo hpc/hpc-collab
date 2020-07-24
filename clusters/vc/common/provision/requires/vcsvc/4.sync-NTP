@@ -1,0 +1,44 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/requires/vcfs/3.dns-query
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+declare -x IPADDR=$(cat ipaddr)
+
+Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
+refid=$(chronyc -c ntpdata | grep "${IPADDR}" >/dev/null 2>&1)
+rc=$?
+if [ ${rc} -ne ${GREP_FOUND} ] ; then
+  maxtries=10
+  limit=5
+  interval=5
+  for i in $(seq 1 ${limit})
+  do
+    Rc ErrExit ${EX_OSERR}  "chronyc waitsync ${maxtries} 1 1 ${interval}"
+    maxtries=$(expr ${maxtries} + ${maxtries})
+  done
+else
+  chronyc waitsync &
+fi
+
+trap '' 0
+exit ${EX_OK}

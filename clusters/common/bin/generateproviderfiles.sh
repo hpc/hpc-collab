@@ -298,6 +298,9 @@ main() {
     fi
   fi
 
+  ## @todo if there are any currently running nodes of a different type than "${provider}"
+  ## warn and possibly refuse to proceed
+
   KEYS=($(primeSubstKeys ${provider}))
   buildNodeToIPMap
 
