@@ -1,6 +1,5 @@
 SlurmctldHost=vxsched(192.168.56.49)
 #ControlMachine=vxsched
-#ControlAddr=192.168.56.49
 AuthType=auth/munge
 CryptoType=crypto/munge
 DisableRootJobs=NO
