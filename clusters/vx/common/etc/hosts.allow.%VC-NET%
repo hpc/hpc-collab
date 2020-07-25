@@ -1,0 +1,32 @@
+#
+all:            LOCAL             : allow
+all:            127.0.0.1         : allow
+all:            192.168.56.       : allow
+all:            192.168.56.       : allow
+
+rpcbind:        LOCAL             : allow
+rpcbind:        127.0.0.1         : allow
+rpcbind:        192.168.56.       : allow
+rpcbind:        ALL               : deny
+
+statd:          LOCAL             : allow
+statd:          127.0.0.1         : allow
+statd:          192.168.56.       : allow
+statd:          ALL               : deny
+
+mountd:         LOCAL             : allow
+mountd:         127.0.0.1         : allow
+mountd:         192.168.56.       : allow
+mountd:         ALL               : deny
+
+lockd:          LOCAL             : allow
+lockd:          127.0.0.1         : allow
+lockd:          192.168.56.       : allow
+lockd:          ALL               : deny
+
+sshd:           LOCAL             : allow
+sshd:           127.0.0.1         : allow
+sshd:           192.168.56.       : allow
+sshd:           ALL               : deny
+
+all:            ALL		  : deny
