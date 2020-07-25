@@ -622,7 +622,7 @@ VerifyEnv() {
 
   elif [[ ${OUTPUT_PROTOCOL} == syslog-remote ]] ; then
     export OUTPUT_PROTOCOL=syslog
-    local output_host=${OUTPUT_HOST:=${CLUSTERABBREV}-mon2}.lanl.gov
+    local output_host=${OUTPUT_HOST:=${CLUSTERABBREV}-mon2}
     if ping -n -c 1 -w 1 ${output_host} >/dev/null 2>&1  ; then
       export OUTPUT_HOST=${output_host}
     else
