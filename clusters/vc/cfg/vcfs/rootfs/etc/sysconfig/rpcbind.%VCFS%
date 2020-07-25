@@ -1,1 +1,1 @@
-RPCBIND_ARGS="-h %VCFS% -s"
+RPCBIND_ARGS="-h 192.168.56.79 -s"

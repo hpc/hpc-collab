@@ -1,12 +1,12 @@
 #
-/home/vagrant				%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant				192.168.56.0/24(rw,no_root_squash,security_label,subtree_check,async)
 #
-/home/vagrant/common/home		%VC-0NET%/24(rw,no_root_squash,security_label,sync)
+/home/vagrant/common/home		192.168.56.0/24(rw,no_root_squash,security_label,sync)
 #
-/home/vagrant/common/repos		%VC-0NET%/24(rw,no_root_squash,security_label,async)
-/home/vagrant/common/root		%VC-0NET%/24(rw,no_root_squash,security_label,async)
-/home/vagrant/common/var/log/rsyslog	%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
-/home/vagrant/common/var/log/slurm	%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant/common/repos		192.168.56.0/24(rw,no_root_squash,security_label,async)
+/home/vagrant/common/root		192.168.56.0/24(rw,no_root_squash,security_label,async)
+/home/vagrant/common/var/log/rsyslog	192.168.56.0/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant/common/var/log/slurm	192.168.56.0/24(rw,no_root_squash,security_label,subtree_check,async)
 
-/home/vx				%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vx				192.168.56.0/24(rw,no_root_squash,security_label,subtree_check,async)
 

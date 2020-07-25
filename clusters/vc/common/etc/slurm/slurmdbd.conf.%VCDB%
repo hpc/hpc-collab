@@ -1,4 +1,4 @@
-DbdAddr=%VCDB%
+DbdAddr=192.168.56.77
 DbdHost=vcdb
 SlurmUser=root
 DebugFlags=DB_ASSOC,DB_EVENT,DB_QUERY
