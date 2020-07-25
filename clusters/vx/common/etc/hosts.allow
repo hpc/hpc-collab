@@ -2,6 +2,7 @@
 all:            LOCAL             : allow
 all:            127.0.0.1         : allow
 all:            192.168.56.       : allow
+all:            192.168.56.       : allow
 
 rpcbind:        LOCAL             : allow
 rpcbind:        127.0.0.1         : allow

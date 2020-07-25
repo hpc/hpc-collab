@@ -25,9 +25,10 @@ fi
 declare -x IPADDR=$(cat ipaddr)
 declare -x ETCSLURM=/etc/slurm
 declare -x SLURMCONF=${ETCSLURM}/slurm.conf
+declare -x SLURMDBDCONF=${ETCSLURM}/slurmdbd.conf
 
 Rc ErrExit ${EX_OSFILE} "test -f ${SLURMDBDCONF}"
-#Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
+Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
 
 if [ -f ${SLURMCONF} -a -f ${SLURMDBDCONF} ] ; then
   dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//')

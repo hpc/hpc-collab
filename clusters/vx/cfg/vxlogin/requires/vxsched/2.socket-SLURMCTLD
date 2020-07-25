@@ -1,1 +1,1 @@
-../../../provision/requires/vcsched/2.socket-SLURMCTLD
+../../../../common/provision/requires/vxsched/2.socket-SLURMCTLD

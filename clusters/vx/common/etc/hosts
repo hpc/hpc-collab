@@ -6,20 +6,20 @@
 ### ### ### ###
 
 ## hostonly network: 
-192.168.56.0   hostonly.tc hostonly hostonly.test-cluster hostonly.testcluster
-192.168.56.1   gw.tc gw gw.test-cluster gw.testcluster
-##
 
-## subnet block for hand-crafted test cluster, tc
-192.168.56.128 tc0 tc0.test-cluster tc0.testcluster tc0.tc
-192.168.56.129 tc1 tc1.test-cluster tc1.testcluster tc1.tc
-192.168.56.130 tc2 tc2.test-cluster tc2.testcluster tc2.tc
-192.168.56.140 tc-db tc-db.testcluster tc-db.tctcdb.testcluster tcdb.tc
-192.168.56.142 tc-fs tcfs tc-fs.test-cluster tcfs.test-cluster tc-fs.tc tcfs.tc
-##
+### following is used by generateproviderfiles.sh
+### 192.168.56 %%%VC-VIRTUALBOX-NET%%% ###
+### 192.168.56 %%%VX-VIRTUALBOX-NET%%% ###
 
-## test node
-192.168.56.99  test0
+192.168.56.0   virtualbox-net0.tc hostonly.tc hostonly hostonly.test-cluster hostonly.testcluster vbox-net
+192.168.56.1   gw.vbox.tc gw-vbox gw.vbox.test-cluster gw.vbox.testcluster
+
+### following is used by generateproviderfiles.sh
+### 192.168.78 %%%VC-LIBVIRT-NET%%% ###
+### 192.168.78 %%%VX-LIBVIRT-NET%%% ###
+
+192.168.78.0  vc-net  vx-net   libvirt-net.tc libvirt-net0.tc libvirt-net
+192.168.78.1   gw.libvirt.tc gw-libvirt gw.libvirt gw.libvirt.test-cluster gw.libvirt.testcluster
 ##
 
 ### vx - conjoined virtual minicluster
