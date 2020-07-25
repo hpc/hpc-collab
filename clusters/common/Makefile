@@ -195,15 +195,16 @@ HUMANFRIENDLY_FLAGS	= $(QUICK_HUMANFRIENDLY_FLAG_NAMES) \
 
 SAVELOGS_TARGETS	= savelogs save-logs savelog save-log collectlogs collect-logs collectlog collect-log
 
-HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum compilevagrantfile generateproviderfiles	\
-				doc help 								\
-				ingest-state copyright show show-state show-vars status			\
-				todo verifylocalenv							\
+HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum 				\
+				doc help 						\
+				ingest-state copyright show show-state show-vars status	\
+				todo validate verifylocalenv				\
 				$(SAVELOGS_TARGETS)
+
 
 PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
 
-.PHONY:	$(PHONY)
+.PHONY:	$(PHONY) clean-state-prune
 
 .DELETE_ON_ERROR: $(NODES_STATE) $(TARGET_PROVIDER_FILES)
 
@@ -215,6 +216,8 @@ copyright:
 clean-state:
 	$(HUSH)mkdir -p $(STATE_DIRS_ALL)
 	$(HUSH)$(DISABLE_RM) rm -f $(RUNNING_D)/* $(POWEROFF_D)/* $(NONEXISTENT_D)/*
+
+clean-state-prune:
 	$(HUSH)vagrant global-status --prune >/dev/null 2>&1 &
 
 clean: $(NONEXISTENT_FLAGS)
@@ -250,6 +253,8 @@ show-vars:
 	$(HUSH)$(info )
 	$(HUSH)$(info SRC_PROVIDER_FILES: $(SRC_PROVIDER_FILES))
 	$(HUSH)$(info TARGET_PROVIDER_FILES: $(TARGET_PROVIDER_FILES))
+	$(HUSH)$(info IAM:$(IAM) WHERE_INVOKED:$(WHERE_INVOKED))
+	$(HUSH)$(info VC:$(VC))
 	$(HUSH)$(info )
 #	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
 #	$(HUSH)$(info PATH:		$(PATH))
@@ -347,18 +352,18 @@ flags flag: | $(PROVISION_FLAG_D)
 
 ###
 
-### XXX use $(VC)
-
 generateproviderfiles: $(TARGET_PROVIDER_FILES)
 
 $(TARGET_PROVIDER_FILES): $(SRC_PROVIDER_FILES)
-	cd $(CLUSTERS_DIR)/vc ; env VC=vc $(GENERATE_PROVIDER_FILES)
+	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
 
 compilevagrantfile: $(VAGRANTFILE_PREREQ)
 
-$(VAGRANTFILE): $(VAGRANTFILE_PREREQ) $(TARGET_PROVIDER_FILES)
+$(VAGRANTFILE): $(VAGRANTFILE_PREREQ)
 	env VC=$(VC) $(COMPILE_VAGRANTFILE)
-	vagrant validate >/dev/null 2>&1
+
+validate: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES)
+	vagrant validate
 
 ingest-state: $(VAGRANTFILE) clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)
@@ -400,7 +405,7 @@ vpath % $(PROVISIONED_D)
 # bulk NODE states
 #  ie. all PROVISIONED, all POWEROFF, all UNPROVISION
 
-up provision: $(VAGRANTFILE) verifylocalenv $(PROVISIONED_FLAGS) ingest-state
+up provision: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES) verifylocalenv $(PROVISIONED_FLAGS) ingest-state
 up! provision!: unprovision up ingest-state
 
 running ready on: verifylocalenv $(RUNNING_FLAGS)
