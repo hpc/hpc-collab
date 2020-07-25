@@ -84,11 +84,13 @@ chkConfig() {
   which_fs=${default_fs}
   no_nfs=""
 
-  if [ ! -f "${NO_NFS_F}" ] ; then
-    which_fs=nfs4
-
-  else
-    no_nfs=$(echo $(cat ${NO_NFS_F}))
+  if [ -f "${NO_NFS_F}" ] ; then
+    if [ -s "${NO_NFS_F}" ] ; then
+      no_nfs=$(echo $(cat ${NO_NFS_F}))
+    else
+      no_nfs="true"
+      which_fs="virtualbox"
+    fi
   fi
 
   if [ -s "${NO_NFS_F}" -a "${which_nfs}" = "nfs4" ] ; then
@@ -198,26 +200,45 @@ main() {
   done
 
   n_NODES=$(ls -d ${CFG}/${env_VC}*/attributes/bootorder | wc -l)
-  NODES_BOOTORDER=""
-
-  for i in $(seq 1 ${n_NODES})
+  lowest_i=32768
+  for b in ${CFG}/*/attributes/bootorder/*
   do
-    n=${CFG}/*/attributes/bootorder/${i}
-    if [ -f ${n} ] ; then
-      node=$(basename $(echo ${n}|sed -e 's/\/attributes\/bootorder\/.*//'))
-      sep=" "
-      if [ "${i}" = 1 ] ; then
-        sep=""
-      fi
-      if [ "${i}" = "${n_NODES}" ] ; then
-        LASTNODE="${node}"
-      fi
-      NODES_BOOTORDER="${NODES_BOOTORDER}${sep}${node}"
+    i=$(basename ${b})
+    if [ "${i}" -lt "${lowest_i}" ] ; then
+      lowest_i="${i}"
     fi
+  done
+  last_i=$(expr ${n_NODES} + ${lowest_i})
+  cfg_nodelist=""
+
+  for i in $(seq ${lowest_i} ${last_i})
+  do
+    node_paths=$(ls ${CFG}/*/attributes/bootorder/${i} 2>&1 | grep -v 'No such file or directory')
+    cfg_nodelist="${cfg_nodelist} ${node_paths}"
+  done
+  NODES_BOOTORDER=""
+  i=1
+  for c in ${cfg_nodelist}
+  do
+    p=$(realpath ${c})
+    d=$(dirname ${c})
+    np=$(realpath ${d}/../..)
+    n=$(basename ${np})
+
+    sep=" "
+    if [ -z "${NODES_BOOTORDER}" ] ; then
+      sep=""
+    fi
+    if [ "${i}" = "${n_NODES}" ] ; then
+      LASTNODE="${node}"
+    fi
+    NODES_BOOTORDER="${NODES_BOOTORDER}${sep}${n}"
+    i=$(expr ${i} + 1)
   done
   if [ -z "${NODES_BOOTORDER}" ] ; then
     ErrExit ${EX_CONFIG} "NODES_BOOTORDER: empty"
   fi
+
   n_NODES_ORDERED=$(wc -w <<< ${NODES_BOOTORDER})
   if [[ ${n_NODES_ORDERED} != ${n_NODES} ]] ; then
     ErrExit ${EX_CONFIG} "n_NODES_ORDERED:${n_NODES_ORDERED} != n_NODES:${n_NODES}"
