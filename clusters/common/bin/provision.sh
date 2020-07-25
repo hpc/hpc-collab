@@ -105,18 +105,59 @@ else
   declare -x DEFAULT_ORDER_OF_OPERATIONS=${NORMAL_ORDER_OF_OPERATIONS}
 fi
 
+## @fn order()
+##
+OrderNodeList() {
+  local n
+  local i
+  local ordered
+  local numeric="[0-9]+"
+  local n_nodes
+  local nodelist=($@)
+
+  # walk through the given node list
+  # if bootorder <  i, prepend node to ordered list
+  # if bootorder >= i, append node to ordered list
+  # XXX @future if bootorder == i, put in parallelizable list, don't increment index
+  n_nodes=$#
+  i=1
+  for i in $(seq 1 ${n_nodes})
+  do
+    n=$1
+    local cl=${n:0:2}
+    local nodes_i=$(ls /${cl}/cfg/${cl}*/attributes/bootorder/${i})
+    local nodepath
+    for nodepath in ${nodes_i}
+    do
+      local d=$(dirname ${nodepath})
+      local r=$(realpath ${d}/../..)
+      local n=$(basename ${r})
+      if [[ ${ordered} = *${n}* ]] ; then
+        continue
+      fi
+      ordered[$i]="${n}"
+    done
+    shift
+  done
+  echo ${ordered[@]}
+  return
+}
+
 ## @fn WaitForPrerequisites()
 ##
 WaitForPrerequisites() {
   local nodes
   local retries
+  local nodesOrdered
 
   if [ ! -d "${REQUIREMENTS}" ] ; then
     return
   fi
 
   nodes=$(echo $(ls ${REQUIREMENTS}))
-  for _n in ${nodes}
+  nodesOrdered=($(OrderNodeList ${nodes}))
+
+  for _n in ${nodesOrdered[@]}
   do
     Verbose " ${_n}"
     local required=$(ls ${REQUIREMENTS}/${_n})
@@ -318,8 +359,7 @@ VerifyEnv() {
   done
 
   ## host-only private network tuning
-  ## @todo jumbo frames
-  ##   ifconfig eth1 mtu 9000
+  ifconfig eth1 mtu 9000
 
   ClearNodeState all
   MarkNodeState "${STATE_RUNNING}"
