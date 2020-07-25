@@ -15,6 +15,13 @@ if [ ${VC} = "_VC_UNSET_" ] ; then
 fi
 env_VC=${VC}
 
+### need a cluster dependency tree config
+if [ "${env_VC}" = "vc" ] ; then
+  alt_VC=vx
+else
+  alt_VC=vc
+fi
+
 declare -x ANCHOR=../common
 declare -x LOADER_SHLOAD=${ANCHOR}/loader/shload.sh
 declare -x BASEDIR=${ANCHOR}/..
@@ -40,7 +47,17 @@ if [ ! -d "$(cd ${VC}; pwd)" ] ; then
 fi
 
 declare -x ANCHOR_D=$(realpath ${ANCHOR})
-declare -x SRCS=($(find ${ANCHOR_D}/../${env_VC} -type f -name *%*%))
+declare -x ANCHOR_D_UP=$(realpath ${ANCHOR_D}/..)
+declare -x VC_D=$(realpath ${ANCHOR_D_UP}/${env_VC})
+declare -x ALT_VC_D=$(realpath ${ANCHOR_D_UP}/${alt_VC})
+
+declare -x SRCS_ENV=($(find ${VC_D} -type f -name *%*%))
+declare -x SRCS_ALT
+declare -x SRCS
+if [ "${VC_D}" != "${ALT_VC_D}" ] ; then
+  SRCS_ALT=($(find ${ALT_VC_D} -type f -name *%*%))
+fi
+SRCS=$(echo ${SRCS_ENV[@]} ${SRCS_ALT[@]})
 
 getSRCS() {
 
@@ -58,14 +75,13 @@ getSRCS() {
     exit ${EX_CONFIG}
   fi
 
-  for f in SRCS
+  for f in ${SRCS[@]}
   do
-    local _f="${!f}"
-    if [ ! -f "${_f}" ] ; then
+    if [ ! -f "${f}" ] ; then
       echo "  EX_CONFIG: ${f} missing"
       exit ${EX_CONFIG}
     fi
-    if [ ! -s "${_f}" ] ; then
+    if [ ! -s "${f}" ] ; then
       echo "EX_CONFIG:  ${f} empty"
       exit ${EX_CONFIG}
     fi
@@ -76,8 +92,11 @@ getSRCS() {
 }
 
 declare -x ANCHOR_D=$(realpath ${ANCHOR})
+declare -x ANCHOR_D_UP=$(realpath ${ANCHOR_D}/..)
+declare -x VC_D=$(realpath ${ANCHOR_D_UP}/${env_VC})
+declare -x ALT_VC_D=$(realpath ${ANCHOR_D_UP}/${alt_VC})
 declare -x VAGRANTFILE_D=${ANCHOR_D}/Vagrantfile.d
-declare -x HOSTS_FILE_TARGET=$(realpath ${ANCHOR_D}/../${env_VC}/common/etc/hosts)
+declare -x HOSTS_FILE_TARGET=$(realpath ${VC_D}/common/etc/hosts)
 declare -x HOSTS_FILE=${HOSTS_FILE_TARGET}.%${env_VC^^}-NET%
 declare -x CFG_VM_PROVIDERS_D=$(realpath ${VAGRANTFILE_D}/cfg.vm.providers.d)
 declare -x DEFAULT_PROVIDER=$(realpath ${CFG_VM_PROVIDERS_D}/default_provider)
@@ -159,7 +178,15 @@ mkTarg(){
   do
     sed -i -e "s/${k}/${NODEKEYTOIPADDR[${k}]}/g" ${TMP1}
   done
-  target=${src/.%${env_VC^^}*%/}
+  # if no replacement of env_VC, then we use alt_VC
+  t_env=${src/.%${env_VC^^}*%/}
+  t_alt=${src/.%${alt_VC^^}*%/}
+  target=""
+  if [ "${src}" = "${t_env}" ] ; then
+    target=${t_alt}
+  else
+    target=${t_env}
+  fi
   if [ -z "${target}" ] ; then
     ErrExit ${EX_SOFTWARE} "target empty"
   fi
@@ -175,6 +202,8 @@ primeSubstKeys() {
   # lower-case vc, upper-case vc
   local vc_l=${env_VC,,}
   local vc_u=${env_VC^^}
+  local alt_vc_l=${alt_VC,,}
+  local alt_vc_u=${alt_VC^^}
 
   if [ "${provider}" = "_no_provider_" ] ; then
     ErrExit ${EX_SOFTWARE} "${provider}"
@@ -212,13 +241,30 @@ primeSubstKeys() {
   ## for example:
   ##   {VC}-NET => 192.168.56
   ##   {VC}-0NET => 192.168.56.0
-  Rc ErrExit ${EX_SOFTWARE} "sed -i -e \"/^${provider_val}.0 /s//& ${vc_l}-net /\" ${TMP2} ;"
-  Rc ErrExit ${EX_SOFTWARE} "sed -i -e "s/%${vc_u}-NET%/${provider_val}/g" ${TMP2} ;"
-  Rc ErrExit ${EX_SOFTWARE} "sed -i -e "s/%${vc_u}-0NET%/${provider_val}.0/g" ${TMP2} ;"
+  Rc ErrExit ${EX_SOFTWARE} "sed -i -e \"/^${provider_val}.0 /s//& ${vc_l}-net     /\" ${TMP2} ;"
+  Rc ErrExit ${EX_SOFTWARE} "sed -i -e \"/^${provider_val}.0 /s//& ${alt_vc_l}-net /\" ${TMP2} ;"
+
+  Rc ErrExit ${EX_SOFTWARE} "sed -i -e "s/%${vc_u}-NET%/${provider_val}/g"     ${TMP2} ;"
+  Rc ErrExit ${EX_SOFTWARE} "sed -i -e "s/%${alt_vc_u}-NET%/${provider_val}/g" ${TMP2} ;"
+
+  Rc ErrExit ${EX_SOFTWARE} "sed -i -e "s/%${vc_u}-0NET%/${provider_val}.0/g"     ${TMP2} ;"
+  Rc ErrExit ${EX_SOFTWARE} "sed -i -e "s/%${alt_vc_u}-0NET%/${provider_val}.0/g" ${TMP2} ;"
 
   Rc ErrExit ${EX_SOFTWARE} "cp -b ${TMP2} ${HOSTS_FILE_TARGET} ;"
 
-  for n in ${vc_u}-NET ${vc_u}-0NET ${NODES}
+  local _nodes=$(ls -d ${VC_D}/cfg/* ${ALT_VC_D}/cfg/* | grep -v provision)
+  local nodes=""
+  local _n
+  for _n in ${_nodes}
+  do
+    if [ -z "${nodes}" ] ; then
+      nodes="$(basename ${_n})"
+    else
+      nodes="${nodes} $(basename ${_n})"
+    fi
+  done
+  local n
+  for n in ${vc_u}-NET ${vc_u}-0NET ${alt_vc_u}-NET ${alt_vc_u}-0NET ${nodes}
   do
     k="%${n^^}%"
     if [ -z "${keys}" ] ; then
@@ -241,20 +287,21 @@ buildNodeToIPMap() {
     n=${k,,}
     n=${n//\%/}
 
-    if [ ${k:1:2} != ${env_VC^^} ] ; then
-      ErrExit ${EX_CONFIG} "k:${k} k[1-2]:${k:1:2} != env_VC:${env_VC^^}"
+    if [ ${k:1:2} != ${env_VC^^} -a ${k:1:2} != ${alt_VC^^} ] ; then
+      ErrExit ${EX_CONFIG} "k:${k} k[1-2]:${k:1:2} != env_VC:${env_VC^^} && != alt_VC:${alt_VC^^}"
     fi
     if [ -z "${n}" ] ; then
       ErrExit ${EX_CONFIG} "n empty"
     fi
 
-    if [ "${n}" = "vc-0net" ] ; then
+    # special case the patterns which match the network address or the first three octets
+    if [ "${n}" = "${env_VC,,}-0net" -o "${n}" = "${alt_VC,,}-0net" ] ; then
       ip=$(grep -s -e " ${n/0/} " ${HOSTS_FILE_TARGET} | awk '{print $1}')
       rc=$?
     else
       ip=$(grep -s -e " ${n} " ${HOSTS_FILE_TARGET} | awk '{print $1}')
       rc=$?
-      if [ "${n}" = "vc-net" ] ; then
+      if [ "${n}" = "${env_VC,,}-net" -o "${n}" = "${alt_VC,,}-net" ] ; then
         ip=${ip/.0/}
       fi
     fi
@@ -265,8 +312,6 @@ buildNodeToIPMap() {
 
     NODEKEYTOIPADDR[${k}]="${ip}"
   done
-# Verbose "  NODEKEYTOIPADDR:${NODEKEYTOIPADDR[@]}"
-# Verbose "  !NODEKEYTOIPADDR:${!NODEKEYTOIPADDR[@]}"
   return
 }
 
@@ -288,18 +333,29 @@ main() {
   fi
 
   provider=($(whichProvider))
+  if [ ! -f ${CFG_VM_PROVIDERS_D}/${provider} ] ; then
+    ErrExit ${EX_CONFIG} "CFG_VM_PROVIDERS_D/provider:${CFG_VM_PROVIDERS_D}/${provider} does not exist"
+  fi
+  if [ -z "${provider}" ] ; then
+    ErrExit ${EX_CONFIG} "provider: empty"
+  fi
   if [[ ${provider[0]} == *EX_CONFIG* ]] ; then
     ErrExit ${EX_CONFIG} ${provider[@]}
   fi
 
-  if [ "provider" = "libvirt" ] ; then
-    if [ -f "${NO_NFS}" ] ; then
-      Warn ${EX_CONFIG} "provider:${provider} requires NFS, but NO_NFS flag is set."
-    fi
+  if [ "${provider}" = "libvirt" -a  -f "${NO_NFS}" ] ; then
+    Warn ${EX_CONFIG} "provider:${provider} requires NFS, but NO_NFS flag is set."
   fi
 
-  ## @todo if there are any currently running nodes of a different type than "${provider}"
-  ## warn and possibly refuse to proceed
+  if [ -n "${DO_EXTREMELY_SLOW_CALLOUT_TO_VAGRANT}" ] ; then
+    # any existent nodes from a different provider than what we have requested?
+    running_nodes=$(vagrant global-status | \
+                    egrep -i '(running|shutoff|poweredoff|halt)' | grep -v "${provider}" | \
+                    awk '{print $2}')
+    if [ -n "${running_nodes}" ] ; then
+      ErrExit ${EX_CONFIG} "There are running nodes: ${running_nodes} that were not provisioned by: ${provider}."
+    fi
+  fi
 
   KEYS=($(primeSubstKeys ${provider}))
   buildNodeToIPMap
