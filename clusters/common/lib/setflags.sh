@@ -154,42 +154,62 @@ SetFlags() {
         ;;
     TIMESTAMPS)
         # if the TIMESTAMPS flag exists & is non-zero length, it may be a format for timestamps
-	# if DEFAULT_TIMESTAMP_FORMAT is set in the env. use it
-	# gnuplot likes the format of: +%d-%H-%M-%S.%6N
-	DEFAULT_TIMESTAMP_FORMAT="${DEFAULT_TIMESTAMP_FORMAT:-+%d-%H-%M-%S.%6N }"
+      	# if DEFAULT_TIMESTAMP_FORMAT is set in the env. use it
+      	# gnuplot likes the format of: +%d-%H-%M-%S.%6N
+      	DEFAULT_TIMESTAMP_FORMAT="${DEFAULT_TIMESTAMP_FORMAT:-+%d-%H-%M-%S.%6N }"
         export TIMESTAMPS="${DEFAULT_TIMESTAMP_FORMAT}"
-	if [ -s ${FLAGS}/TIMESTAMPS ] ; then
+        if [ -s ${FLAGS}/TIMESTAMPS ] ; then
           TIMESTAMPS=$(cat ${FLAGS}/TIMESTAMPS)
-	  # date returns !EX_OK if its argument isn't a valid format
-	  date "${TIMESTAMPS}" >/dev/null 2>&1
-	  rc=$?
-	  if [ "${rc}" -ne ${EX_OK} ] ; then
+      	  # date returns !EX_OK if its argument isn't a valid format
+      	  date "${TIMESTAMPS}" >/dev/null 2>&1
+      	  rc=$?
+      	  if [ "${rc}" -ne ${EX_OK} ] ; then
             TIMESTAMPS="${DEFAULT_TIMESTAMP_FORMAT}"
-	  fi
-	fi
+      	  fi
+      	fi
         set_flags="${set_flags} TIMESTAMPS:${TIMESTAMPS}"
-	;;
+      ;;
     NO_NFS)
-        if [ -s ${FLAGS}/NO_NFS ] ; then
-	  NO_NFS=$(cat ${FLAGS}/NO_NFS)
-          set_flags="${set_flags} NO_NFS:${NO_NFS}"
+      if [ -s ${FLAGS}/NO_NFS ] ; then
+	      NO_NFS=$(cat ${FLAGS}/NO_NFS)
+        set_flags="${set_flags} NO_NFS:${NO_NFS}"
+      else
+        export NO_NFS="NO_NFS"
+        set_flags="${set_flags} NO_NFS"
+      fi
+    if [[ vboxadd != *${SKIP_SW}* ]] ; then
+      Warn ${EX_CONFIG} "  Virtualbox guest addtions are marked to be upgraded, not skipped."
+		  Warn ${EX_CONFIG} "    NO_NFS is set, also."
+		  Warn ${EX_CONFIG} "  Provisioning may halt with no source while attempting to upgrade the"
+		  Warn ${EX_CONFIG} "  virtualbox guest additions."
+		  Warn ${EX_CONFIG} "  "
+		  Warn ${EX_CONFIG} "  To remediate: "
+		  Warn ${EX_CONFIG} "      set clusters/common/flag/SKIP_SW to include 'vboxadd'"
+		  Warn ${EX_CONFIG} "          or remove clusters/common/flag/NO_NFS"
+  	fi
+  	;;
+    JUMBOFRAMES)
+      # Warning: may not be supported properly for libvirt/kvm networking unless defaults tuned
+	    JUMBOFRAMES="true"
+      set_flags="${set_flags} JUMBO_FRAMES"
+  	;;
+  REMOTE_RSYSLOG)
+    # if the contents exist and start with an '@'
+      if [ -s "${FLAGS}/REMOTE_RSYSLOG" ] ; then
+        local remote_rsyslog
+        remote_rsyslog=$(cat "${FLAGS}/REMOTE_RSYSLOG")
+        if [ "${remote_rsyslog:0:1}" = "@" ] ; then
+          export REMOTE_RSYSLOG="${remote_rsyslog}"
         else
-          export NO_NFS="NO_NFS"
-          set_flags="${set_flags} NO_NFS"
-	fi
-    	if [[ vboxadd != *${SKIP_SW}* ]] ; then
-		Warn ${EX_CONFIG} "  Virtualbox guest addtions are marked to be upgraded, not skipped."
-		Warn ${EX_CONFIG} "    NO_NFS is set, also."
-		Warn ${EX_CONFIG} "  Provisioning may halt with no source while attempting to upgrade the"
-		Warn ${EX_CONFIG} "  virtualbox guest additions."
-		Warn ${EX_CONFIG} "  "
-		Warn ${EX_CONFIG} "  To remediate: "
-		Warn ${EX_CONFIG} "      set clusters/common/flag/SKIP_SW to include 'vboxadd'"
-		Warn ${EX_CONFIG} "          or remove clusters/common/flag/NO_NFS"
-	fi
-	;;
+          Warn ${EX_CONFIG} "REMOTE_RSYSLOG does not appear to be a valid rsyslog target host"
+        fi
+      fi
+      set_flags="${set_flags} REMOTE_RSYSLOG:${REMOTE_RSYSLOG}" 
+    ;;
     esac
   done
   Verbose "Flags: ${set_flags}"
   return
 }
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark
