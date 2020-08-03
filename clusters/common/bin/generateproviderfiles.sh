@@ -51,6 +51,11 @@ declare -x ANCHOR_D_UP=$(realpath ${ANCHOR_D}/..)
 declare -x VC_D=$(realpath ${ANCHOR_D_UP}/${env_VC})
 declare -x ALT_VC_D=$(realpath ${ANCHOR_D_UP}/${alt_VC})
 
+# must match Makefile
+declare -x GENERATED_FLAG_F=${VC_D}/.regenerated
+# this limit should be the time it takes to regenerate whichever virtual node takes the most time
+declare -x GENERATED_MAXLIMIT_MINUTES=15
+
 declare -x SRCS_ENV=($(find ${VC_D} -type f -name *%*%))
 declare -x SRCS_ALT
 declare -x SRCS
@@ -239,8 +244,8 @@ primeSubstKeys() {
   ## so that it may be used as a key/value by subsequent template files
   ## construct two special keys, not associated with node names
   ## for example:
-  ##   {VC}-NET => 192.168.56
-  ##   {VC}-0NET => 192.168.56.0
+  ##   {VC}-NET => ex. 192.168.56
+  ##   {VC}-0NET => ex. 192.168.56.0
   Rc ErrExit ${EX_SOFTWARE} "sed -i -e \"/^${provider_val}.0 /s//& ${vc_l}-net     /\" ${TMP2} ;"
   Rc ErrExit ${EX_SOFTWARE} "sed -i -e \"/^${provider_val}.0 /s//& ${alt_vc_l}-net /\" ${TMP2} ;"
 
@@ -281,6 +286,7 @@ buildNodeToIPMap() {
   local k
   local n
   local ip
+  local net
 
   for k in ${KEYS[*]}
   do
@@ -295,14 +301,32 @@ buildNodeToIPMap() {
     fi
 
     # special case the patterns which match the network address or the first three octets
+    ip_cracked=($(grep -s -e " ${n} " ${HOSTS_FILE_TARGET} | sed 's/\./ /g' | awk '{print $1" "$2" "$3" "$4}'))
+    rc=$?
+
     if [ "${n}" = "${env_VC,,}-0net" -o "${n}" = "${alt_VC,,}-0net" ] ; then
-      ip=$(grep -s -e " ${n/0/} " ${HOSTS_FILE_TARGET} | awk '{print $1}')
-      rc=$?
+      if [ -z "${net}" ] ; then
+        ErrExit ${EX_SOFTWARE} "net: empty k:${k} [0net]"
+      fi
+      ip=${net}.0
     else
-      ip=$(grep -s -e " ${n} " ${HOSTS_FILE_TARGET} | awk '{print $1}')
-      rc=$?
       if [ "${n}" = "${env_VC,,}-net" -o "${n}" = "${alt_VC,,}-net" ] ; then
-        ip=${ip/.0/}
+        if [ -z "${net}" ] ; then
+          n=""
+          local j
+          for j in 0 1 2
+          do
+            sep=""
+            if [ "${j}" -lt 2 ] ; then
+              sep="."
+            fi
+            n=${n}${ip_cracked[${j}]}${sep}
+          done
+          net=${n}
+        fi
+        ip=${net}
+      else
+        ip="${net}.${ip_cracked[3]}"
       fi
     fi
 
@@ -321,6 +345,12 @@ main() {
   local fstype=""
   local provider=""
   local srcs=""
+
+  needs_regen=$(find ${VC} -type f -path ${GENERATED_FLAG_F} -mmin +${GENERATED_MAXLIMIT_MINUTES})
+  if [ -f ${GENERATED_FLAG_F} -a -z "${needs_regen}" ] ; then
+    exit ${EX_OK}
+  fi
+  Rc ErrExit ${EX_OSFILE} "rm -f ${GENERATED_FLAG_F}"
 
   srcs=($(getSRCS))
   rc=$?
@@ -360,7 +390,7 @@ main() {
   KEYS=($(primeSubstKeys ${provider}))
   buildNodeToIPMap
 
-  trap "rm -f ${TMP1} ${TMP2}" 0
+  trap "rm -f ${TMP1} ${TMP2} ${GENERATED_FLAG_F}" HUP INT QUIT TERM
 
 ## Using VC,
 ##   for all SRC files
@@ -372,13 +402,15 @@ main() {
 ##       leaving the transformed file for the next pass, if any
 ##     copy the final tmp file to the target
 ##   update the target hosts file
+##  leave flag file behind, for make coordination
 
   for s in ${srcs[@]}
   do
     mkTarg $(realpath ${s})
   done
 
-  trap '' 0
+  trap 'date > ${GENERATED_FLAG_F}' 0
+  echo -n '.'
   exit ${EX_OK}
 }
 
