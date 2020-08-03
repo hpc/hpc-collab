@@ -25,20 +25,13 @@ SetFlags >/dev/null 2>&1
 declare -x IPADDR=$(cat ipaddr)
 
 Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
+
 refid=$(chronyc -c ntpdata | grep "${IPADDR}" >/dev/null 2>&1)
 rc=$?
 if [ ${rc} -ne ${GREP_FOUND} ] ; then
-  maxtries=10
-  limit=5
-  interval=5
-  for i in $(seq 1 ${limit})
-  do
-    Rc ErrExit ${EX_OSERR}  "chronyc waitsync ${maxtries} 1 1 ${interval}"
-    maxtries=$(expr ${maxtries} + ${maxtries})
-  done
-else
-  chronyc waitsync &
+  Warn ${EX_OSERR}  "refid: ${refid}"
 fi
+( cd /; chronyc waitsync ) &
 
 trap '' 0
 exit ${EX_OK}
