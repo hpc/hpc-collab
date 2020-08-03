@@ -23,8 +23,9 @@ if [ -n "${OUT}" ] ; then
 fi
 
 SetFlags >/dev/null 2>&1
-
-Rc ErrExit ${EX_OSERR} "ifconfig eth1 mtu 9000"
+if [ -n "${JUMBOFRAMES}" ] ; then
+  Rc ErrExit ${EX_OSERR} "ifconfig eth1 mtu 9000"
+fi
 
 trap '' 0
 exit ${EX_OK}
