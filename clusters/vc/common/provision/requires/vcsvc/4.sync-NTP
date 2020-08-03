@@ -37,7 +37,7 @@ if [ ${rc} -ne ${GREP_FOUND} ] ; then
     maxtries=$(expr ${maxtries} + ${maxtries})
   done
 else
-  chronyc waitsync &
+  ( cd /; chronyc waitsync ) &
 fi
 
 trap '' 0
