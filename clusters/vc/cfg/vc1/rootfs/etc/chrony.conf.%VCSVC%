@@ -1,5 +1,5 @@
 # Use local server: vcsvc
-server 192.168.56.71
+server %VCSVC%
 
 # Record the rate at which the system clock gains/losses time.
 driftfile /var/lib/chrony/drift
