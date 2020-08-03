@@ -19,10 +19,10 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
 
-exec > >(tee -a "${OUT}") 2>&1
-
+TIMEOUT=5
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sacctmgr show users       >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sacctmgr show qos         >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sacct -a --start=00:00:00 >/dev/null"
