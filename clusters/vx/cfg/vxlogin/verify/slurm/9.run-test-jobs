@@ -1,0 +1,87 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/verify/slurm/5.run-test-jobs
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x TIMEOUT=240
+
+users=$(echo $(ls ${USERADD} | grep -v root))
+if [ -n "${users}" ] ; then
+  printf " %12s	%16s		%s\n"  "user" "partition" "job type"
+  printf " %12s	%16s		%s\n"  "----" "---------" "--- ----"
+fi
+partitions=$(sinfo -h --format="%R")
+common_args="--account=default --chdir=/tmp --time=00:10"
+common_default_account_args="--chdir=/tmp --time=00:10"
+
+sbatch=$(which sbatch)
+salloc=$(which salloc)
+scontrol=$(which scontrol)
+
+for s in sbatch salloc
+do
+  if [ ! -x "${!s}" ] ; then
+    ErrExit ${EX_SOFTWARE} "${s}: ${!s} -- not executable"
+  fi
+done
+
+for _u in ${users}
+do
+  if [ ! -d ${USERADD}/${_u} ] ; then
+    continue
+  fi 
+  for _p in ${partitions}
+  do
+    _state=$(${scontrol} show partition ${_p}  -o | sed 's/^.*State=//' | sed 's/ .*$//')
+    if [ ${_state} = DOWN ] ; then
+      continue
+    fi
+    ### XXX better output verification
+    printf  " %12s	%16s		sbatch " ${_u} ${_p}
+    Rc ErrExit 10 "timeout ${TIMEOUT} su ${_u} -c \"${sbatch} ${common_args} --partition=${_p} --quiet --wait --wrap=hostname\" ;"
+    Rc ErrExit 10 "timeout ${TIMEOUT} su ${_u} -c \"${sbatch} ${common_default_account_args} --partition=${_p} --quiet --wait --wrap=hostname\" ;"
+    printf "salloc"
+    Rc ErrExit 11 "timeout ${TIMEOUT} su ${_u} -c \"${salloc} ${common_args} --partition=${_p} hostname\" ;"
+    Rc ErrExit 11 "timeout ${TIMEOUT} su ${_u} -c \"${salloc} ${common_default_account_args} --partition=${_p} hostname\" ;"
+    printf '\n' 
+  done
+  printf '\n'
+done
+
+common_args="--account=root --chdir=/tmp --time=00:10"
+common_default_account_args="--chdir=/tmp --time=00:10"
+for _p in ${partitions}
+do
+  _state=$(${scontrol} show partition ${_p}  -o | sed 's/^.*State=//' | sed 's/ .*$//')
+  if [ ${_state} = DOWN ] ; then
+    continue
+  fi
+  Rc ErrExit 10 "timeout ${TIMEOUT} ${sbatch} ${common_args} --partition=${_p} --quiet --wait --wrap=hostname"
+  Rc ErrExit 10 "timeout ${TIMEOUT} ${sbatch} ${common_default_account_args} --partition=${_p} --quiet --wait --wrap=hostname"
+  printf  " %12s	%16s		sbatch " root ${_p}
+  Rc ErrExit 10 "timeout ${TIMEOUT} ${salloc} ${common_args} --partition=${_p} hostname"
+  Rc ErrExit 10 "timeout ${TIMEOUT} ${salloc} ${common_default_account_args} --partition=${_p} hostname"
+  printf "salloc\n"
+done
+printf '\n'
+
+
+trap '' 0
+exit ${EX_OK}
