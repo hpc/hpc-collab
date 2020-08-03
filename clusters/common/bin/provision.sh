@@ -358,8 +358,10 @@ VerifyEnv() {
     Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${d}"
   done
 
-  ## host-only private network tuning
-  ifconfig eth1 mtu 9000
+  if [ -n "${JUMBOFRAMES}" ] ; then
+    ## host-only private network tuning
+    ifconfig eth1 mtu 9000
+  fi
 
   ClearNodeState all
   MarkNodeState "${STATE_RUNNING}"
@@ -405,7 +407,10 @@ MarkNodeState() {
 ## consumers expect that both may exist and know to honor PROVISIONED over RUNNING
 ##
 MarkNodeProvisioned() {
+  Rc ErrExit ${EX_OSFILE} "mount -o remount,sync,relatime /"
+  sync
   MarkNodeState "${STATE_PROVISIONED}"
+  sync
   ClearNodeState "${STATE_RUNNING}"
   Rc ErrExit ${EX_OSFILE} "mount -o remount,async,relatime /"
   return
@@ -613,19 +618,29 @@ CopyCommon() {
   local size
   local from=/${CLUSTERNAME}/common
   local to=/home${from}
+  local skip=""
 
   if [ -L "${VC}" ] ; then
     ErrExit ${EX_OSFILE} "${VC}: symlink"
   fi
   if [ -L "${to}" ] ; then
     Verbose "  to:${to}: symlink, skipped"
+    skip="true-symlink"
   fi
-  size=$(du -x -s -m ${from} --exclude=repos\* | awk 'BEGIN {total=0} {total += $1} END {print total}')
-  Verbose " ${size}Mb  ${from} => ${to}"
+  if [ -d "${to}" -o -L "${to}" ] ; then
+    to_fstype=$(stat -f --format "%T" ${to})
+  fi
+  if [ "${to_fstype}" = "nfs" ] ; then
+    skip="true-nfs-to"
+  fi
+  if [ -z "${skip}" ] ; then
+    size=$(du -x -s -m ${from} --exclude=repos\* | awk 'BEGIN {total=0} {total += $1} END {print total}')
+    Verbose " ${size}Mb  ${from} => ${to}"
 
-  Rc ErrExit ${EX_OSFILE} "mkdir -p ${to}"
-  Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${from} . | \
+    Rc ErrExit ${EX_OSFILE} "mkdir -p ${to}"
+    Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${from} . | \
                               (cd ${to}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
+  fi
   # prevent easy errors such as accidental modification of the transient in-cluster fs
   Rc ErrExit ${EX_OSFILE} "chmod -R ugo-w ${to}/provision"
   if [ -L "${to}/home" ] ; then
@@ -730,7 +745,7 @@ CopyHomeVagrant() {
 ##
 LinkSlashVagrant() {
   if [ -d "${VC}" -a ! -L "${VC}" ] ; then
-    Rc ErrExit ${EX_SOFTWARE} "cd /; umount -f ${VC}; rmdir ${VC}; ln -s ${HOMEVAGRANT}"
+    Rc ErrExit ${EX_SOFTWARE} "cd /; sync; umount -f ${VC}; rmdir ${VC}; ln -s ${HOMEVAGRANT}"
   fi
   return
 }
@@ -739,6 +754,7 @@ LinkSlashVagrant() {
 ## @fn FlagSlashVagrant()
 ##
 FlagSlashVagrant() {
+  nfs_server=$(awk '/virtual-cluster-net/ {print $2}' /etc/networks | sed 's/0$/1/')
 
   if [ -n "${PREVENT_SLASHVAGRANT_MOUNT}" ] ; then
     local opwd=$(pwd)
@@ -749,8 +765,20 @@ FlagSlashVagrant() {
     awk '{print $5}' < /proc/self/mountinfo | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
     fstype=$(stat -f --format "%T" ${BASEDIR})
     if [ $? -eq ${GREP_FOUND} ] ; then
+      for s in HUP TERM KILL
+      do
+        pgrep -u root --signal ${s} tee >/dev/null 2>&1
+        rc=$?
+        # 1 = no processes signalled or matched
+        if [ "${rc}" -eq "1" ] ; then
+          break
+        fi
+        sleep 0.5
+      done
+      pkill -u root tee >/dev/null 2>&1
+      sleep 0.5
       still_in_use=$(lsof | grep -i cwd | awk '{print $9}' | grep '/' | sort | uniq | egrep "^/${BASEDIR}")
-      needs_umount=$(findmnt -m | egrep '192.168.56.1|vboxsf' | awk '{print $1}' | sort -r)
+      needs_umount=$(findmnt -m | egrep "${nfs_server}|vboxsf" | awk '{print $1}' | sort -r)
       if [ -n "${still_in_use}" ] ; then
         Verbose " /${BASEDIR} is still in use. (${still_in_use})"
         Verbose " umount skipped."
@@ -758,6 +786,7 @@ FlagSlashVagrant() {
         any_failed_unmounts=""
         for m in ${needs_umount}
         do
+          sync
           umount -f ${m} >/dev/null 2>&1
           rc=$? 
           if [ ${rc} -ne ${EX_OK} ] ; then
@@ -800,6 +829,7 @@ FlagSlashVagrant() {
       rc=$?
     fi
     if [ ${rc} -eq ${EX_OK} ] ; then
+      sync
       umount -f ${m} >/dev/null 2>&1
     fi
   done
