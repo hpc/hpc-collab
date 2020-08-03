@@ -9,3 +9,13 @@ Caution: do not change the contents of default_provider while virtual nodes are 
 
 Doing this may cause unprovisioning of the running nodes to use incorrect hypervisor interfaces,
 leaving nodes in an indeterminate, and possibly unrecoverable, state.
+
+---
+To force regeneration when changing providers:
+ - cd clusters/<CLUSTER>
+ - rm .regenerated
+ - rm Vagrantfile
+ - make generateproviderfiles Vagrantfile
+ - if /etc/hosts has been modified to include local IP addresses of virtual cluster nodes,
+   replace them with the updated common/etc/hosts entries from the new provider
+---
