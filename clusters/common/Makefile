@@ -517,6 +517,7 @@ $(NONEXISTENT_D)/%: $(POWEROFF_D)/%
 
 %_UNPROVISION: $(NONEXISTENT_D)/% ingest-state
 	$(UNPROVISION) $(subst _UNPROVISION,,$(@F))
+	$(DISABLE_RM) rm -f $(PROVISIONED_D)/$(subst _UNPROVISION,,$(@F))
 
 
 ###
