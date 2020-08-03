@@ -36,11 +36,12 @@ ensureIdle() {
 	local limit=90 #two-second cycles
 
   queueLength=$(squeue --format=%i --noheader | wc -l)
-  while [ ${queueLength} -gt 0 ] ; then
+  while [ ${queueLength} -gt 0 ] ; 
   do
     if [ ${queueLength} -ne 0 ] ; then
       echo "Queue is not idle; queue length=${queueLength}" | tee "${LOGDIR}/${TSTAMP}/${IAM}"
     fi
+    sleep ${TIMEOUT}
   done
   sleep ${TIMEOUT}
   return
