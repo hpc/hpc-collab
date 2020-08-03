@@ -126,7 +126,7 @@ ExitCodeNames[${EX_ALREADY}]='EX_ALREADY'
 ExitCodeNames[${EX_SIGBASE}]='EX_SIGBASE'
 
 ## see Log()
-declare -x DEFAULT_OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL:-"syslog-remote"}
+declare -x DEFAULT_OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL:-"syslog"}
 
 ## see main()
 declare -x TIMEOUT=${TIMEOUT:-300}
@@ -255,10 +255,10 @@ Log(){
   fi
 
   if [[ ${OUTPUT_PROTOCOL} == syslog ]] ; then
-      logger -t "${tag}" -S 4096 ${suffix}
+      ${prefix} | logger -t "${tag}" -S 4096 ${suffix}
 
   elif [[ ${OUTPUT_PROTOCOL} == syslog-remote ]] ; then
-    logger -t "${tag}" -S 4096 -P 514 --tcp -n ${OUTPUT_HOST} ${suffix}
+    ${prefix} | logger -t "${tag}" -S 4096 -P 514 --tcp -n ${OUTPUT_HOST} ${suffix}
     if [ $? -ne 0 ] ; then
       printf "logger(syslog-remote) failed"
       exit ${EX_SOFTWARE}
