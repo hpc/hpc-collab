@@ -133,6 +133,9 @@ TARBALLS_VBOXADD_ISO	= $(TARBALLS_D)/$(VBOXADD_ISO_SUF)
 XFR_PREREQ_PREMOUNT	= $(XFR_VBOXADD_ISO) $(XFR_REPOS_TGZ)
 XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 
+# must match ../common/bin/generateproviderfiles.sh
+GENERATED_FLAG_F		= $(CLUSTERS_DIR)/$(VC)/.regenerated
+
 VAGRANTFILE			= Vagrantfile
 VAGRANTFILE_D			= ../common/Vagrantfile.d
 VAGRANTFILE_SYNCEDFOLDERS_D	= $(VAGRANTFILE_D)/synced_folders.d
@@ -141,7 +144,7 @@ VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template		\
 				  $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)	\
 				  $(wildcard $(VAGRANTFILE_PROVIDERS_D)/*)
 
-PREREQ				= $(VAGRANTFILE) $(XFR_PREREQ)
+PREREQ				= $(GENERATED_FLAG_F) $(XFR_PREREQ) $(TARGET_PROVIDER_FILES)
 
 ### XXX @todo generate COMPLETE from the inverse of QUICK
 FLAGS			= RSYNC_CENTOS_REPO  SKIP_UPDATERPMS  SKIP_SW  BUILD_LUSTRE_FLAG
@@ -173,6 +176,7 @@ NODES_STATE		= $(subst $(STATE_D)/,,$(foreach s,$(STATE_LIST),$(wildcard $(STATE
 NODES_STATE_NONEXISTENT = $(notdir $(foreach s,nonexistent,$(wildcard $(STATE_D)/$(s)/*)))
 NODES_STATE_POWEROFF    = $(notdir $(foreach s,poweroff,$(wildcard $(STATE_D)/$(s)/*)))
 NODES_STATE_RUNNING     = $(notdir $(foreach s,running,$(wildcard $(STATE_D)/$(s)/*)))
+NODES_STATE_VAGRANT	= $(NODES_STATE_NONEXISTENT) $(NODES_STATE_POWEROFF) $(NODES_STATE_RUNNING)
 NODES_STATE_PROVISIONED = $(notdir $(foreach s,provisioned,$(wildcard $(STATE_D)/$(s)/*)))
 
 NODES_RUNNING		= $(foreach n,$(NODES),$(RUNNING_D)/$(n))
@@ -195,52 +199,53 @@ HUMANFRIENDLY_FLAGS	= $(QUICK_HUMANFRIENDLY_FLAG_NAMES) \
 
 SAVELOGS_TARGETS	= savelogs save-logs savelog save-log collectlogs collect-logs collectlog collect-log
 
-HUMANFRIENDLY_TARGETS	= clean clean-state compare-vc-cksum 				\
-				doc help 						\
-				ingest-state copyright show show-state show-vars status	\
-				todo validate verifylocalenv				\
+HUMANFRIENDLY_TARGETS	= clean clean-state clean-state-prune compare-vc-cksum			\
+				compilevagrantfile copyright doc generateproviderfiles help 	\
+				ingest-state show show-state show-vars status			\
+				todo validate verifylocalenv					\
 				$(SAVELOGS_TARGETS)
 
 
 PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
 
-.PHONY:	$(PHONY) clean-state-prune
+.PHONY:	$(PHONY)
 
-.DELETE_ON_ERROR: $(NODES_STATE) $(TARGET_PROVIDER_FILES)
+.DELETE_ON_ERROR: $(NODES_STATE_VAGRANT) $(TARGET_PROVIDER_FILES)
 
-all:	$(PREREQ) show
+all:	$(GENERATED_FLAG_F) $(PREREQ) show
 
 copyright:
 	$(HUSH)copyright.sh
 
 clean-state:
 	$(HUSH)mkdir -p $(STATE_DIRS_ALL)
-	$(HUSH)$(DISABLE_RM) rm -f $(RUNNING_D)/* $(POWEROFF_D)/* $(NONEXISTENT_D)/*
+	$(DISABLE_RM) rm -f $(NODES_STATE_VAGRANT)
 
 clean-state-prune:
-	$(HUSH)vagrant global-status --prune >/dev/null 2>&1 &
+	vagrant global-status --prune >/dev/null 2>&1 &
 
 clean: $(NONEXISTENT_FLAGS)
 	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE)~
 	$(HUSH)$(DISABLE_RM) rm -f $(DOXYGEN_OUT)
-	$(HUSH)$(DISABLE_RM) rm -f $(PROVISIONED_D)/*
 	$(HUSH)$(DISABLE_RM) rm -f $(TARGET_PROVIDER_FILES)
+	$(HUSH)$(DISABLE_RM) rm -f $(GENERATED_FLAG_F)
 
-dist-clean: clean
-	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE)
+dist-clean: clean unprovision
+	$(HUSH)$(DISABLE_RM) rm -f $(VAGRANTFILE) $(NODES_STATE_PROVISIONED)
 
-show show-state status:	$(VAGRANTFILE) compilevagrantfile $(STATE_DIRS_ALL) ingest-state
+show show-state status:	$(GENERATED_FLAG_F) $(STATE_DIRS_ALL) ingest-state
 ifneq ($(NODES_STATE_PROVISIONED),)
-	$(info		provisioned: $(sort $(NODES_STATE_PROVISIONED)))
-endif
-ifneq ($(NODES_STATE_RUNNING),)
-	$(info		booting: $(sort $(NODES_STATE_RUNNING)))
+	$(info	provisioned: $(sort $(NODES_STATE_PROVISIONED)))
+else
+ifneq ($(NODES_STATE_RUNNING),) 
+	$(info	running: $(sort $(NODES_STATE_RUNNING)))
 endif
 ifneq ($(NODES_STATE_POWEROFF),)
-	$(info		powered off: $(sort $(NODES_STATE_POWEROFF)))
+	$(info	powered off: $(sort $(NODES_STATE_POWEROFF)))
 endif
 ifneq ($(NODES_STATE_NONEXISTENT),)
-	$(info		nonexistent: $(sort $(NODES_STATE_NONEXISTENT)))
+	$(info	nonexistent: $(sort $(NODES_STATE_NONEXISTENT)))
+endif
 endif
 
 PAGER	?= less
@@ -255,6 +260,7 @@ show-vars:
 	$(HUSH)$(info TARGET_PROVIDER_FILES: $(TARGET_PROVIDER_FILES))
 	$(HUSH)$(info IAM:$(IAM) WHERE_INVOKED:$(WHERE_INVOKED))
 	$(HUSH)$(info VC:$(VC))
+	$(HUSH)$(info VAGRANTFILE:$(VAGRANTFILE))
 	$(HUSH)$(info )
 #	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
 #	$(HUSH)$(info PATH:		$(PATH))
@@ -352,20 +358,23 @@ flags flag: | $(PROVISION_FLAG_D)
 
 ###
 
-generateproviderfiles: $(TARGET_PROVIDER_FILES)
-
-$(TARGET_PROVIDER_FILES): $(SRC_PROVIDER_FILES)
+$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES)
 	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
 
-compilevagrantfile: $(VAGRANTFILE_PREREQ)
+generateproviderfiles: $(GENERATED_FLAG_F)
 
-$(VAGRANTFILE): $(VAGRANTFILE_PREREQ)
-	env VC=$(VC) $(COMPILE_VAGRANTFILE)
+$(TARGET_PROVIDER_FILES): $(GENERATED_FLAG_F)
+
+compilevagrantfile: $(VAGRANTFILE_PREREQ) $(GENERATED_FLAG_F)
+	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
+
+$(VAGRANTFILE): $(GENERATED_FLAG_F) $(VAGRANTFILE_PREREQ) $(TARGET_PROVIDER_FILES)
+	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
 
 validate: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES)
-	vagrant validate
+	cd $(CLUSTERS_DIR)/$(VC) ; vagrant validate
 
-ingest-state: $(VAGRANTFILE) clean-state
+ingest-state: $(GENERATED_FLAG_F) $(VAGRANTFILE) clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)
 
 verifylocalenv: $(VAGRANTFILE) $(STATE_DIRS_ALL)
@@ -434,7 +443,7 @@ NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS = $(foreach n,$(NODES),$(addprefix 
 $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS):
 
 # XXX @todo 'vmtouch -d -L -q -t $(PREREQ)' provided they're not $(PHONY)
-$(PROVISIONED_D)/%: $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
+$(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"		; \
 	for prereq in $^ $${_prereq_nodes}								; \
         do												  \
@@ -507,7 +516,7 @@ $(NONEXISTENT_D)/%: $(POWEROFF_D)/%
 	$(HUSH)vagrant destroy -f $(@F)
 
 %_UNPROVISION: $(NONEXISTENT_D)/% ingest-state
-	$(HUSH)$(UNPROVISION) $(subst _UNPROVISION,,$(@F))
+	$(UNPROVISION) $(subst _UNPROVISION,,$(@F))
 
 
 ###
