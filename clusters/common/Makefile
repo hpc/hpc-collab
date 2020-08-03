@@ -143,6 +143,7 @@ VAGRANTFILE_PROVIDERS_D		= $(VAGRANTFILE_D)/cfg.vm.providers.d
 VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template		\
 				  $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)	\
 				  $(wildcard $(VAGRANTFILE_PROVIDERS_D)/*)
+#				  ../common/flag/NO_NFS
 
 PREREQ				= $(GENERATED_FLAG_F) $(XFR_PREREQ) $(TARGET_PROVIDER_FILES)
 
@@ -357,8 +358,10 @@ flags flag: | $(PROVISION_FLAG_D)
 	$(HUSH)ls $(PROVISION_FLAG_D)
 
 ###
+common/etc/hosts:
+	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
 
-$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES)
+$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) common/etc/hosts
 	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
 
 generateproviderfiles: $(GENERATED_FLAG_F)
