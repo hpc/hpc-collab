@@ -22,7 +22,7 @@ Two representative HPC cluster recipes are provided.
 Cluster recipes are in the <EM>clusters</EM> directory.
 Presently, recipes generate clusters local to the installation host, only.
 
- <b>vc</b> is a virtual machine-based cluster, configured with the service-factored following nodes:
+ <b><A HREF="https://docs.google.com/drawings/d/1Pmpe4ME46ka51jlhaAQUsjzWNHZaQ2CEzc0_5UDuojI/edit?usp=sharing">vc</A></b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
  <LI><EM>vcfs</EM>     - provides file storage to other cluster nodes, including common configuration and logs (slurm, rsyslog)</LI>
  <LI><EM>vcsvc</EM>    - provides common in-bound services such as DNS, NTP, SYSLOG</LI>
@@ -36,7 +36,7 @@ Presently, recipes generate clusters local to the installation host, only.
  <LI><EM>vcgate</EM>   - externally-accessible node via bridged 3rd interface</LI>
  </UL>
 
- <b>vx</b> is a minimal, conjoined virtual-machine cluster, dependent upon "vc"
+ <b><A HREF="https://docs.google.com/drawings/d/1LwGtLiyhEtAaB3Spqj5NP7LyDIiOJ5DqdS5ZKP-Bz1g/edit?usp=sharing">vx</A></b> is a minimal, conjoined virtual-machine cluster, dependent upon vc-provided services and nodes"
  <UL>
  <LI><EM>vxsched</EM>  - provides the slurm controller and scheduler service, dependent upon vcdb, vcbuild, vcsvc, vcfs</LI>
  <LI><EM>vx[1-2]</EM>  - computational nodes</LI>
