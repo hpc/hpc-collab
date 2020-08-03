@@ -89,7 +89,7 @@ fi
 rc=${EX_OK}
 
 if [ -n "${need_build}" ] ; then
-  rpmbuild -ba ${SLURM_SPEC} --define "_topdir ${RPMBUILD}/"
+  rpmbuild -ba ${SLURM_SPEC} --define "_topdir ${RPMBUILD}/" --define "_enable_debug --with-debug"
   rc=$?
 fi
 

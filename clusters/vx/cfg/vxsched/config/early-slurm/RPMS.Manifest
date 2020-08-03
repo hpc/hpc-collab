@@ -1,3 +1,1 @@
-munge
-slurm
-slurm-slurmctld
+../../../../common/provision/config/early-slurm/RPMS.Manifest

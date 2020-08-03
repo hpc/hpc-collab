@@ -33,7 +33,7 @@ MpiDefault=pmi2
 #PrivateData=jobs
 ProctrackType=proctrack/cgroup
 #ProctrackType=proctrack/pgid
-Prolog=/etc/slurm/prolog.d/*
+#Prolog=/etc/slurm/prolog.d/*.sh
 PrologFlags=Alloc,X11
 #CliFilterPlugins=x11
 X11Parameters=local_xauthority,use_raw_hostname
@@ -94,7 +94,7 @@ PrologEpilogTimeout=180
 
 #MaxMemPerCPU=0
 #SchedulerTimeSlice=30
-SchedulerParameters=bf_continue,bf_interval=240,bf_max_job_user_part=10,bf_max_job_test=3000,default_queue_depth=3600,allow_zero_lic
+SchedulerParameters=bf_continue,bf_interval=240,bf_max_job_user_part=10,bf_max_job_test=3000,default_queue_depth=3600,allow_zero_lic,nohold_on_prolog_fail
 SchedulerType=sched/backfill
 SelectType=select/cons_res
 SelectTypeParameters=CR_CORE

@@ -28,12 +28,16 @@
         # claimed to address indefinite wait for "waiting for IP address" error, but causes:
         # "Call to virDomainCreateWithFlags failed: Unable to get index for interface eth0: No such device"
         #                    :libvirt__dhcp_enabled => false
+        #                      use_dhcp_assigned_default_route: true
         
-        # eth2, if it exists
+        # # eth2, if it exists, will be the bridged public NIC
+        # at this point, use link-local IP address which should be replaced by a bridged dhcp address
         if manifest[:bridge] then
           override.vm.network "public_network",
-															:ip     => manifest[:ip],
-															:bridge => manifest[:bridge]
+                              dev:    manifest[:bridge],
+                              bridge: manifest[:bridge],
+                              mode:   "bridge",
+                              ip:     "169.254.254.169"
         end # manifest[:bridge]
 
         if manifest[:adddiskpath] then

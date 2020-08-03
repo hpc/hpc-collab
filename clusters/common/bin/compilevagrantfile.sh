@@ -48,10 +48,14 @@ declare -x TSTAMP=$(date +%Y.%m.%d.%H%M)
 declare -x VAGRANTFILE_TMP1=${TMP}/${IAM}.${TSTAMP}.tmp1
 declare -x VAGRANTFILE_TMP2=${TMP}/${IAM}.${TSTAMP}.tmp2
 declare -x VAGRANTFILE_TARGET=$(realpath ${VC}/Vagrantfile)
+declare -x PROVIDER
+
+cd ${VC}
 
 chkConfig() {
   local which_fs=""
   local which_provider=""
+  local no_nfs
 
   for d in ANCHOR VAGRANTFILE_D SYNCEDFOLDERS_D CFG_VM_PROVIDERS_D
   do
@@ -84,11 +88,13 @@ chkConfig() {
   which_fs=${default_fs}
   no_nfs=""
 
-  if [ ! -f "${NO_NFS_F}" ] ; then
-    which_fs=nfs4
-
-  else
-    no_nfs=$(echo $(cat ${NO_NFS_F}))
+  if [ -f "${NO_NFS_F}" ] ; then
+    if [ -s "${NO_NFS_F}" ] ; then
+      no_nfs=$(echo $(cat ${NO_NFS_F}))
+    else
+      no_nfs="true"
+      which_fs="virtualbox"
+    fi
   fi
 
   if [ -s "${NO_NFS_F}" -a "${which_nfs}" = "nfs4" ] ; then
@@ -104,19 +110,24 @@ chkConfig() {
     "nfs4"|"nfs"|"virtualbox")
       ;;
     *|"")
-      echo "Warning: EX_CONFIG:  which_fs:${which_fs} != nfs4, nfs nor virtualbox, using default_fs:${default_fs}"
+      echo "EX_CONFIG:  which_fs:${which_fs} != nfs4, nfs nor virtualbox, using default_fs:${default_fs}"
       which_fs=${default_fs}
       ;;
   esac
 
   default_provider=$(cat ${DEFAULT_PROVIDER})
   which_provider=${default_provider}
+  if [ -z "${which_provider}" ] ; then
+    echo "EX_CONFIG: which_provider: empty"
+    exit ${EX_CONFIG}
+  fi
   if [ ! -f ${CFG_VM_PROVIDERS_D}/${which_provider} ] ; then
     echo "EX_CONFIG: VC:${VC} default_provider:${default_provider} does not exist"
     exit ${EX_CONFIG}
   fi
 
-  echo ${which_fs} ${which_provider}
+  echo "${which_fs}" "${which_provider}" "${no_nfs}"
+
   return
 }
 
@@ -125,6 +136,7 @@ main() {
   local argprovider=${1:-_default_provider_}
   local fstype=""
   local provider=""
+  local no_nfs=""
 
   configParams=($(chkConfig))
   rc=$?
@@ -140,8 +152,19 @@ main() {
     provider=$(echo ${configParams[1]})
   fi
 
+  if [ -z "${provider}" ] ; then
+    ErrExit ${EX_SOFTWARE} "provider: empty"
+  fi
+
+  no_nfs=$(echo ${configParams[2]})
   if [ "${fstype}" = "virtualbox" -a "${provider}" != "virtualbox" ] ; then
-    Warn ${EX_CONFIG} "Warning: fs:${fstype}, but provider:${provider} cannot provide fs:${fstype}; forcing fstype:nfs4"
+
+    msg="Warning: fs:${fstype}, but provider:${provider} "
+    if [ -n "${no_nfs}" ] ; then
+      msg="${msg} and NO_NFS:${no_nfs}"
+    fi
+    msg="${msg} cannot provide fs:${fstype}; forcing fstype:nfs4"
+    Warn ${EX_CONFIG} "${msg}"
     fstype=nfs4
   fi
 
@@ -154,7 +177,7 @@ main() {
 ##     4) cfg.vm.provider/<provider>
 
 #  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2}" 0
-
+  export PROVIDER=${provider}
   INSERT_NODES_PATTERN="_insert_nodes_"
   INSERT_NODES_LINENO=$(sed -n -e "/${INSERT_NODES_PATTERN}/=" < ${VAGRANTFILE_TEMPLATE})
   TRIM=$((${INSERT_NODES_LINENO} - 2))
@@ -193,31 +216,55 @@ main() {
   for f in HOSTS ETHERS
   do
     if [ ! -f ${!f} ] ; then
-      ErrExit ${EX_CONFIG} "${f}:${!f} not found"
+      ErrExit ${EX_CONFIG} "${IAM}: ${f}:${!f} not found"
     fi
   done
 
-  n_NODES=$(ls -d ${CFG}/${env_VC}*/attributes/bootorder | wc -l)
-  NODES_BOOTORDER=""
-
-  for i in $(seq 1 ${n_NODES})
+  nodelist=($(echo ${CFG}/*/attributes/bootorder/*))
+  n_NODES=$(echo ${nodelist[@]} | wc -w)
+  if [[ "${n_NODES}" = *"No such file or directory"* ]] ; then
+    ErrExit ${EX_CONFIG} "cluster recipe broken: cannot load node list:${n_NODES}"
+  fi
+  lowest_i=32768
+  for b in $(echo ${CFG}/*/attributes/bootorder/*)
   do
-    n=${CFG}/*/attributes/bootorder/${i}
-    if [ -f ${n} ] ; then
-      node=$(basename $(echo ${n}|sed -e 's/\/attributes\/bootorder\/.*//'))
-      sep=" "
-      if [ "${i}" = 1 ] ; then
-        sep=""
-      fi
-      if [ "${i}" = "${n_NODES}" ] ; then
-        LASTNODE="${node}"
-      fi
-      NODES_BOOTORDER="${NODES_BOOTORDER}${sep}${node}"
+    i=$(basename ${b})
+    if [ "${i}" -lt "${lowest_i}" ] ; then
+      lowest_i="${i}"
     fi
+  done
+  last_i=$(expr ${n_NODES} + ${lowest_i})
+  cfg_nodelist=""
+
+  for i in $(seq ${lowest_i} ${last_i})
+  do
+    node_paths=$(ls ${CFG}/*/attributes/bootorder/${i} 2>&1 | grep -v 'No such file or directory')
+    cfg_nodelist="${cfg_nodelist} ${node_paths}"
+  done
+
+  NODES_BOOTORDER=""
+  i=1
+  for c in ${cfg_nodelist}
+  do
+    p=$(realpath ${c})
+    d=$(dirname ${c})
+    np=$(realpath ${d}/../..)
+    n=$(basename ${np})
+
+    sep=" "
+    if [ -z "${NODES_BOOTORDER}" ] ; then
+      sep=""
+    fi
+    if [ "${i}" = "${n_NODES}" ] ; then
+      LASTNODE="${node}"
+    fi
+    NODES_BOOTORDER="${NODES_BOOTORDER}${sep}${n}"
+    i=$(expr ${i} + 1)
   done
   if [ -z "${NODES_BOOTORDER}" ] ; then
     ErrExit ${EX_CONFIG} "NODES_BOOTORDER: empty"
   fi
+
   n_NODES_ORDERED=$(wc -w <<< ${NODES_BOOTORDER})
   if [[ ${n_NODES_ORDERED} != ${n_NODES} ]] ; then
     ErrExit ${EX_CONFIG} "n_NODES_ORDERED:${n_NODES_ORDERED} != n_NODES:${n_NODES}"
@@ -227,7 +274,7 @@ main() {
     echo "${NODESTAB_PREFIX}"
     for n in ${NODES_BOOTORDER}
     do
-      CFG_NODE_D=${CFG}/${n}
+    CFG_NODE_D=${CFG}/${n}
       ATTR_D=${CFG_NODE_D}/attributes
 
       memory=$(ls ${ATTR_D}/memory)
@@ -299,7 +346,7 @@ main() {
     cat ${SYNCEDFOLDERS_D}/${fstype}
 
     sed -n -e "${SYNCEDFOLDERS_APPEND},${INSERT_PROVIDER_TRIM}p" < ${VAGRANTFILE_TEMPLATE}
-    cat ${CFG_VM_PROVIDERS_D}/${provider} ${VAGRANTFILE_TMP2}
+    cat ${CFG_VM_PROVIDERS_D}/${PROVIDER} ${VAGRANTFILE_TMP2}
   ) >> ${VAGRANTFILE_TMP1}
 
   #Rc ErrExit ${EX_OSFILE} "cp -buv ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TARGET}"

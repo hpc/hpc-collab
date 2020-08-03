@@ -1,1 +1,1 @@
-../../../provision/requires/vcsvc/2.socket-NTP
+../../../../common/provision/requires/vcsvc/2.socket-NTP

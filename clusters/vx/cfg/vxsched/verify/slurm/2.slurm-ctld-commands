@@ -19,10 +19,10 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
 
-exec > >(tee -a "${OUT}") 2>&1
-
+TIMEOUT=2
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sinfo              >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show part >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show res  >/dev/null"

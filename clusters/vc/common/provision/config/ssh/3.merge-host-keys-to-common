@@ -79,7 +79,7 @@ fi
 
 ### XXX determine this from a more general cluster configurator (superset of /etc/networks, &c)
 private_ip=""
-for i in $(ip -o -4 addr | grep -v ' lo ' | awk '{print $4}')
+for i in $(ip -o -4 addr | grep ' eth1 ' | awk '{print $4}')
 do
   j=$(echo $i | sed 's/\/[0-9]*$//')
   echo ${j} | grep -s ${privnet} >/dev/null 2>&1

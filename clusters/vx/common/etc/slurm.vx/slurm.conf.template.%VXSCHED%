@@ -1,0 +1,178 @@
+SlurmctldHost=vxsched(%VXSCHED%)
+#ControlMachine=vxsched
+AuthType=auth/munge
+CryptoType=crypto/munge
+DisableRootJobs=NO
+#Epilog=/etc/slurm/epilog.d/*
+#EpilogSlurmctld=
+FirstJobId=200000
+#MaxJobId=999999
+#GresTypes=
+#GroupUpdateForce=0
+#GroupUpdateTime=600
+#JobCheckpointDir=/var/slurm/checkpoint
+#JobCredentialPrivateKey=
+#JobCredentialPublicCertificate=
+#JobFileAppend=0
+JobRequeue=1
+PreemptMode=REQUEUE
+PreemptType=preempt/qos
+PreemptExemptTime=30:00
+#JobSubmitPlugins=lua
+#KillOnBadExit=0
+#LaunchType=launch/slurm
+#Licenses=foo*4,bar
+MailProg=/bin/true
+#MaxJobCount=5000
+#MaxStepCount=40000
+#MaxTasksPerNode=128
+MpiDefault=pmi2
+#MpiParams=ports=#-#
+#PluginDir=
+#PlugStackConfig=
+#PrivateData=jobs
+ProctrackType=proctrack/cgroup
+#ProctrackType=proctrack/pgid
+#Prolog=/etc/slurm/prolog.d/*.sh
+PrologFlags=Alloc,X11
+#CliFilterPlugins=x11
+X11Parameters=local_xauthority,use_raw_hostname
+#PrologSlurmctld=
+#PropagatePrioProcess=0
+#PropagateResourceLimits=
+PropagateResourceLimitsExcept=MEMLOCK
+RebootProgram=/sbin/reboot
+ReturnToService=2
+SallocDefaultCommand="srun -n1 -N1 --mem-per-cpu=0 --pty --preserve-env $SHELL"
+SlurmctldPidFile=/var/run/slurmctld.pid
+SlurmctldPort=6817
+SlurmctldParameters=preempt_send_user_signal
+SlurmdPidFile=/var/run/slurm/slurmd.pid
+SlurmdPort=6818
+SlurmdSpoolDir=/var/spool/slurm
+SlurmUser=root
+SlurmdUser=root
+#SrunEpilog=
+#SrunProlog=
+StateSaveLocation=/var/spool/slurm/state
+SwitchType=switch/none
+TaskPlugin=task/cgroup
+TaskPluginParam=Sched
+#TaskProlog=/opt/slurm/task_prolog
+#TaskEpilog=/opt/slurm/task_epilog
+TopologyPlugin=topology/none
+#TmpFS=/tmp
+TrackWCKey=yes
+#TreeWidth=
+#UnkillableStepProgram=
+#UsePAM=1
+#
+#
+# TIMERS
+#BatchStartTimeout=10
+#CompleteWait=0
+#EpilogMsgTime=2000
+#GetEnvTimeout=2
+HealthCheckInterval=300
+#HealthCheckProgram=/etc/slurm/nodecheck
+InactiveLimit=65533
+KillWait=30
+MessageTimeout=60
+#ResvOverRun=0
+MinJobAge=43200
+#OverTimeLimit=0
+SlurmctldTimeout=120
+SlurmdTimeout=300
+#UnkillableStepTimeout=60
+#VSizeFactor=0
+WaitTime=30
+PrologEpilogTimeout=180
+#
+#
+# SCHEDULING
+#DefMemPerCPU=0
+
+#MaxMemPerCPU=0
+#SchedulerTimeSlice=30
+SchedulerParameters=bf_continue,bf_interval=240,bf_max_job_user_part=10,bf_max_job_test=3000,default_queue_depth=3600,allow_zero_lic,nohold_on_prolog_fail
+SchedulerType=sched/backfill
+SelectType=select/cons_res
+SelectTypeParameters=CR_CORE
+DependencyParameters=kill_invalid_depend
+#
+#
+# JOB PRIORITY
+PriorityFlags=NO_FAIR_TREE
+PriorityType=priority/multifactor
+#PriorityCalcPeriod=
+#PriorityFavorSmall=NO
+#PriorityMaxAge=32-0
+##PriorityUsageResetPeriod=
+PriorityWeightAge=14400
+PriorityWeightFairshare=48000
+PriorityWeightJobSize=14400
+PriorityWeightPartition=0
+PriorityWeightQOS=64800
+#
+#
+#
+# LOGGING AND ACCOUNTING
+AccountingStorageEnforce=associations,limits,qos,safe
+AccountingStorageHost=vcdb
+AccountingStorageLoc=slurm_acct_db
+#AccountingStoragePass=
+#AccountingStoragePort=
+AccountingStorageType=accounting_storage/slurmdbd
+#AccountingStorageUser=
+AccountingStoreJobComment=YES
+ClusterName=vx
+DebugFlags=Agent,Backfill,BackfillMap,CPU_Bind,Dependency,License,Network,NodeFeatures,Power,Priority,Reservation,Steps,TraceJobs,Triggers,WorkQueue
+#JobCompPass=
+#JobCompPort=
+#JobCompType=jobcomp/script
+#JobCompLoc=/etc/slurm/jobcomp_hpcstats.sh
+#JobCompUser=
+#JobContainerType=job_container/none
+JobAcctGatherFrequency=30
+JobAcctGatherType=jobacct_gather/cgroup
+SlurmctldDebug=debug3
+SlurmctldLogFile=/var/log/slurm/slurmctld.vxsched.log
+SlurmdDebug=debug3
+SlurmdLogFile=/var/log/slurm/slurmd.%h.log
+SlurmSchedLogFile=/var/log/slurm/slurmsched.vxsched.log
+SlurmSchedLogLevel=3
+#
+#
+# POWER SAVE SUPPORT FOR IDLE NODES (optional)
+#SuspendProgram=
+#ResumeProgram=
+#SuspendTimeout=
+#ResumeTimeout=
+#ResumeRate=
+#SuspendExcNodes=
+#SuspendExcParts=
+#SuspendRate=
+#SuspendTime=
+#
+#
+# COMPUTE NODES
+#
+NodeName=DEFAULT Feature=centos7 Weight=1
+### virtual cluster aka vx
+NodeName=vx1     Feature=compute,allocatable,odd                State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vx2     Feature=compute,allocatable,even               State=UNKNOWN RealMemory=%NODE_MEM%
+
+# enable all (of these) nodes to be reported by tools such as 'sinfo' and 'scontrol show node'
+NodeName=vxlogin Feature=login,allocatable                      State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vxsched Feature=controller,scheduler,slurmctld		State=UNKNOWN RealMemory=%NODE_MEM%
+
+#
+# Two separate partitions which map to the same nodes:
+#  exclusive allocates whole nodes, only, but with a reduced maximum time limit and a lower priority
+#  shared allocates partial nodes, with an increased maximum time limit and a higher priority
+PartitionName=login     Nodes=vxlogin				  Default=NO   State=UP                        MaxTime=90-00:00:00	PriorityTier=1
+PartitionName=exclusive Nodes=vx[1-2] Oversubscribe=EXCLUSIVE	  Default=NO   State=UP	  DefaultTime=1:00:00  MaxTime=10-00:00:00	PriorityTier=100
+PartitionName=shared    Nodes=vx[1-2]				  Default=YES  State=UP	  DefaultTime=1:00:00  MaxTime=90-00:00:00	PriorityTier=1000
+PartitionName=infrastructure Nodes=vxsched			  Default=NO   State=Down DefaultTime=0:00:01  MaxTime=00:00:30         PriorityTier=0
+
+

@@ -1,0 +1,42 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/requires/vcfs/3.dns-query
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+declare -x IPADDR=$(cat ipaddr)
+
+Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
+
+Rc ErrExit ${EX_OSERR}  "systemctl restart chronyd"
+sleep ${TIMEOUT}
+Rc ErrExit ${EX_OSERR}  "chronyc tracking"
+
+refid=$(chronyc -c ntpdata | sed 's/,/ /g' | awk '{print $1}')
+if [ -z "${refid}" ] ; then
+  ErrExit ${EX_OSERR} "ntp (chrony) is still unsynchronized; empty refid"
+fi
+if [ "${refid}" != "${IPADDR}" ] ; then
+  Warn ${EX_OSERR} "    refid: ${refid} != ipaddr:${IPADDR} "
+fi
+
+trap '' 0
+exit ${EX_OK}

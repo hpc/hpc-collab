@@ -105,18 +105,59 @@ else
   declare -x DEFAULT_ORDER_OF_OPERATIONS=${NORMAL_ORDER_OF_OPERATIONS}
 fi
 
+## @fn order()
+##
+OrderNodeList() {
+  local n
+  local i
+  local ordered
+  local numeric="[0-9]+"
+  local n_nodes
+  local nodelist=($@)
+
+  # walk through the given node list
+  # if bootorder <  i, prepend node to ordered list
+  # if bootorder >= i, append node to ordered list
+  # XXX @future if bootorder == i, put in parallelizable list, don't increment index
+  n_nodes=$#
+  i=1
+  for i in $(seq 1 ${n_nodes})
+  do
+    n=$1
+    local cl=${n:0:2}
+    local nodes_i=$(ls /${cl}/cfg/${cl}*/attributes/bootorder/${i})
+    local nodepath
+    for nodepath in ${nodes_i}
+    do
+      local d=$(dirname ${nodepath})
+      local r=$(realpath ${d}/../..)
+      local n=$(basename ${r})
+      if [[ ${ordered} = *${n}* ]] ; then
+        continue
+      fi
+      ordered[$i]="${n}"
+    done
+    shift
+  done
+  echo ${ordered[@]}
+  return
+}
+
 ## @fn WaitForPrerequisites()
 ##
 WaitForPrerequisites() {
   local nodes
   local retries
+  local nodesOrdered
 
   if [ ! -d "${REQUIREMENTS}" ] ; then
     return
   fi
 
   nodes=$(echo $(ls ${REQUIREMENTS}))
-  for _n in ${nodes}
+  nodesOrdered=($(OrderNodeList ${nodes}))
+
+  for _n in ${nodesOrdered[@]}
   do
     Verbose " ${_n}"
     local required=$(ls ${REQUIREMENTS}/${_n})
@@ -211,7 +252,7 @@ GetOSVersion() {
 declare -A RequiredCommands
 # @todo build this via introspection of ourselves
 # [base] linux-distribution independent required commands
-RequiredCommands[base]="awk base64 basename cat dirname echo fmt grep head hostname logger ls mkdir pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
+RequiredCommands[base]="awk base64 basename cat dirname echo env fmt grep head hostname ifconfig ip logger ls mkdir pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
 # [cray] Cray-specific required commands
 RequiredCommands[cray]=""
 # [rhel] RHEL or RHEL-alike (TOSS, CentOS, &c) required commands
@@ -317,6 +358,11 @@ VerifyEnv() {
     Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${d}"
   done
 
+  if [ -n "${JUMBOFRAMES}" ] ; then
+    ## host-only private network tuning
+    ifconfig eth1 mtu 9000
+  fi
+
   ClearNodeState all
   MarkNodeState "${STATE_RUNNING}"
 
@@ -361,7 +407,10 @@ MarkNodeState() {
 ## consumers expect that both may exist and know to honor PROVISIONED over RUNNING
 ##
 MarkNodeProvisioned() {
+  Rc ErrExit ${EX_OSFILE} "mount -o remount,sync,relatime /"
+  sync
   MarkNodeState "${STATE_PROVISIONED}"
+  sync
   ClearNodeState "${STATE_RUNNING}"
   Rc ErrExit ${EX_OSFILE} "mount -o remount,async,relatime /"
   return
@@ -569,19 +618,29 @@ CopyCommon() {
   local size
   local from=/${CLUSTERNAME}/common
   local to=/home${from}
+  local skip=""
 
   if [ -L "${VC}" ] ; then
     ErrExit ${EX_OSFILE} "${VC}: symlink"
   fi
   if [ -L "${to}" ] ; then
     Verbose "  to:${to}: symlink, skipped"
+    skip="true-symlink"
   fi
-  size=$(du -x -s -m ${from} --exclude=repos\* | awk 'BEGIN {total=0} {total += $1} END {print total}')
-  Verbose " ${size}Mb  ${from} => ${to}"
+  if [ -d "${to}" -o -L "${to}" ] ; then
+    to_fstype=$(stat -f --format "%T" ${to})
+  fi
+  if [ "${to_fstype}" = "nfs" ] ; then
+    skip="true-nfs-to"
+  fi
+  if [ -z "${skip}" ] ; then
+    size=$(du -x -s -m ${from} --exclude=repos\* | awk 'BEGIN {total=0} {total += $1} END {print total}')
+    Verbose " ${size}Mb  ${from} => ${to}"
 
-  Rc ErrExit ${EX_OSFILE} "mkdir -p ${to}"
-  Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${from} . | \
+    Rc ErrExit ${EX_OSFILE} "mkdir -p ${to}"
+    Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${from} . | \
                               (cd ${to}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
+  fi
   # prevent easy errors such as accidental modification of the transient in-cluster fs
   Rc ErrExit ${EX_OSFILE} "chmod -R ugo-w ${to}/provision"
   if [ -L "${to}/home" ] ; then
@@ -686,7 +745,7 @@ CopyHomeVagrant() {
 ##
 LinkSlashVagrant() {
   if [ -d "${VC}" -a ! -L "${VC}" ] ; then
-    Rc ErrExit ${EX_SOFTWARE} "cd /; umount -f ${VC}; rmdir ${VC}; ln -s ${HOMEVAGRANT}"
+    Rc ErrExit ${EX_SOFTWARE} "cd /; sync; umount -f ${VC}; rmdir ${VC}; ln -s ${HOMEVAGRANT}"
   fi
   return
 }
@@ -695,6 +754,7 @@ LinkSlashVagrant() {
 ## @fn FlagSlashVagrant()
 ##
 FlagSlashVagrant() {
+  nfs_server=$(awk '/virtual-cluster-net/ {print $2}' /etc/networks | sed 's/0$/1/')
 
   if [ -n "${PREVENT_SLASHVAGRANT_MOUNT}" ] ; then
     local opwd=$(pwd)
@@ -705,8 +765,20 @@ FlagSlashVagrant() {
     awk '{print $5}' < /proc/self/mountinfo | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
     fstype=$(stat -f --format "%T" ${BASEDIR})
     if [ $? -eq ${GREP_FOUND} ] ; then
+      for s in HUP TERM KILL
+      do
+        pgrep -u root --signal ${s} tee >/dev/null 2>&1
+        rc=$?
+        # 1 = no processes signalled or matched
+        if [ "${rc}" -eq "1" ] ; then
+          break
+        fi
+        sleep 0.5
+      done
+      pkill -u root tee >/dev/null 2>&1
+      sleep 0.5
       still_in_use=$(lsof | grep -i cwd | awk '{print $9}' | grep '/' | sort | uniq | egrep "^/${BASEDIR}")
-      needs_umount=$(findmnt -m | egrep '192.168.56.1|vboxsf' | awk '{print $1}' | sort -r)
+      needs_umount=$(findmnt -m | egrep "${nfs_server}|vboxsf" | awk '{print $1}' | sort -r)
       if [ -n "${still_in_use}" ] ; then
         Verbose " /${BASEDIR} is still in use. (${still_in_use})"
         Verbose " umount skipped."
@@ -714,6 +786,7 @@ FlagSlashVagrant() {
         any_failed_unmounts=""
         for m in ${needs_umount}
         do
+          sync
           umount -f ${m} >/dev/null 2>&1
           rc=$? 
           if [ ${rc} -ne ${EX_OK} ] ; then
@@ -756,6 +829,7 @@ FlagSlashVagrant() {
       rc=$?
     fi
     if [ ${rc} -eq ${EX_OK} ] ; then
+      sync
       umount -f ${m} >/dev/null 2>&1
     fi
   done

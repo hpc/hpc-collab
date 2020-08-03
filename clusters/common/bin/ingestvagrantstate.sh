@@ -87,16 +87,16 @@ do
 		;;
 	"nonexistent"|"not created"|"")
 		touch ${nonexistent}/${n}
-    for _f in ${running}/${n} ${poweroff}/${n} ${provisioned}/${n}
+    for _f in ${running}/${n} ${poweroff}/${n}
     do
       if [ -f ${_f} ] ; then
         ${DISABLE_RM} rm -f ${_f}
       fi
     done
 		;;
-# ### ### "")
-# ### ###	no_state="${no_state} ${n}"
-# ### ###	;;
+ "")
+  no_state="${no_state} ${n}"
+  ;;
 	*)
 		${DISABLE_RM} rm -f ${provisioned}/${n} ${running}/${n}
 		;;

@@ -1,3 +1,10 @@
+For Fedora 31 or 32, the following kernel boot option is *required* for libvirt/kvm functionality:
+  systemd.unified_cgroup_hierarchy=0 
+If using the (recommended) refind boot manager, this should be set in /boot/refind_linux.conf.
+---
+libvirt timeouts getting IP address are more frequent with recent libvirt/kvm/Linux kernels.
+(fedora32/5.7.10-201.fc32)
+---
 Caution: do not change the contents of default_provider while virtual nodes are running.
 
 Doing this may cause unprovisioning of the running nodes to use incorrect hypervisor interfaces,

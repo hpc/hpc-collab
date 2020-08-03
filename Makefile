@@ -12,7 +12,7 @@ SUBDIRS				= $(dir $(SUBDIRS_WITH_MAKEFILE_RAW))
 IAM				= $(notdir ${CURDIR})
 TSTAMP	       		       := $(shell date +%y%m%d.%H%M)
 
-HUMAN_FRIENDLY			= prereq prerequisites
+HUMAN_FRIENDLY			= prereq prerequisites requires
 TARGETS				= all clean clean-state show up down unprovision provision savelogs
 
 REQUIRES_D			= requires
@@ -30,7 +30,6 @@ PREREQ_ERROR_EXIT		= 99
 
 .PHONY: $(PREREQ) $(SUBDIRS) $(HUMAN_FRIENDLY) $(TARGETS)
 
-$(HUMAN_FRIENDLY): $(PREREQ) $(basename $(PREREQ_LIST))
 
 $(TARGETS): $(PREREQ) $(SUBDIRS)
 
@@ -60,7 +59,7 @@ $(PREREQ_INGEST): $(PREREQ_STORAGE)
 
 # @todo => gmake function, also fuzzier match
 # @todo move to subsidiary Makefile
-prerequisites prereq: $(PREREQ_LIST)
+$(HUMAN_FRIENDLY): $(PREREQ) $(PREREQ_LIST) $(basename $(PREREQ_LIST))
 	$(MAKE) -C clusters/vx Vagrantfile
 	$(MAKE) -C clusters/vc Vagrantfile
 	$(MAKE) -C requires/storage

@@ -56,8 +56,5 @@ do
 done
 Verbose "${msg}"
 
-# work around SchedMD bug #8849
-Rc ErrExit ${EX_OSERR} "ssh -o \"StrictHostKeyChecking no\" vxsched systemctl restart slurmctld ; "
-
 trap '' 0
 exit ${EX_OK}
