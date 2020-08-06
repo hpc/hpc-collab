@@ -28,9 +28,9 @@
 declare -x RETRY_LIMIT="7"
 declare -x ERREXIT_PRINT_CALL_STACK=${ERREXIT_PRINT_CALL_STACK:-"true"}
 
-# see ParseArgs(): -D = debug, -j record existing jobs, -m monitor jobs
-declare -x DEFAULT_DEBUG_ARGS="-D -j -m"
-declare -x DEFAULT_NODEBUG_ARGS="-j -m"
+# see ParseArgs(): -D = debug, -j record or link existing jobs, -m monitor jobs, -l link mode
+declare -x DEFAULT_DEBUG_ARGS="-D -j -m -l"
+declare -x DEFAULT_NODEBUG_ARGS="-j -m -l"
 declare -x DEFAULT_ARGS=${DEFAULT_NODEBUG_ARGS}
 
 declare -x PG_DEPTH_LIMIT=${RETRY_LIMIT}
@@ -51,9 +51,14 @@ declare -x SENSITIVITY_NOTICE=${SENSITIVITY_NOTICE:-"Notice: These contents are 
 
 # How we store the job script, a function name to invoke
 RECORD="Log"
+declare -x LINKMODE=""
+# the following is relative to SlurmStateSaveLocation
+LINKROOT_SUFFIX="../xfr"
+LINKROOT=""
 
 ## see Log(), setebug, VerifyEnv
-declare -x DEFAULT_OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL:-"syslog-remote"}
+#declare -x DEFAULT_OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL:-"syslog-remote"}
+declare -x DEFAULT_OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL:-"syslog"}
 declare -x DEFAULT_CRAY_OUTPUT_PROTOCOL=${DEFAULT_CRAY_OUTPUT_PROTOCOL:-"syslog"}
 
 # see TidyUp()
@@ -516,8 +521,8 @@ GetOSVersion() {
   local v
   v=$(grep -E '^ID=' /etc/os-release | sed 's/ID=//' | sed 's/"//g')
   case "${v}" in
-    rhel|"Red Hat Enterprise Linux"*|RHEL)     os_version="rhel"   ;;
-    sles|"SUSE Linux Enterprise Server"*|SLES) os_version="sles"   ;;
+    rhel|"Red Hat Enterprise Linux"*|RHEL|centos)	os_version="rhel"   ;;
+    sles|"SUSE Linux Enterprise Server"*|SLES)		os_version="sles"   ;;
     *) ErrExit ${EX_CONFIG} "/etc/os-release unrecognized: \"${v}\"" ;;
   esac
 
@@ -529,7 +534,7 @@ GetOSVersion() {
 declare -A RequiredCommands
 # @todo build this via introspection of ourselves
 # [base] linux-distribution independent required commands
-RequiredCommands[base]="awk base64 basename cat cksum dirname echo grep head hostname inotifywait ln logger ls md5sum jq pgrep ping printf pwd rm su sed setsid strings sum tail test touch tr wc"
+RequiredCommands[base]="awk base64 basename cat cksum dirname echo grep head hostname inotifywait ln logger ls md5sum pgrep ping printf pwd rm su sed setsid strings sum tail test touch tr wc"
 ##XXX amqp-publish: https://github.com/selency/amqp-publish
 ##XXX RequiredCommands[base]="amqp-publish ${RequiredCommands[base]}"
 # [cray] Cray-specific required commands
@@ -815,22 +820,47 @@ RecordAFile() {
       ErrExit ${EX_SOFTWARE} "jobdir/file (${jobdir}/${file}): unreadable"
     fi
 
-    # minimal conversion:
-    # - scripts get their newlines stripped, remove non-ASCII characters
-    # - environment converts null termination to whitespace, and emits colated
-    case ${file} in
-    script)      converted=$(awk 1 ORS=' \\n ' < ${filepath} | sed 's/"//g' | sed "s/'//g" | tr -cd '[[:print:]]') ;;
-    environment) converted=$(echo $(strings  < ${filepath} | sort) | tr -cd '[[:print:]]')                         ;;
-    *)           Log "Warning: Unexpected job component file found: ${filepath}"                                   ;;
+    case "${LINKMODE}" in
+    "")
+      # minimal conversion:
+      # - scripts get their newlines stripped, remove non-ASCII characters
+      # - environment converts null termination to whitespace, and emits colated
+      case ${file} in
+      script)      converted=$(awk 1 ORS=' \\n ' < ${filepath} | sed 's/"//g' | sed "s/'//g" | tr -cd '[[:print:]]') ;;
+      environment) converted=$(echo $(strings  < ${filepath} | sort) | tr -cd '[[:print:]]')                         ;;
+      *)           Log "Warning: Unexpected job component file found: ${filepath}"                                   ;;
+      esac
+      base64encoded=$(echo $(echo $(base64 ${filepath})) | tr -d '[[:blank:]]')
+      cksum=$(echo $(cksum ${filepath} || md5sum ${filepath}) | awk '{print $1}')
+
+      ## record both the converted script, so that indexing and query tools may look inside the script,
+      ## and also store the encoded and checksummed script for recovery & debugging of that job
+
+      Record JOBID=${jobid} FILE=${file} ${converted} SENSITIVITY_NOTICE=${SENSITIVITY_NOTICE}
+      Record JOBID=${jobid} FILE=${file} CKSUM[${file}]=${cksum} BASE64ENCODED=${base64encoded} SENSITIVITY_NOTICE=${SENSITIVITY_NOTICE}
+      ;;
+    "link")
+	if [ -z "${LINKROOT}" ] ; then
+	  if [ ! -d "${STATESAVELOC}" ] ; then
+	    ErrExit ${EX_SOFTWARE} "STATESAVELOC:${STATESAVELOC} not a directory"
+	  fi
+	  LINKROOT=$(realpath ${STATESAVELOC}/${LINKROOT_SUFFIX})
+	  if [ ! -d "${LINKROOT}" ] ; then
+	    mkdir -p ${LINKROOT} || ErrExit ${EX_IOERROR} "mkdir -p LINKROOT:${LINKROOT}"
+	  fi
+	fi
+	fs_jobdir=$(stat -f --format "%i" ${jobdir})
+	fs_linkroot=$(stat -f --format "%i" ${LINKROOT})
+	# hardlink is best, because job files disappear after the job run, but we attempt to function in either case
+	if [ "${fs_jobdir}" != "${fs_linkroot}" ] ; then
+	  ln -s ${jobdir} ${LINKROOT}/${jobid} || ErrExit ${EX_OSFILE} "ln -s filepath:${filepath} LINKROOT/jobid:${LINKROOT}/${jobid}"
+	else
+	  mkdir -p ${LINKROOT}/${jobid} || ErrExit ${EX_OSFILE} "mkdir -p LINKROOT/jobid:${LINKROOT}/${jobid}"
+	  ln -f ${filepath} ${LINKROOT}/${jobid} || ErrExit ${EX_OSFILE} "ln -f filepath:${filepath} LINKROOT/jobid:${LINKROOT}/${jobid}"
+
+	fi
+      ;;
     esac
-    base64encoded=$(echo $(echo $(base64 ${filepath})) | tr -d '[[:blank:]]')
-    cksum=$(echo $(cksum ${filepath} || md5sum ${filepath}) | awk '{print $1}')
-
-    ## record both the converted script, so that indexing and query tools may look inside the script,
-    ## and also store the encoded and checksummed script for recovery & debugging of that job
-
-    Record JOBID=${jobid} FILE=${file} ${converted} SENSITIVITY_NOTICE=${SENSITIVITY_NOTICE}
-    Record JOBID=${jobid} FILE=${file} CKSUM[${file}]=${cksum} BASE64ENCODED=${base64encoded} SENSITIVITY_NOTICE=${SENSITIVITY_NOTICE}
 }
 
 RecordAJob() {
@@ -926,9 +956,10 @@ ParseArgs() {
   local opt
   local _doWhat=""
   local _setdebug=""
+  local _setlinkmode=""
   _doWhat=""
 
-  while getopts "DjmS?" opt; do
+  while getopts "DjlmS?" opt; do
     case "${opt}" in
     "D")
         _setdebug="setdebug"
@@ -938,6 +969,11 @@ ParseArgs() {
         # recording jobs should happen first
         _doWhat="RecordHashDirs ${_doWhat}"
         ;;
+
+    "l")
+        _setlinkmode="setLinkMode"
+        ;;
+
     "m")
         # monitoring for events never (should) exit, append it
         _doWhat="${_doWhat} MonitorHashDirs"
@@ -964,7 +1000,7 @@ ParseArgs() {
     esac
   done
 
-  echo "${_setdebug} ${_doWhat}"
+  echo "${_setlinkmode} ${_setdebug} ${_doWhat}"
   exit ${EX_OK}
 }
 
@@ -991,6 +1027,10 @@ main() {
     export OUTPUT_PROTOCOL=stdout
     #LOG_TO_STDERR="true"
     DoWhat=${DoWhat#setdebug }
+  fi
+  if [[ "$DoWhat" =~ "setLinkMode" ]] ; then
+    export LINKMODE="link"
+    DoWhat=${DoWhat#setLinkMode }
   fi
 
   if [ ${parsedOk} -eq ${EX_OK} ] ; then
@@ -1040,5 +1080,4 @@ exit ${EX_SOFTWARE}
 #
 _USAGE_
 
-# vim: tabstop=2 shiftwidth=2 expandtab background=dark syntax=enable
-
+# vim: background=dark expandtab shiftwidth=2 syntax=enable tabstop=2
