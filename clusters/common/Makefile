@@ -358,8 +358,6 @@ flags flag: | $(PROVISION_FLAG_D)
 	$(HUSH)ls $(PROVISION_FLAG_D)
 
 ###
-common/etc/hosts:
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
 
 $(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) common/etc/hosts
 	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
@@ -474,6 +472,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	  vagrant --timestamp up --provision $(@F)							; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
+	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
 	    exit 107											; \
 	  else												  \
