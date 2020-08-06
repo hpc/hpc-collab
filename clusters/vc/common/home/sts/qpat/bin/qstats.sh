@@ -1,10 +1,38 @@
 #!/bin/bash
 
+## $Header: $
+## Source: https://git.lanl.gov/sts/qstats
+## @file qstats.sh
+## @author LANL/HPC/ENV/WLM/sts Steven Senator sts@lanl.gov
+## @note This script is mostly written in POSIX style, with a soupçon of bashisms.
+## This is a consequence of the author's heritage, and deadlines, not due to a requirement.
+##
+
+## @page Copyright
+## <h2>© 2019-2020. Triad National Security, LLC. All rights reserved.</h2>
+## &nbsp;
+## <p>This program was produced under U.S. Government contract 89233218CNA000001
+## for Los Alamos National Laboratory (LANL), which is operated by Triad National Security, LLC
+## for the U.S. Department of Energy/National Nuclear Security Administration.</p>
+## <p>All rights in the program are reserved by Triad National Security, LLC, and the
+## U.S. Department of Energy/National Nuclear Security Administration. The US federal Government
+## is granted for itself and others acting on its behalf a nonexclusive, paid-up, irrevocable
+## worldwide license in this material to reproduce, prepare derivative works, distribute copies
+## to the public, perform publicly and display publicly, and to permit others to do so.</p>
+## <p>The public may copy and use this information without charge, provided that this Notice
+## and any statement of authorship are reproduced on all copies. Neither the Government
+## nor Triad National Security, LLC makes any warranty, express or implied, or assumes any
+## liability or responsibility for the use of this information.</p>
+## <p>This program has been approved for release from LANS by LA-CC Number 10-066, being part of
+## the HPC Operational Suite.</p>
+## &nbsp;
+##
+
 #
 # qstats.sh
 #  Usage:  qstats.sh [-a] [-b] [-B] [-c] [-C] [-d] [-f] [-F] [-l] [-L] [-N] [-n] [-p] [-P] [-q] [-r] [-R] [-S|-D] [-s] [-t] [-u] [-w] [--boot]
 #
-# Remember: Usually this file is being executed by cron. Edit a copy.
+
 #
 # Retrieves and lists the following slurm data:
 #  [-a] accounts: fair share for accounts
@@ -494,7 +522,7 @@ SetEnv() {
   if [ -z "${SHOW_CONFIG}" ] ; then
     ErrExit ${EX_SOFTWARE} "empty SHOW_CONFIG"
   fi
-  if [[ ${SHOW_CONFIG} = *fail* ]] ; then
+  if [[ ${SHOW_CONFIG} = *"fail "* ]] ; then
     ErrExit ${EX_SOFTWARE} "show config: ${SHOW_CONFIG}"
   fi
   export CLUSTERNAME=$(scontrol show config | grep ClusterName | awk '{print $3}')
