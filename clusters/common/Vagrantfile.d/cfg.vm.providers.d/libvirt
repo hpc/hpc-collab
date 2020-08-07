@@ -23,7 +23,7 @@
         
         # eth1
         override.vm.network "private_network",
-                             :ip                    => manifest[:ip],
+                             :ip                    => manifest[:ip]
 
         # claimed to address indefinite wait for "waiting for IP address" error, but causes:
         # "Call to virDomainCreateWithFlags failed: Unable to get index for interface eth0: No such device"
@@ -37,7 +37,7 @@
         # possibly: (https://github.com/vagrant-libvirt/vagrant-libvirt/issues/235)
         #   lv.nic_model_type => "rtl8139"
         # or, the reputably slower, but claimed more reliable:
-            lv.nic_model_type => "e1000"
+        #    lv.nic_model_type => "e1000"
         
         # # eth2, if it exists, will be the bridged public NIC
         # at this point, use link-local IP address which should be replaced by a bridged dhcp address
