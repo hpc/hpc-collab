@@ -1782,7 +1782,7 @@ UserVerificationJobs() {
           echo ' '
         fi
         if [ ${EX_OK} -eq ${_rc} ] ; then
-          Rc ErrExit ${EX_OSFILE} "echo '[DISABLED]' rm -f ${out} >/dev/null 2>&1"
+          Rc ErrExit ${EX_OSFILE} "rm -f ${out} >/dev/null 2>&1"
         else
           ClearNodeState "${STATE_PROVISIONED}"
           MarkNodeState "${STATE_RUNNING}"
