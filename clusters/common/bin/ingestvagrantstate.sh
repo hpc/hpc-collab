@@ -76,7 +76,7 @@ do
 	vg_state=$(echo "${vagrant_status}" | grep $n | awk '{print $4}')
 
 	case "${vg_state}" in
-	"running")
+	"running"|"preparing")
 		if [ -f ${provisioned}/${n} ] ; then
 			${DISABLE_RM} rm -f ${running}/${n}
 		fi
@@ -98,7 +98,8 @@ do
   no_state="${no_state} ${n}"
   ;;
 	*)
-		${DISABLE_RM} rm -f ${provisioned}/${n} ${running}/${n}
+    echo "[DEBUG] vg_state:${vg_state} -- would remove ${provisioned}/${n} and/or ${running}/${n}"
+		#${DISABLE_RM} rm -f ${provisioned}/${n} ${running}/${n}
 		;;
 	esac
 done

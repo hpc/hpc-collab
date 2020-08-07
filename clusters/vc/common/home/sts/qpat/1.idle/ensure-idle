@@ -1,10 +1,9 @@
 #!/bin/bash
 
-set -o errexit
 set -o pipefail
 set -o nounset
 
-PATH=${PATH}:../bin
+export PATH=${PATH}:../bin
 
 LOGDIR=../logs
 TSTAMP=$(date +%y%m%d.%H%M)
@@ -24,11 +23,11 @@ prepOut() {
 }
 
 dumpStats() {
-  logger -t ${IAM} -- "dump queue stats: begin"
+  logger -t ${IAM} -- "dump queue stats: begin" </dev/null
   echo "Output: ${LOGDIR}/${TSTAMP}/${IAM}"
   qstats.sh ${QSTATS_STDOUT_PARAMETERS} | tee ${LOGDIR}/${TSTAMP}/${IAM}
   qstats.sh ${QSTATS_PARAMETERS}
-  logger -t ${IAM} -- "dump queue stats: end"
+  logger -t ${IAM} -- "dump queue stats: end" </dev/null
   return
 }
 
@@ -36,13 +35,15 @@ ensureIdle() {
 	local limit=90 #two-second cycles
 
   queueLength=$(squeue --format=%i --noheader | wc -l)
-  while [ ${queueLength} -gt 0 ] ; then
+  while [ ${queueLength} -gt 0 ] ; 
   do
     if [ ${queueLength} -ne 0 ] ; then
-      echo "Queue is not idle; queue length=${queueLength}" | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+      echo "Queue is not idle; queue length=${queueLength}, pausing: ${TIMEOUT}" | tee "${LOGDIR}/${TSTAMP}/${IAM}"
     fi
+    sleep ${TIMEOUT}
+    TIMEOUT=$(expr ${TIMEOUT} + ${TIMEOUT})
+    queueLength=$(squeue --format=%i --noheader | wc -l)
   done
-  sleep ${TIMEOUT}
   return
 }
 

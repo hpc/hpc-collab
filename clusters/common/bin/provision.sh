@@ -252,7 +252,7 @@ GetOSVersion() {
 declare -A RequiredCommands
 # @todo build this via introspection of ourselves
 # [base] linux-distribution independent required commands
-RequiredCommands[base]="awk base64 basename cat dirname echo env fmt grep head hostname ifconfig ip logger ls mkdir pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
+RequiredCommands[base]="awk base64 basename cat dirname echo env fmt grep head hostname ifconfig ip logger ls mkdir pgrep pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
 # [cray] Cray-specific required commands
 RequiredCommands[cray]=""
 # [rhel] RHEL or RHEL-alike (TOSS, CentOS, &c) required commands
@@ -763,20 +763,26 @@ FlagSlashVagrant() {
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
     awk '{print $5}' < /proc/self/mountinfo | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
+    rc=$?
+
     fstype=$(stat -f --format "%T" ${BASEDIR})
-    if [ $? -eq ${GREP_FOUND} ] ; then
-      for s in HUP TERM KILL
+    if [ ${rc} -eq ${GREP_FOUND} ] ; then
+      for c in 4.sync-NTP tee
       do
-        pgrep -u root --signal ${s} tee >/dev/null 2>&1
-        rc=$?
-        # 1 = no processes signalled or matched
-        if [ "${rc}" -eq "1" ] ; then
-          break
-        fi
+        for s in HUP TERM KILL
+        do
+          pgrep -u root --signal ${s} ${c} >/dev/null 2>&1
+          rc=$?
+          # 1 = no processes signalled or matched
+          if [ "${rc}" -eq "1" ] ; then
+            break
+          fi
+          sleep 0.5
+        done
+        pkill -u root ${c} >/dev/null 2>&1
         sleep 0.5
       done
-      pkill -u root tee >/dev/null 2>&1
-      sleep 0.5
+
       still_in_use=$(lsof | grep -i cwd | awk '{print $9}' | grep '/' | sort | uniq | egrep "^/${BASEDIR}")
       needs_umount=$(findmnt -m | egrep "${nfs_server}|vboxsf" | awk '{print $1}' | sort -r)
       if [ -n "${still_in_use}" ] ; then
@@ -786,8 +792,8 @@ FlagSlashVagrant() {
         any_failed_unmounts=""
         for m in ${needs_umount}
         do
-          sync
-          umount -f ${m} >/dev/null 2>&1
+          Rc ErrExit ${EX_OSFILE} "sync"
+          Rc Warn ${EX_OSFILE} "umount -f ${m} >/dev/null 2>&1"
           rc=$? 
           if [ ${rc} -ne ${EX_OK} ] ; then
             any_failed_unmounts="${any_failed_unmounts} ${m}"
@@ -1776,7 +1782,7 @@ UserVerificationJobs() {
           echo ' '
         fi
         if [ ${EX_OK} -eq ${_rc} ] ; then
-          Rc ErrExit ${EX_OSFILE} "echo '[DISABLED]' rm -f ${out} >/dev/null 2>&1"
+          Rc ErrExit ${EX_OSFILE} "rm -f ${out} >/dev/null 2>&1"
         else
           ClearNodeState "${STATE_PROVISIONED}"
           MarkNodeState "${STATE_RUNNING}"
