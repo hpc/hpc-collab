@@ -1785,6 +1785,7 @@ UserVerificationJobs() {
           Rc ErrExit ${EX_OSFILE} "rm -f ${out} >/dev/null 2>&1"
         else
           ClearNodeState "${STATE_PROVISIONED}"
+          ClearNodeState "${STATE_NONEXISTENT}"
           MarkNodeState "${STATE_RUNNING}"
           ErrExit ${_rc} "UserVerificationJobs(${_x}) failed, rc=${_rc}"
         fi
