@@ -457,6 +457,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	      echo "prerequisite: $${prereq}"								; \
 	    fi												; \
 	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}	; \
+	    $(INGEST_STATE)										; \
 	    continue											; \
 	  fi												; \
 	  if [ ! -f "$${prereq}" ] ; then								  \
@@ -464,6 +465,10 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	    exit 105											; \
 	  fi												; \
 	done												; \
+	if [ -f $(NONEXISTENT_D)/$(@F) ] ; then								  \
+	  vagrant destroy -f $(@F)									; \
+	  $(INGEST_STATE)										; \
+	fi												; \
 	if [ -f $(RUNNING_D)/$(@F) -a ! -f $(PROVISIONED_D)/$(@F) ] ; then				  \
 	  vagrant destroy -f $(@F) || exit 106								; \
 	fi								    			  	; \
@@ -473,10 +478,12 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
 	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
+	    $(INGEST_STATE)										; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
 	    exit 107											; \
 	  else												  \
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
+	    $(INGEST_STATE)										; \
 	  fi												; \
 	fi
 
