@@ -62,8 +62,8 @@ foreach n ($nodes)
   set cl=`echo ${n}| cut -c1-2`
   set cluster_dir=${CLUSTERS}/${cl}
   alias	"${n}"		"nohup make -C ${cluster_dir} ${n}; date"
-  alias	"${n}!"		"make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n}"
-  alias	"${n}--"	"make -C ${cluster_dir} ${n}_UNPROVISION; show"
+  alias	"${n}!"		"make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n}"
+  alias	"${n}--"	"make -C ${cluster_dir} ${n}_UNPROVISION"
 
   set iscompute=`expr index ${n} '0123456789'`
   if ( "${iscompute}" != 0 ) then
@@ -72,8 +72,8 @@ foreach n ($nodes)
 
   # yes, this redefines the alias for multiple nodes; that's not costly in csh
   alias	"${cl}"		"nohup make -C ${cluster_dir} up; date"
-  alias	"${cl}--"	"make -C ${cluster_dir} unprovision; show"
-  alias	"${cl}!"	"make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up"
+  alias	"${cl}--"	"make -C ${cluster_dir} unprovision"
+  alias	"${cl}!"	"make -C ${cluster_dir} unprovision; nohup make -C ${cluster_dir} up"
 end
 
 set computes="${computes} "

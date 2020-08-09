@@ -52,8 +52,8 @@ do
 
   declare -x cluster_dir=${CLUSTERS}/${cl}
   alias	"${n}"="echo output in: ${n}.out; nohup make -C ${cluster_dir} ${n} &"
-  alias	"${n}!"="echo output in: ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; show; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out &"
-  alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION; show"
+  alias	"${n}!"="echo output in: ${n}.out; make -C ${cluster_dir} ${n}_UNPROVISION; nohup make -C ${cluster_dir} ${n} 2>&1 >${n}.out &"
+  alias	"${n}--"="make -C ${cluster_dir} ${n}_UNPROVISION"
 
   if [[ ${n} = *?[0-9]* ]] ; then
     computes="${computes} ${n}"
@@ -61,8 +61,8 @@ do
 
   # yes, this redefines the alias for multiple nodes; that is not costly
   alias	"${cl}"="(nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out ) &"
-  alias	"${cl}--"="make -C ${cluster_dir} unprovision; show"
-  alias	"${cl}!"="(make -C ${cluster_dir} unprovision; show; nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out) &"
+  alias	"${cl}--"="make -C ${cluster_dir} unprovision"
+  alias	"${cl}!"="(make -C ${cluster_dir} unprovision; nohup make -C ${cluster_dir} up 2>&1 >${cl}.up.out ; echo output in: ${cl}.up.out) &"
 done
 
 computes() {
