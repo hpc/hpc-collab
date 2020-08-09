@@ -83,7 +83,7 @@ By default it is <EM>virtualbox</EM>. The configuration flag <EM>clusters/common
 When changing these settings, it may be necessary to <EM>rm clusters/common/{vc,vx}/.regenerated</EM>.
 The <EM>Vagrantfile</EM> is dynamically composed based on these configuration parameters.
 Each virtualization provider uses different ranges of private IP address space for its own cluster-internal
-private network. For conveneience, <EM>cat clusters/vc/common/etc/hosts >> /etc/hosts</EM>, when regenerating
+private network. For convenience, <EM>cat clusters/vc/common/etc/hosts >> /etc/hosts</EM>, when regenerating
 the various configuration files for each virtualization provider.</P>
 
 <P>
