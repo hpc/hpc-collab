@@ -377,7 +377,7 @@ main() {
     Warn ${EX_CONFIG} "provider:${provider} requires NFS, but NO_NFS flag is set."
   fi
 
-  if [ -n "${DO_EXTREMELY_SLOW_CALLOUT_TO_VAGRANT}" ] ; then
+#  if [ -n "${DO_EXTREMELY_SLOW_CALLOUT_TO_VAGRANT}" ] ; then
     # any existent nodes from a different provider than what we have requested?
     running_nodes=$(vagrant global-status | \
                     egrep -i '(running|shutoff|poweredoff|halt)' | grep -v "${provider}" | \
@@ -385,7 +385,7 @@ main() {
     if [ -n "${running_nodes}" ] ; then
       ErrExit ${EX_CONFIG} "There are running nodes: ${running_nodes} that were not provisioned by: ${provider}."
     fi
-  fi
+#  fi
 
   KEYS=($(primeSubstKeys ${provider}))
   buildNodeToIPMap

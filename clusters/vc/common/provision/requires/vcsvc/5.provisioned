@@ -36,9 +36,9 @@ Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_POWEROFF}"
 Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_RUNNING}"
 Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test -d ${STATE_PROVISIONED}"
 
+Rc Warn ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_NONEXISTENT}"
 Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_POWEROFF}"
 Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_RUNNING}"
-Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_NONEXISTENT}"
 Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} test   -f ${REQUIRED_PROVISIONED}"
 
 trap '' 0

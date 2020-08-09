@@ -38,9 +38,9 @@ Rc ErrExit 6  "timeout ${TIMEOUT} test -d ${POWEROFF}"
 Rc ErrExit 7  "timeout ${TIMEOUT} test -d ${RUNNING}"
 Rc ErrExit 8  "timeout ${TIMEOUT} test -d ${PROVISIONED}"
 
-Rc ErrExit 10 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_POWEROFF}"
-Rc ErrExit 11 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_RUNNING}"
-Rc ErrExit 12 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_NONEXISTENT}"
+Rc Warn 10 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_NONEXISTENT}"
+Rc ErrExit 11 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_POWEROFF}"
+Rc ErrExit 12 "timeout ${TIMEOUT} test ! -f ${REQUIRED_NOT_RUNNING}"
 Rc ErrExit 13 "timeout ${TIMEOUT} test   -f ${REQUIRED_PROVISIONED}"
 
 trap '' 0

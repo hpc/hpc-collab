@@ -98,7 +98,14 @@ PROVISION_ENV	 	= $(PROVISION_D)/env
 PROVISION_BIN	 	= $(PROVISION_D)/bin
 
 DISABLE_RM_FLAG_FILE	= $(PROVISION_FLAG_D)/DISABLE_RM
-DISABLE_RM		:= $(shell test -s ${PROVISION_FLAG_D}/DISABLE_RM && cat ${PROVISION_FLAG_D}/DISABLE_RM)
+DISABLE_RM	       := $(shell test -s ${PROVISION_FLAG_D}/DISABLE_RM && cat ${PROVISION_FLAG_D}/DISABLE_RM)
+MIN_TIMEOUT_SECS	= 900
+DEFAULT_TIMEOUT_SECS    = 1200
+NODE_TIMEOUT	       := $(shell (test -s ${PROVISION_FLAG_D}/DEFAULT_NODE_TIMEOUT && cat ${PROVISION_FLAG_D}/DEFAULT_NODE_TIMEOUT) || echo $(DEFAULT_TIMEOUT_SECS))
+TIMEOUT_LT_MIN	       := $(shell (test $(MIN_TIMEOUT_SECS) -gt $(NODE_TIMEOUT) && echo "timeout_lessthan_minimum"))
+ifeq ($(TIMEOUT_LT_MIN),"timeout_lessthan_minimum")
+NODE_TIMEOUT	       := $(MIN_TIMEOUT_SECS)
+endif
 
 TARBALLS		= tarballs
 TARBALLS_D		= ../../$(TARBALLS)
@@ -457,6 +464,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	      echo "prerequisite: $${prereq}"								; \
 	    fi												; \
 	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}	; \
+	    $(INGEST_STATE)										; \
 	    continue											; \
 	  fi												; \
 	  if [ ! -f "$${prereq}" ] ; then								  \
@@ -464,26 +472,32 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	    exit 105											; \
 	  fi												; \
 	done												; \
+	if [ -f $(NONEXISTENT_D)/$(@F) ] ; then								  \
+	  vagrant destroy -f $(@F)									; \
+	  $(INGEST_STATE)										; \
+	fi												; \
 	if [ -f $(RUNNING_D)/$(@F) -a ! -f $(PROVISIONED_D)/$(@F) ] ; then				  \
 	  vagrant destroy -f $(@F) || exit 106								; \
 	fi								    			  	; \
 	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      			 	  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  vagrant --timestamp up --provision $(@F)							; \
+	  timeout --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)		; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
 	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
+	    $(INGEST_STATE)										; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
 	    exit 107											; \
 	  else												  \
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
+	    $(INGEST_STATE)										; \
 	  fi												; \
 	fi
 
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  vagrant up --no-provision $(@F)						    	; \
+	  timeout --kill-after=1 $(NODE_TIMEOUT)s vagrant up --no-provision $(@F)		    	; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then								  	  \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
@@ -492,7 +506,7 @@ $(RUNNING_D)/%: $(PREREQ) ingest-state
 	  fi												; \
 	elif [ -f $(POWEROFF_D)/$(@F) ] ; then								  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  vagrant up --no-provision $(@F)								; \
+	  timeout -k $(NODE_TIMEOUT) vagrant up --no-provision $(@F)					; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \

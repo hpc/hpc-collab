@@ -6,6 +6,8 @@
 
 ## @brief This library file contains routines that emit messages.
 
+declare -x LOG_TO_STDERR=""
+
 ## @fn Log()
 ## emit a message to to stderr & syslog
 ## @param ErrorMessage
@@ -82,8 +84,12 @@ Verbose() {
 
 Warn() {
   local _ec=${1}
+  local _old_log_stderr
   shift
+  _old_log_stderr="${LOG_TO_STDERR}"
+  export LOG_TO_STDERR="true"
   Log ${ExitCodeNames[${_ec}]}:${_ec} $@
+  LOG_TO_STDERR=${_old_log_stderr}
   return
 }
 
