@@ -143,7 +143,7 @@ for all nodes in the cluster, <EM>&lt;CL&gt;</EM>:
 <CL>		  = equivalent to 'make up'
 <CL>--		  = equivalent to 'make nodename_UNPROVISION'
 <CL>!		  = equivalent to 'make nodename_UNPROVISION; make nodename'
-			    unprovision and force reprovisioning
+		    force unprovision and reprovisioning
 ~~~
 </P>
 <P>
