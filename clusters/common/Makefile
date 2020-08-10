@@ -367,7 +367,7 @@ flags flag: | $(PROVISION_FLAG_D)
 ###
 
 $(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) common/etc/hosts
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
+	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
 
 generateproviderfiles: $(GENERATED_FLAG_F)
 
