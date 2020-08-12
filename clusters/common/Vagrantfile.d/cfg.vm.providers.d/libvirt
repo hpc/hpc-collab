@@ -1,4 +1,12 @@
 
+      if !Vagrant.has_plugin?('vagrant-libvirt')
+        puts 'The vagrant-libvirt plugin is not found (!Vagrant.has_plugin?("vagrant-libvirt").'
+        puts 'To install: "vagrant plugin install vagrant-libvirt" or switch the virtualization provider'
+        puts 'specified in "Vagrantfile.d/cfg.vm.providers.d/default_provider" to "virtualbox"'
+        puts 'You may also need to "touch common/provision/flag/NO_NFS".'
+        abort
+      end
+
       cfg.vm.provider :libvirt do |lv, override|
         override.vm.hostname = hostnm
 
