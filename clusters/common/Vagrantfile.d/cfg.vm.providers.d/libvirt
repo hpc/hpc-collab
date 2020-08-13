@@ -62,9 +62,8 @@
             #
             # Libvirt provider: "absolute volume paths like '/tmp/vcfs_repodisk.vdi' not yet supported"
             #        :path           => manifest[:adddiskpath],
-            #
-                     :size           => REPODISK_SIZE * 1024,
-                     :allow_existing => true
+            #        :allow_existing => true,
+                     :size           => REPODISK_SIZE * 1024
         end # manifest[:adddiskpath]
 
         override.trigger.before [:up] do |noduplicate|
