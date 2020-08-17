@@ -1,0 +1,10 @@
+vcfs	100
+vcsvc	100
+vcbuild	91
+vcdb	83
+vcaltdb	75
+vcsched	70
+vc1	63
+vc2	56
+vclogin	31
+vcgate	26
