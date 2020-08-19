@@ -20,6 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 # 1. stop the replica mysql instance
 Rc ErrExit ${EX_SOFTWARE} "systemctl stop mysqld"
 
@@ -43,6 +45,7 @@ fi
 TSTAMP=`date +%Y.%m.%d.%H:%M`
 TMP=${PROD}.${IAM}.${TSTAMP}.db
 declare -x PRIMARY_DB_DUMP=${TMPDIR:-/tmp}/${TMP}
+trap "rm -f \"${PRIMARY_DB_DUMP}\"" 0
 
 if [ ! -f ${MYSQL_PW_F} ] ; then
   ErrExit ${EX_CONFIG} "MYSQL_PW_F:${MYSQL_PW_F} does not exist"
@@ -58,6 +61,7 @@ USER=$(id -u -n)
 
 exec 3> >(mysql -rBs --host=${PRIMARY_DB_HOST} --user=${USER} "${AUTH}")
 echo "FLUSH TABLES WITH READ LOCK;" >&3
+trap "pkill mysql; rm -f \"${PRIMARY_DB_DUMP}\"" 0
 
 # 3. in separate session, while the read lock is still in effect (ie 1st command is still open), 'SHOW MASTER STATUS'
 declare -x MASTER_POS
@@ -73,16 +77,16 @@ if [[ ${MASTER_STATUS} =~ *"Access denied"* ]] ; then
   ErrExit ${EX_SOFTWARE} "could not retrieve MASTER_STATUS from PRIMARY_DB_HOST:${PRIMARY_DB_HOST} - MASTER_STATUS:${MASTER_STATUS}"
 fi
 
-MASTER_POS=$(echo ${MASTER_STATUS}| awk '{print $2}')
-MASTER_BINLOG=$(echo ${MASTER_STATUS}| awk '{print $1}')
+export MASTER_POS=$(echo ${MASTER_STATUS}| awk '{print $2}')
+export MASTER_BINLOG=$(echo ${MASTER_STATUS}| awk '{print $1}')
 
 # 4. take note of: POSITION in binlog
 #     if the log file name is empty, use binlog of '' and POSITION=4 (this should rarely or not be the case)
 numeric="[0-9]+"
 if ! [[ ${MASTER_POS} =~ ${numeric} ]] ; then
-  Warn ${EX_CONFIG} "binlog position set to 4; no binlog file reported from PRIMARY_DB_HOST:${PRIMARY_DB_HOST}"
-  MASTER_POS=4
-  MASTER_BINLOG=''
+  ErrExit ${EX_CONFIG} "binlog position set to 4; binlog file set to ''"
+  export MASTER_POS=4
+  export MASTER_BINLOG=''
 fi
 
 # 5. issue 'mysqldump' generating data dump (keep lock in place)
@@ -92,10 +96,13 @@ Rc ErrExit ${EX_OSERR} "mv ${PRIMARY_DB_DUMP} ${COMMON_ROOT}"
 # 6. on the primary, release the read lock
 echo "UNLOCK TABLES;" >&3
 echo "EXIT" >&3
+trap "rm -f \"${PRIMARY_DB_DUMP}\"" 0
 
-# 7.  start the replica mysql invocation with '--skip-slave-start'
-mysqld --user=mysql --skip-slave-start </dev/null &
-sleep 7
+## 7.  start the replica mysql invocation with '--skip-slave-start'
+#mysqld --user=mysql --skip-slave-start --relay-log=${HOSTNAME}-relay-bin </dev/null &
+Rc ErrExit ${EX_OSERR} "systemctl start mysqld"
+trap "systemctl stop mysqld; rm -f \"${PRIMARY_DB_DUMP}\"" 0
+# verify it's ready for a connection 
 Rc ErrExit ${EX_OSERR} "echo 'exit' | mysql --user=${USER} ${AUTH}"
 
 # 8. restore the data to the replica:
@@ -111,22 +118,32 @@ Rc ErrExit ${EX_OSFILE} "rm -f ${COMMON_ROOT}/${TMP}"
 trap "" 0
 
 # 9.  issue the 'CHANGE MASTER' invocation
+
+if ! [[ ${MASTER_POS} =~ ${numeric} ]] ; then
+  ErrExit ${EX_SOFTWARE} "MASTER_POS:${MASTER_POS} is non-numeric"
+fi
+if [ -z "${MASTER_BINLOG}" ] ; then
+  ErrExit ${EX_SOFTWARE} "MASTER_BINLOG:${MASTER_BINLOG} is empty"
+fi
+
 mysql --line-numbers --user=${USER} ${AUTH} << _CHANGE_MASTER_CMD_
 CHANGE MASTER TO
 MASTER_HOST = '${PRIMARY_DB_HOST}',
 MASTER_PORT = 3306,
 MASTER_USER = '${USER}',
 MASTER_PASSWORD = '${MYSQL_PW}',
-MASTER_LOG_FILE = '${MASTER_BINLOG}',
-MASTER_LOG_POSITION = '${MASTER_POS}';
+MASTER_LOG_POS = ${MASTER_POS},
+MASTER_LOG_FILE = '${MASTER_BINLOG}';
+exit
 _CHANGE_MASTER_CMD_
+rc=$?
+if [ ${rc} -ne ${EX_OK} ] ; then
+  ErrExit ${EX_SOFTWARE} "mysql CHANGE MASTER TO rc:${rc}"
+fi
+
 # 10.  stop & restart the replica mysqld without '--skip-slave-start'
-for s in HUP TERM KILL
-do
-  Rc ErrExit ${EX_OSERR} "pkill --signal ${s} mysqld"
-  sleep 0.3
-done
 Rc ErrExit ${EX_OSERR} "pkill mysqld"
+sleep 1
 
 # 11.  issue the 'start slave' with a "normally started" mysqld service
 Rc ErrExit ${EX_OSERR} "systemctl start mysqld"
@@ -137,12 +154,9 @@ Rc ErrExit ${EX_OSERR} "echo 'START SLAVE;' | mysql --user=${USER} ${AUTH}"
 Rc ErrExit ${EX_OSERR} "echo 'SHOW SLAVE STATUS;' | mysql -rBs --user=${USER} ${AUTH}"
 Rc ErrExit ${EX_OSERR} "echo 'SHOW DATABASES;' | mysql -rBs --user=${USER} ${AUTH}"
 
-# 13. check some table values
+# 13. check some tables; could be more thorough here
 last_ran=$(timeout ${TIMEOUT} mysql --user=${USER} ${AUTH} --database=slurm_acct_db \
-	--skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran)
-if ! [[ ${last_ran} =~ ${numeric} ]] ; then
-	ErrExit ${EX_SOFTWARE} "last_ran:${last_ran}"
-fi
+	--skip-column-names --execute 'show tables;' | grep ${HOSTNAME:0:2}_last_ran)
 trap '' 0
 exit ${EX_OK}
 
