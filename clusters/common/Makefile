@@ -481,7 +481,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	fi								    			  	; \
 	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      			 	  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  timeout --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)		; \
+	  timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)	; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
 	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
@@ -497,7 +497,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  timeout --kill-after=1 $(NODE_TIMEOUT)s vagrant up --no-provision $(@F)		    	; \
+	  timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant up --no-provision $(@F)		; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then								  	  \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
@@ -506,7 +506,7 @@ $(RUNNING_D)/%: $(PREREQ) ingest-state
 	  fi												; \
 	elif [ -f $(POWEROFF_D)/$(@F) ] ; then								  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  timeout -k $(NODE_TIMEOUT) vagrant up --no-provision $(@F)					; \
+	  timeout --foreground -k $(NODE_TIMEOUT) vagrant up --no-provision $(@F)			; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
