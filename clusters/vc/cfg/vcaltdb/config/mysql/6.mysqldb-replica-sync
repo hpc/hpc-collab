@@ -1,0 +1,149 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcaltdb/config/x-cleanup/1.synchronize-db-replica
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+# 1. stop the replica mysql instance
+Rc ErrExit ${EX_SOFTWARE} "systemctl stop mysqld"
+
+isinactive=$(systemctl status mysqld | grep 'Active: ' | awk '{print $2}')
+if [ "${isinactive}" != "inactive" ] ; then
+  ErrExit ${EX_SOFTWARE} "mysqld is still active: \"${isinactive}\""
+fi
+
+declare -x COMMON_ROOT=${COMMON}/root
+declare -x MYSQL_PW_F=${COMMON_ROOT}/mysql_pw
+declare -x MYSQL_PW
+declare -x PRIMARY_DB_HOST=${HOSTNAME:0:2}db
+
+if [ -z "${IAM}" ] ; then
+  IAM=$(basename ${0})
+fi
+if [ -z "${PROD}" ] ; then
+  pwd=$(pwd)
+  PROD=$(basename ${pwd})
+fi
+TSTAMP=`date +%Y.%m.%d.%H:%M`
+TMP=${PROD}.${IAM}.${TSTAMP}.db
+declare -x PRIMARY_DB_DUMP=${TMPDIR:-/tmp}/${TMP}
+
+if [ ! -f ${MYSQL_PW_F} ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_PW_F:${MYSQL_PW_F} does not exist"
+fi
+if [ ! -s ${MYSQL_PW_F} ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_PW_F:${MYSQL_PW_F} empty"
+fi
+MYSQL_PW=$(cat ${MYSQL_PW_F})
+AUTH="--password=${MYSQL_PW}"
+USER=$(id -u -n)
+
+# 2. issue 'FLUSH TABLES WITH READ LOCK' and hold connection open
+
+exec 3> >(mysql -rBs --host=${PRIMARY_DB_HOST} --user=${USER} "${AUTH}")
+echo "FLUSH TABLES WITH READ LOCK;" >&3
+
+# 3. in separate session, while the read lock is still in effect (ie 1st command is still open), 'SHOW MASTER STATUS'
+declare -x MASTER_POS
+declare -x MASTER_BINLOG
+MASTER_STATUS=$(echo "SHOW MASTER STATUS;" | mysql --host=${PRIMARY_DB_HOST} -rBs --user=${USER} ${AUTH} | tail -1)
+if [ -z "${MASTER_STATUS}" ] ; then
+  ErrExit ${EX_SOFTWARE} "could not retrieve MASTER_STATUS from PRIMARY_DB_HOST:${PRIMARY_DB_HOST} - empty"
+fi
+if [[ ${MASTER_STATUS} =~ "You have an error in your SQL syntax" ]] ; then
+  ErrExit ${EX_SOFTWARE} "could not retrieve MASTER_STATUS from PRIMARY_DB_HOST:${PRIMARY_DB_HOST} - SQL error:${MASTER_STATUS}"
+fi
+if [[ ${MASTER_STATUS} =~ *"Access denied"* ]] ; then
+  ErrExit ${EX_SOFTWARE} "could not retrieve MASTER_STATUS from PRIMARY_DB_HOST:${PRIMARY_DB_HOST} - MASTER_STATUS:${MASTER_STATUS}"
+fi
+
+MASTER_POS=$(echo ${MASTER_STATUS}| awk '{print $2}')
+MASTER_BINLOG=$(echo ${MASTER_STATUS}| awk '{print $1}')
+
+# 4. take note of: POSITION in binlog
+#     if the log file name is empty, use binlog of '' and POSITION=4 (this should rarely or not be the case)
+numeric="[0-9]+"
+if ! [[ ${MASTER_POS} =~ ${numeric} ]] ; then
+  Warn ${EX_CONFIG} "binlog position set to 4; no binlog file reported from PRIMARY_DB_HOST:${PRIMARY_DB_HOST}"
+  MASTER_POS=4
+  MASTER_BINLOG=''
+fi
+
+# 5. issue 'mysqldump' generating data dump (keep lock in place)
+Rc ErrExit ${EX_OSERR} "mysqldump --host=${PRIMARY_DB_HOST} --user=${USER} ${AUTH} --all-databases --master-data > ${PRIMARY_DB_DUMP}"
+Rc ErrExit ${EX_OSERR} "mv ${PRIMARY_DB_DUMP} ${COMMON_ROOT}"
+
+# 6. on the primary, release the read lock
+echo "UNLOCK TABLES;" >&3
+echo "EXIT" >&3
+
+# 7.  start the replica mysql invocation with '--skip-slave-start'
+mysqld --user=mysql --skip-slave-start </dev/null &
+sleep 7
+Rc ErrExit ${EX_OSERR} "echo 'exit' | mysql --user=${USER} ${AUTH}"
+
+# 8. restore the data to the replica:
+#    mysql < db dump from (5)
+if [ ! -f ${COMMON_ROOT}/${TMP} ] ; then
+  ErrExit ${EX_OSERR} "COMMON_ROOT/TMP:${COMMON_ROOT}/${TMP} does not exist"
+fi
+if [ ! -s ${COMMON_ROOT}/${TMP} ] ; then
+  ErrExit ${EX_OSERR} "COMMON_ROOT/TMP:${COMMON_ROOT}/${TMP} is empty"
+fi
+Rc ErrExit ${EX_OSERR} "mysql --user=${USER} ${AUTH} < ${COMMON_ROOT}/${TMP}"
+Rc ErrExit ${EX_OSFILE} "rm -f ${COMMON_ROOT}/${TMP}"
+trap "" 0
+
+# 9.  issue the 'CHANGE MASTER' invocation
+mysql --line-numbers --user=${USER} ${AUTH} << _CHANGE_MASTER_CMD_
+CHANGE MASTER TO
+MASTER_HOST = '${PRIMARY_DB_HOST}',
+MASTER_PORT = 3306,
+MASTER_USER = '${USER}',
+MASTER_PASSWORD = '${MYSQL_PW}',
+MASTER_LOG_FILE = '${MASTER_BINLOG}',
+MASTER_LOG_POSITION = '${MASTER_POS}';
+_CHANGE_MASTER_CMD_
+# 10.  stop & restart the replica mysqld without '--skip-slave-start'
+for s in HUP TERM KILL
+do
+  Rc ErrExit ${EX_OSERR} "pkill --signal ${s} mysqld"
+  sleep 0.3
+done
+Rc ErrExit ${EX_OSERR} "pkill mysqld"
+
+# 11.  issue the 'start slave' with a "normally started" mysqld service
+Rc ErrExit ${EX_OSERR} "systemctl start mysqld"
+Rc ErrExit ${EX_OSERR} "systemctl status mysqld"
+Rc ErrExit ${EX_OSERR} "echo 'START SLAVE;' | mysql --user=${USER} ${AUTH}"
+
+# 12. check some status
+Rc ErrExit ${EX_OSERR} "echo 'SHOW SLAVE STATUS;' | mysql -rBs --user=${USER} ${AUTH}"
+Rc ErrExit ${EX_OSERR} "echo 'SHOW DATABASES;' | mysql -rBs --user=${USER} ${AUTH}"
+
+# 13. check some table values
+last_ran=$(timeout ${TIMEOUT} mysql --user=${USER} ${AUTH} --database=slurm_acct_db \
+	--skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran)
+if ! [[ ${last_ran} =~ ${numeric} ]] ; then
+	ErrExit ${EX_SOFTWARE} "last_ran:${last_ran}"
+fi
+trap '' 0
+exit ${EX_OK}
+
+# vim: background=dark
