@@ -2,12 +2,13 @@
 
 ## $Header: $
 ## Source:
-## @file vcdb/install/slurm/4.mysqld-service-on-early
+## @file vcaltdb/install/slurm/4.mysqld-service-on-early
 
 ## @brief start mysqld service early, as required by slurm configurator
 
 VCLOAD=../../../provision/loader/shload.sh
 declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+declare -x PRIMARY_DB_HOST=${HOSTNAME:0:2}db
 
 if [ ! -f "${VCLOAD}" ] ; then
   echo "${0}: missing: ${VCLOAD}"
@@ -23,6 +24,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 MY_CONF=/etc/my.cnf
 tstamp=`date +%Y.%m.%d.%H:%M`
 
@@ -34,33 +37,79 @@ if [ ${iam} != "root" ] ; then
 fi
 
 declare -x ETC_NETWORKS=/etc/networks
-declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+declare -x COMMON_ROOT=${COMMON}/root
+declare -x DB_NEW_PW_F=${COMMON_ROOT}/mysql_pw
+declare -x RESET_ALREADY_FLAG=${DB_NEW_PW_F}.${HOSTNAME}
+
+trap "rm -f ${RESET_ALREADY_FLAG}" 0
 
 MYSQL_TMPW=$(journalctl -xe | grep 'mysqld_pre_systemd.*temporary password is generated' | tail -1 | awk '{print $18}')
 declare -x NEW_PW
 
-if [ ! -f "${RESET_ALREADY_FLAG}" ] ; then
-  ErrExit ${EX_CONFIG} "RESET_ALREADY_FLAG:${RESET_ALREADY_FLAG} does not exist. Is vcdb provisioned?"
+if [ ! -f "${DB_NEW_PW_F}" ] ; then
+  ErrExit ${EX_CONFIG} "DB_NEW_PW_F:${DB_NEW_PW_F} does not exist. Is ${PRIMARY_DB_HOST} provisioned?"
+fi
+if [ ! -s "${DB_NEW_PW_F}" ] ; then
+  ErrExit ${EX_CONFIG} "DB_NEW_PW_F:${DB_NEW_PW_F} empty. Is ${PRIMARY_DB_HOST} provisioned?"
 fi
 
-NEW_PW=$(cat ${RESET_ALREADY_FLAG})
+NEW_PW=$(cat ${DB_NEW_PW_F})
+
+if [ -z "${NEW_PW}" ] ; then
+  ErrExit ${EX_CONFIG} "NEW_PW empty"
+fi
+
+mysql_args="--syslog --line-numbers --connect-expired-password"
+
+if [ ! -f "${RESET_ALREADY_FLAG}" ] ; then
+  mysql ${mysql_args} --user=root --password="${MYSQL_TMPW}" --connect-expired-password << _MYSQL_RESETPW_COMMANDS_
+SET PASSWORD = '${NEW_PW}';
+FLUSH PRIVILEGES;
+_MYSQL_RESETPW_COMMANDS_
+  rc=$?
+  if [ ${rc} -ne ${EX_OK} ] ; then
+    ErrExit ${EX_CONFIG} "mysql ... --password=MYSQL_TMPW:\"${MYSQL_TMPW}\" failed:rc=${rc}"
+  fi
+  Rc ErrExit ${EX_OSFILE} "touch ${RESET_ALREADY_FLAG}"
+fi
+trap "" 0
 
 declare -x VC_NET=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}' | sed 's/\.0$/.%/')
 
-mysql --syslog --line-numbers --user=root --password="${MYSQL_TMPW}" --connect-expired-password << _MYSQL_PW_COMMANDS_
-SET PASSWORD = '${NEW_PW}';
+fail=0
+tries=2
+declare -A failpw
+declare -A workedpw
+for pw in NEW_PW MYSQL_TMPW
+do
+  mysql ${mysql_args} --user=root --password="${!pw}" << _MYSQL_AUTH_COMMANDS_
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${NEW_PW}';
-CREATE USER 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
-CREATE USER 'root'@'${VC_NET}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${PRIMARY_DB_HOST}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${VC_NET}' IDENTIFIED BY '${NEW_PW}';
 GRANT ALL ON *.* TO 'root'@'${VC_NET}';
+GRANT ALL ON *.* TO 'root'@'${PRIMARY_DB_HOST}';
 GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
 GRANT ALL ON *.* TO 'root'@'localhost';
 FLUSH PRIVILEGES;
-_MYSQL_PW_COMMANDS_
-rc=$?
-if [ ${rc} -ne ${EX_OK} ] ; then
-  ErrExit ${EX_CONFIG} "mysql --user=root --password=MYSQL_TMPW --connect-expired-password failed:rc=${rc}"
+_MYSQL_AUTH_COMMANDS_
+  rc=$?
+  if [ ${rc} -ne ${EX_OK} ] ; then
+    fail=$(expr ${fail} + 1)
+    failpw["${fail}"]="${pw}"
+  else
+    worked["${fail}"]="${pw}"
+  fi
+done
+
+if [ "${fail}" -ne 0 ] ; then
+  f=Warn
+  if [ "${fail}" -eq "${tries}" ] ; then
+    f=ErrExit
+  fi
+  ${f} ${EX_CONFIG} "mysql ... --password=\"${failpw[@]}\" MYSQL_AUTH_COMMANDS(NEW_PW,MYSQL_TMPW) failed:rc=${rc}"
 fi
+Verbose "  worked: ${worked[@]}"
 
 trap '' 0
 exit ${EX_OK}

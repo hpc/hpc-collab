@@ -9,6 +9,7 @@
 VCLOAD=../../../provision/loader/shload.sh
 declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
 declare -x HOSTNAME_FQDN=$(hostname -f)
+declare -x ALTDB_HOSTNAME=${HOSTNAME:0:2}altdb
 
 if [ ! -f "${VCLOAD}" ] ; then
   echo "${0}: missing: ${VCLOAD}"
@@ -59,13 +60,15 @@ declare -x VC_NET=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}' 
 mysql --syslog --line-numbers --user=root --password="${INITIAL_AUTH}" --connect-expired-password << _MYSQL_PW_COMMANDS_
 SET PASSWORD = '${NEW_PW}';
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${NEW_PW}';
-CREATE USER 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
-CREATE USER 'root'@'${HOSTNAME_FQDN}' IDENTIFIED BY '${NEW_PW}';
 CREATE USER 'root'@'${VC_NET}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER 'root'@'${ALTDB_HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME_FQDN}' IDENTIFIED BY '${NEW_PW}';
+GRANT ALL ON *.* TO 'root'@'localhost';
 GRANT ALL ON *.* TO 'root'@'${VC_NET}';
 GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${ALTDB_HOSTNAME}';
 GRANT ALL ON *.* TO 'root'@'${HOSTNAME_FQDN}';
-GRANT ALL ON *.* TO 'root'@'localhost';
 FLUSH PRIVILEGES;
 _MYSQL_PW_COMMANDS_
 rc=$?
