@@ -492,7 +492,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
 	    $(INGEST_STATE)										; \
 	  fi												; \
-	fi
+	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(MAKE) $(@F)
 
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
