@@ -162,7 +162,7 @@ declare -x TIMEOUT=${TIMEOUT:-300}
 ## local, this is interpreted as a parameter @see TidyUp() so must be no spaces in the value
 declare -x TIDYUP_FORCE="ignore_LEAVE_BREADCRUMBS"
 declare -x TIDYUP_LOCK=""
-declare -x LEAVE_BREADCRUMB_PROCS=${LEAVE_BREADCRUMB_PROCS:-"parent_signals_all"}
+declare -x LEAVE_BREADCRUMB_PROCS=${LEAVE_BREADCRUMB_PROCS:-""}
 declare -x LEAVE_BREADCRUMBS=${LEAVE_BREADCRUMBS:-""}
 
 declare -x TRAP_NOISY=${TRAP_NOISY:-""}
@@ -742,7 +742,7 @@ JobPrioritiesComponents() {
   18.08*)
     readwhat="_jobid _partitionname _user _priority _age _fairshare _jobsize _partition _qos _nice"
     ;;
-  19.05*)
+  19.05*|20.02*)
     readwhat="_jobid _partitionname _user _priority _site _age _assoc _fairshare _jobsize _partition _qos _nice _tres"
     ;;
   *)
