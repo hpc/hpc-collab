@@ -1,0 +1,47 @@
+#!/bin/bash
+# vim: background=dark
+
+PATH=${PATH}:$(realpath ../bin)
+LIB=$(realpath ../lib)
+
+if [ ! -d "${LIB}" ] ; then
+  echo "cannot continue: LIB:${LIB} is not a directory"
+  exit 99
+fi
+SUBS=${LIB}/subs.sh
+if [ ! -f "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} does not exist"
+  exit 98
+fi
+if [ ! -s "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} is empty"
+  exit 97
+fi
+
+. ${LIB}/subs.sh
+
+### 
+
+main() {
+  prepOut
+  checkIdle
+
+  for c in $(cat clusters)
+  do
+    local queuelength
+    queuelength=$(squeue -M ${c} -h | wc -l)
+    logger -t "${IAM}" -- "queue for cluster: ${c} :start:"
+    squeue -M ${c} | tee /dev/tty | logger -t "${IAM}-queuelength:${queuelength}" 
+    logger -t "${IAM}" -- "queue for cluster: ${c} :end:"
+    logger -t "${IAM}" -- "sacct for cluster: ${c} :start:"
+    sacct -M ${c} -a | tail -3 | tee /dev/tty | logger -t "${IAM}-sacct"
+    logger -t "${IAM}" -- "sacct for cluster: ${c} :end:"
+  done
+
+  #if a user is monitoring, give them a chance to review
+  sleep ${TIMEOUT:-1}
+}
+
+main
+exit 0
+

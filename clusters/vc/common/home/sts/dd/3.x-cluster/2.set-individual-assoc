@@ -1,0 +1,98 @@
+#!/bin/bash
+# vim: background=dark
+
+PATH=${PATH}:$(realpath ../bin)
+LIB=$(realpath ../lib)
+
+if [ ! -d "${LIB}" ] ; then
+  echo "cannot continue: LIB:${LIB} is not a directory"
+  exit 99
+fi
+SUBS=${LIB}/subs.sh
+if [ ! -f "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} does not exist"
+  exit 98
+fi
+if [ ! -s "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} is empty"
+  exit 97
+fi
+
+. ${LIB}/subs.sh
+
+### 
+
+#job submission args
+# don't need even 10 seconds for hostname
+common_args="--time=00:10 --job-name=${IAM}-${TSTAMP}" 
+common_args_tmp="--chdir=/tmp --time=00:10 --job-name=${IAM}-${TSTAMP}" 
+
+scontrol=$(which scontrol) 
+timeout=$(which timeout)
+sacctmgr=$(which sacctmgr)
+
+for c in scontrol timeout sacctmgr
+do
+  if [ ! -x "${!c}" ] ; then
+    echo "${c}:${!c} is not executable"
+    exit 96
+  fi
+done
+
+
+if [ -f "timeout" ] ; then
+  TIMEOUT=$(cat ${TIMEOUT})
+else
+  TIMEOUT=${TIMEOUT:-90}
+fi
+
+main() {
+  local users=""
+  prepOut
+
+  clusters=$(echo $(cat clusters))
+  if [ -f users ] ; then
+    users=$(cat users)
+  fi
+  partitions=$(sinfo -o "%R" -h)
+  default_partition=$(sinfo -o "%P" | grep '\*' | sed 's/\*//')
+  if [ -z "${clusters}" ] ; then
+    echo "no clusters?"
+    exit 95
+  fi
+  if [ -z "${users}" ] ; then
+    echo "no users?"
+    users=$(id -u -n)
+    no_su=""
+    if [ "${users}" != root ] ; then
+	    no_su=true
+    fi
+  fi
+  if [ -z "${partitions}" ] ; then
+    echo "no partitions?"
+    exit 94
+  fi
+
+  first="true"
+  for c in ${clusters}
+  do
+    for u in ${users}
+    do
+      for p in ${partitions}
+      do
+	if [ -z "${no_su}" ] ; then
+          su_or_bash="su ${u} "
+        else
+          su_or_bash="bash "
+        fi
+	echo " sacctmgr -iQ update user ${u} where cluster=${c} partition=${p} set MaxSubmitJobs=9999"
+	${sacctmgr} -iQ update user ${u} where cluster=${c} partition=${p} set MaxSubmitJobs=9999
+      done
+    done
+  done
+  exit 0
+}
+
+main $*
+exit 0
+

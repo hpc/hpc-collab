@@ -1,0 +1,91 @@
+#!/bin/bash
+# vim: background=dark
+
+PATH=${PATH}:$(realpath ../bin)
+LIB=$(realpath ../lib)
+
+if [ ! -d "${LIB}" ] ; then
+  echo "cannot continue: LIB:${LIB} is not a directory"
+  exit 99
+fi
+SUBS=${LIB}/subs.sh
+if [ ! -f "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} does not exist"
+  exit 98
+fi
+if [ ! -s "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} is empty"
+  exit 97
+fi
+
+. ${LIB}/subs.sh
+
+### 
+
+#job submission args
+# don't need even 10 seconds for hostname
+common_args="--time=00:10 --job-name=${IAM}-${TSTAMP} --chdir=$(pwd)/workdir" 
+common_args_tmp="--chdir=/tmp --time=00:10 --job-name=${IAM}-${TSTAMP}" 
+mkdir -p $(pwd)/workdir
+
+sbatch=$(which sbatch)                                                                    
+scontrol=$(which scontrol) 
+timeout=$(which timeout) 
+
+for c in sbatch scontrol timeout
+do
+  if [ ! -x "${!c}" ] ; then
+    echo "${c}:${!c} is not executable"
+    exit 96
+  fi
+done
+
+if [ -f "timeout" ] ; then
+  TIMEOUT=$(cat timeout)
+else
+  TIMEOUT=${TIMEOUT:-90}
+fi
+
+main() {
+  local no_su=""
+  prepOut
+
+  #if a user is monitoring, give them a chance to review
+  users=$(cat users)
+  partitions=$(sinfo -o "%R %a" -h | awk '/ up/ {print $1}')
+  default_partition=$(sinfo -o "%P" | grep '\*' | sed 's/\*//')
+  if [ -z "${users}" ] ; then
+    users=$(id -u -n) 
+    if [ "${users}" != "root" ] ; then
+	    no_su=true
+    fi
+  fi
+  if [ -z "${partitions}" ] ; then
+    echo "no partitions?"
+    exit 95
+  fi
+
+  for j in $(seq 1 20)
+  do
+    for u in ${users}
+    do
+      echo -n -e "${j}\r"
+      for p in ${partitions}
+      do
+	if [ -z "${no_su}" ] ; then
+		su_or_bash="su ${u} "
+	else
+		su_or_bash="bash "
+	fi
+    	${timeout} --foreground ${TIMEOUT} ${su_or_bash} -c "${sbatch} ${common_args} --partition=${p} --quiet --wrap=hostname"
+      done
+    done
+  done
+  echo ''
+  exit 0
+}
+
+
+main
+exit 0
+
