@@ -21,24 +21,19 @@ if [ -n "${OUT}" ] ; then
 fi
 
 MY_CONF=/etc/my.cnf
-declare -x COMMON_ROOT=${COMMON}/root
-declare -x DB_PW_F=${COMMON_ROOT}/mysql_pw
 
-if [ ! -f "${DB_PW_F}" ] ; then
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+
+if [ ! -f "${RESET_ALREADY_FLAG}" ] ; then
   ErrExit ${EX_CONFIG} "mysql password does not appear to have been reset"
 fi
-if [ ! -s "${DB_PW_F}" ] ; then
-  ErrExit ${EX_CONFIG} "mysql password appears empty"
-fi
-
-INITIAL_AUTH=$(cat ${DB_PW_F})
+INITIAL_AUTH=$(cat ${RESET_ALREADY_FLAG})
 AUTH="--user=root --password=${INITIAL_AUTH}"
 
 MYSQL_PORT=3306
 addrs=$(grep bind_address ${MY_CONF} | sed 's/bind_address=//' | sed 's/,/ /')
-retries=1
 
-for p in `seq 0 ${retries}`
+for p in `seq 0 1`
 do
   for a in ${addrs}
   do
@@ -56,40 +51,18 @@ do
   done
 done
 
-MIN_BUFFER_POOL_SIZE_MB=1048576
+MIN_BUFFER_POOL_SIZE_MB=$(cat minimum)
 
 DESIRED_MYSQL_MIN_VERSION_ALPHA=5.7
 DESIRED_MYSQL_MIN_VERSION_MAJOR=$(echo ${DESIRED_MYSQL_MIN_VERSION_ALPHA} | awk -F. '{print $1}')
 DESIRED_MYSQL_MIN_VERSION_MINOR=$(echo ${DESIRED_MYSQL_MIN_VERSION_ALPHA} | awk -F. '{print $2}')
 
-MB=1024
-innodb_buffer_pool_size_mycnf_numeric=0
-numeric="^-?[0-9]+$"
 
-innodb_buffer_pool_size_mycnf_raw=$(echo $(grep innodb_buffer_pool_size ${MY_CONF} | sed 's/innodb_buffer_pool_size=//'))
-if [[ ${innodb_buffer_pool_size_mycnf_raw} =~ M$ ]] ; then
-  innodb_buffer_pool_size_mycnf_numeric=$((${innodb_buffer_pool_size_mycnf_raw%M} * ${MB}))
-fi
-
-innodb_buffer_pool_size_running_raw=$(echo $(mysql ${AUTH} -e "SELECT @@innodb_buffer_pool_size / ${MB} ;" -s))
-innodb_buffer_pool_size_running_integral=$(echo ${innodb_buffer_pool_size_running_raw} | sed 's/.0000//')
-
-if ! [[ ${innodb_buffer_pool_size_running_integral} =~ ${numeric} ]] ; then
-  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} is non-integral"
-fi
-
-if [ "${innodb_buffer_pool_size_running_integral}" -lt "${MIN_BUFFER_POOL_SIZE_MB}" ] ; then
-  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} < MIN_BUFFER_POOL_SIZE_MB:${MIN_BUFFER_POOL_SIZE_MB}"
-fi
-
-if [ ${innodb_buffer_pool_size_mycnf_numeric} != ${innodb_buffer_pool_size_running_integral} ] ; then
-  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_mycnf:${innodb_buffer_pool_size_mycnf} != innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral}"
-fi
-
-mysql_version_db=$(echo $(mysql ${AUTH} -e 'select @@version;' -s ))
+mysql_version_db=$(echo $(mysql ${AUTH} -e 'select @@version;' -s))
 mysql_version_numeric=$(echo ${mysql_version_db} | sed 's/[-][a-zA-Z]*//')
 mysql_version_major=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{print $1}')
 mysql_version_minor=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{print $2}')
+
 for _v in mysql_version_major mysql_version_minor
 do
   if ! [[  ${!_v} =~ ${numeric} ]] ; then
@@ -104,10 +77,42 @@ if [ ${mysql_version} -lt ${mysql_version_minimum} ] ; then
   Warn ${EX_CONFIG} "undesirable mysql version: desired=${DESIRED_MYSQL_MIN_VERSION_ALPHA} actual=${mysql_version_numeric}"
 fi
 
-mysql_engines=$(echo $(mysql ${AUTH} -e 'show engines;' -s ))
+mysql_engines=$(echo $(mysql ${AUTH} -e 'show engines;' -s))
 if ! [[ ${mysql_engines} =~ InnoDB ]] ; then
   ErrExit ${EX_CONFIG} "mysql misconfiguration: mysql engines does not appear to include InnoDB"
 fi
 
+MB=1024
+innodb_buffer_pool_size_mycnf_numeric=0
+numeric="^-?[0-9]+$"
+
+innodb_buffer_pool_size_running_raw=$(echo $(mysql ${AUTH} -e "SELECT @@innodb_buffer_pool_size / ${MB} ;" -s))
+innodb_buffer_pool_size_running_integral=$(echo ${innodb_buffer_pool_size_running_raw} | sed 's/.0000//')
+
+found_innodb_buffer_pool_size=$(grep innodb_buffer_pool_size ${MY_CONF} | sed 's/#.*$//')
+if [ -n "${found_innodb_buffer_pool_size}" ] ; then
+  innodb_buffer_pool_size_mycnf_raw=$(echo ${found_innodb_buffer_pool_size} | sed 's/innodb_buffer_pool_size=//')
+
+  if [[ ${innodb_buffer_pool_size_mycnf_raw} =~ M$ ]] ; then
+    innodb_buffer_pool_size_mycnf_numeric=$((${innodb_buffer_pool_size_mycnf_raw%M} * ${MB}))
+  fi
+
+  if ! [[ ${innodb_buffer_pool_size_running_integral} =~ ${numeric} ]] ; then
+    ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} is non-integral"
+  fi
+fi
+
+if [ "${innodb_buffer_pool_size_running_integral}" -lt "${MIN_BUFFER_POOL_SIZE_MB}" ] ; then
+  ErrExit ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral} < MIN_BUFFER_POOL_SIZE_MB:${MIN_BUFFER_POOL_SIZE_MB}"
+fi
+
+if [ ${innodb_buffer_pool_size_mycnf_numeric} != ${innodb_buffer_pool_size_running_integral} -a \
+	-n "${found_innodb_buffer_pool_size}" ] ; then
+
+  Warn ${EX_CONFIG} "mysql misconfiguration: innodb_buffer_pool_size_mycnf:${innodb_buffer_pool_size_mycnf} != innodb_buffer_pool_size_running:${innodb_buffer_pool_size_running_integral}"
+fi
+
 trap '' 0
 exit ${EX_OK}
+
+# vim: background=dark
