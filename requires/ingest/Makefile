@@ -62,7 +62,7 @@ $(REPO_OS) $(REPO_UPDATES):
 	if [ "$${rc}" -ne 0 ] ; then                                        \
 		echo "Try: "                                            ; \
 		echo "  export RSYNC_PROXY=$${RSYNC_PROXY}"             ; \
-		echo "  rsync -4 -avz --delete --exclude=\\\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)"
+		echo "  rsync -4 -avz --delete --exclude=\\\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)"  ; \
 		echo " "                                                                                ; \
 		echo Cannot ingest: $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ to $(@D)            ; \
 		echo Please download repository copy from, for example,                                 ; \
