@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcdb/config/mariadb/4.verify-mysql-config
+## @file vcdb/config/mariadb/5.verify-mysql-config
 
 VCLOAD=../../../provision/loader/shload.sh
 
@@ -51,7 +51,7 @@ do
   done
 done
 
-MIN_BUFFER_POOL_SIZE_MB=1048576
+MIN_BUFFER_POOL_SIZE_MB=$(cat minimum)
 
 DESIRED_MYSQL_MIN_VERSION_ALPHA=5.7
 DESIRED_MYSQL_MIN_VERSION_MAJOR=$(echo ${DESIRED_MYSQL_MIN_VERSION_ALPHA} | awk -F. '{print $1}')
