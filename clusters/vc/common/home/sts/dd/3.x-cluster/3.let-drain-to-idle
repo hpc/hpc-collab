@@ -1,0 +1,37 @@
+#!/bin/bash
+# vim: background=dark
+
+PATH=${PATH}:$(realpath ../bin)
+LIB=$(realpath ../lib)
+
+if [ ! -d "${LIB}" ] ; then
+  echo "cannot continue: LIB:${LIB} is not a directory"
+  exit 99
+fi
+SUBS=${LIB}/subs.sh
+if [ ! -f "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} does not exist"
+  exit 98
+fi
+if [ ! -s "${SUBS}" ] ; then
+  echo "cannot continue: subroutines:${SUBS} is empty"
+  exit 97
+fi
+
+. ${LIB}/subs.sh
+
+### 
+
+main() {
+  prepOut
+  checkIdle
+  ensureIdle
+  # collect default partition (shared)
+  dumpStats
+  #if a user is monitoring, give them a chance to review
+  sleep ${TIMEOUT:-2}
+}
+
+main
+exit 0
+

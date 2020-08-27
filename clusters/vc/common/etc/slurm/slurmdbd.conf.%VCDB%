@@ -1,7 +1,7 @@
 DbdAddr=%VCDB%
 DbdHost=vcdb
 SlurmUser=root
-DebugFlags=DB_ASSOC,DB_EVENT,DB_QUERY
+DebugFlags=DB_ASSOC,DB_EVENT,DB_QOS,DB_JOB
 DebugLevel=debug3
 LogFile=/var/log/slurm/slurmdbd.log
 PidFile=/var/run/slurm/slurmdbd.pid
