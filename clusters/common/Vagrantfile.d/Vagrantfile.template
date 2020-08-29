@@ -6,7 +6,8 @@
 
 require 'pathname'
 
-REPODISK_SIZE = 16	# Gb
+# following should allow for a full copy of the centos/{os,updates} repositories + pad
+REPODISK_SIZE = 20	# Gb
 
 clustername_fullpath_raw = %x[pwd]
 clustername_fullpath     = "#{clustername_fullpath_raw}"
