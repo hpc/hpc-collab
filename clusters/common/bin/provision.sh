@@ -675,8 +675,9 @@ SetupSecondDisk() {
   fi
 
   if [ ! -b "${REPO_PART}" ] ; then
-    Rc ErrExit ${EX_CONFIG} "yes | parted ${REPO_DISK} --align opt mklabel gpt 2>&1"
-    Rc ErrExit ${EX_CONFIG} "yes | parted ${REPO_DISK} mkpart primary 2048s 16G 2>&1"
+    Rc ErrExit ${EX_CONFIG} "parted -s ${REPO_DISK} --align opt mklabel gpt 2>&1 </dev/null   ;"
+    # end=100% sets the end to the maximum partition size as defined by the virtualization provider, often 2Tb 
+    Rc ErrExit ${EX_CONFIG} "parted -s ${REPO_DISK} mkpart primary 2048s 100% 2>&1 </dev/null ;"
   fi
   Rc ErrExit ${EX_CONFIG} "mkfs.xfs -f -L repos ${REPO_PART} 2>&1"
   Rc ErrExit ${EX_CONFIG} "xfs_repair ${REPO_PART} 2>&1"
