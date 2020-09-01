@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcbuild/build/slurm/1.build-rpms
+## @file vcbuild/build/slurm/3.build-rpms
 
 _d=$(dirname $0)
 provision_d=${_d}/../../../provision
@@ -80,6 +80,13 @@ if [ "${SPECFILE_VERSION}" = "${SLURM_VERSION}" ] ; then
     ## XXX also search in localrepo?
     ;;
   *rpm)
+    for r in $(echo $(cat RPMS.Manifest))
+    do
+      if [ ! -f "${RPMS_ARCH}/${r}" ] ; then
+        break
+      fi
+    done
+
     echo " [skipped] ${PRODUCT} ${SLURM_VERSION} rpms already built"
     need_build=""
     ;;
@@ -88,9 +95,16 @@ fi
 
 rc=${EX_OK}
 
+## XXX loop through all RPMS in Manifest to construct this, to add/remove --with-* defines and args
+
 if [ -n "${need_build}" ] ; then
-  rpmbuild -ba ${SLURM_SPEC} --define "_topdir ${RPMBUILD}/" --define "_enable_debug --with-debug"
+  rpmbuild -ba ${SLURM_SPEC}						\
+			--define "_topdir ${RPMBUILD}/"			\
+			--define "_enable_debug --with-debug"		\
+			--with slurmrestd
   rc=$?
 fi
 
 exit ${rc}
+
+# vi: set background=dark
