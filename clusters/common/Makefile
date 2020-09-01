@@ -488,12 +488,11 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
 	    $(INGEST_STATE)										; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
-	    exit 107											; \
 	  else												  \
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
 	    $(INGEST_STATE)										; \
 	  fi												; \
-	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(MAKE) $(@F)
+	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(MAKE) $(@F)!
 
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
