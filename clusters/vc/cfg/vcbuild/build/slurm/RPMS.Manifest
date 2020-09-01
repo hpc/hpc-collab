@@ -6,4 +6,5 @@ slurm-pam_slurm
 slurm-perlapi
 slurm-slurmctld
 slurm-slurmdbd
+slurm-slurmrestd
 force-build
