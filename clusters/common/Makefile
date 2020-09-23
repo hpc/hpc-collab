@@ -30,7 +30,8 @@ VIRTUALCLUSTER	= vc
 else
 VIRTUALCLUSTER ?= $(IAM)
 endif
-export VC	   ?= $(VIRTUALCLUSTER)
+export VC      ?= $(VIRTUALCLUSTER)
+VC_D		= $(CLUSTERS_DIR)/$(VC)
 
 CFG	        = cfg
 NODES  	        = $(filter $(VC)%, $(notdir $(wildcard $(CFG)/*)))
@@ -141,7 +142,7 @@ XFR_PREREQ_PREMOUNT	= $(XFR_VBOXADD_ISO) $(XFR_REPOS_TGZ)
 XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 
 # must match ../common/bin/generateproviderfiles.sh
-GENERATED_FLAG_F		= $(CLUSTERS_DIR)/$(VC)/.regenerated
+GENERATED_FLAG_F		= $(VC_D)/.regenerated
 
 VAGRANTFILE			= Vagrantfile
 VAGRANTFILE_D			= ../common/Vagrantfile.d
@@ -193,7 +194,7 @@ NODES_POWEROFF		= $(foreach n,$(NODES),$(POWEROFF_D)/$(n))
 NODES_NONEXISTENT	= $(foreach n,$(NODES),$(NONEXISTENT_D)/$(n))
 NODES_UNPROVISION	= $(foreach n,$(NODES),$(n)_UNPROVISION)
 
-SRC_PROVIDER_FILES	= $(shell find $(CLUSTERS_DIR)/$(VC) -name \*%\*% -type f)
+SRC_PROVIDER_FILES	= $(shell find $(VC_D) -name \*%\*% -type f)
 TARGET_PROVIDER_FILES	= $(foreach f,$(SRC_PROVIDER_FILES),$(basename $(f)))
 
 QUICK_HUMANFRIENDLY_FLAG_NAMES    = quick quick-flag flag-quick flags-quick flag-quicker \
@@ -367,20 +368,20 @@ flags flag: | $(PROVISION_FLAG_D)
 ###
 
 $(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) common/etc/hosts
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
+	cd $(VC_D) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
 
 generateproviderfiles: $(GENERATED_FLAG_F)
 
 $(TARGET_PROVIDER_FILES): $(GENERATED_FLAG_F)
 
 compilevagrantfile: $(VAGRANTFILE_PREREQ) $(GENERATED_FLAG_F)
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	cd $(VC_D) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
 
 $(VAGRANTFILE): $(GENERATED_FLAG_F) $(VAGRANTFILE_PREREQ) $(TARGET_PROVIDER_FILES)
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	cd $(VC_D) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
 
 validate: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES)
-	cd $(CLUSTERS_DIR)/$(VC) ; vagrant validate
+	cd $(VC_D) ; vagrant validate
 
 ingest-state: $(GENERATED_FLAG_F) $(VAGRANTFILE) clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)
@@ -485,14 +486,15 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	  timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)	; \
 	  rc=$$?											; \
 	  if [ $${rc} -ne 0 ] ; then									  \
-	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
+	    echo "Warning: vagrant up $(@F), rc:$${rc} (retry)"						; \
 	    $(INGEST_STATE)										; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
+	    timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F) ; \
 	  else												  \
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
 	    $(INGEST_STATE)										; \
 	  fi												; \
-	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(MAKE) $(@F)!
+	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(VC_D) $(@F)!
 
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
