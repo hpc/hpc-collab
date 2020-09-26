@@ -498,9 +498,10 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	        cat $(DEBUG_D)/$(@F)											; \
 	      else													  \
 	        echo "debug flag state file exists: $(DEBUG_D)/$(@F)"							; \
-	      fi													  \
+	      fi													; \
+	      rm -f $(DEBUG_D)/$(@F)											; \
+	      exit 107													; \
 	    fi														; \
-	    exit 107													; \
 	  else														  \
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)									; \
 	  fi														; \
