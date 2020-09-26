@@ -72,6 +72,19 @@ ErrExit() {
         ${nopoweroff} poweroff --force --no-wall
       fi
     fi
+
+    if [ -d "${STATE_D}" ] ; then
+      local debug_d
+      debug_d=${STATE_D}/debug
+      if [ ! -d "${debug_d}" ] ; then
+        mkdir -p "${debug_d}"
+      fi
+      if [ -n "${HOSTNAME}" ] ; then
+        echo $@ > "${debug_d}"/${HOSTNAME}
+      fi
+    fi
+
     exit ${rc}
 }
 
+# vim: background=dark
