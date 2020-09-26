@@ -66,9 +66,8 @@ do
     if [ "${v}" = "percentallowed" ] ; then
       fmt_name="allowed"
     fi
-
-    existing=$(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|grep ${cluster}| awk '{print $2}')
-    existing_clusters=$(echo $(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|awk '{print $3}'))
+    existing=$(echo $(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|grep ${cluster}| awk '{print $2}' | tail -1))
+    existing_clusters=$(echo $(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|awk '{print $3}' | tail -1))
     a=""
     if [ -s ${d}/${v} ] ; then
       a=$(cat ${d}/${v})
@@ -79,7 +78,9 @@ do
         continue
       fi
     fi
-    didany="${didany} ${v}"
+    if [[ "${didany}" != *"Nothing new added"* ]] ; then
+      didany="${didany} ${v}"
+    fi
     if [ -n "${a}" ] ; then
       sacct_mgr="${sacct_mgr} ${v}=${a}"
     fi
@@ -92,3 +93,5 @@ done
 trap '' 0
 
 exit ${EX_OK}
+
+# vim: set background=dark
