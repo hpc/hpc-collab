@@ -72,8 +72,9 @@ NONEXISTENT_D	    = $(STATE_D)/nonexistent
 POWEROFF_D	    = $(STATE_D)/poweroff
 RUNNING_D	    = $(STATE_D)/running
 PROVISIONED_D	    = $(STATE_D)/provisioned
+DEBUG_D		    = $(STATE_D)/debug
 
-STATE_DIRS_ALL	    = $(STATE_D) $(PROVISIONED_D) $(RUNNING_D) $(POWEROFF_D) $(NONEXISTENT_D)
+STATE_DIRS_ALL	    = $(STATE_D) $(PROVISIONED_D) $(RUNNING_D) $(POWEROFF_D) $(NONEXISTENT_D) $(DEBUG_D)
 STATE_DIRS	    = $(PROVISIONED_D) $(RUNNING_D) $(POWEROFF_D) $(NONEXISTENT_D)
 
 RUNNING_FLAGS       = $(addprefix $(RUNNING_D)/,     $(NODES))
@@ -489,8 +490,17 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	  if [ $${rc} -ne 0 ] ; then											  \
 	    echo "Warning: vagrant up $(@F), rc:$${rc} (retry)"								; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)									; \
-	    env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(VC_D) $(@F)_UNPROVISION					; \
-	    timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)		; \
+	    if [ ! -f $(DEBUG_D)/$(@F) ] ; then										  \
+	      env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(VC_D) $(@F)_UNPROVISION					; \
+	      timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)		; \
+	    else													  \
+	      if [ -s $(DEBUG_D)/$(@F) ] ; then										  \
+	        cat $(DEBUG_D)/$(@F)											; \
+	      else													  \
+	        echo "debug flag state file exists: $(DEBUG_D)/$(@F)"							; \
+	      fi													  \
+	    fi														; \
+	    exit 107													; \
 	  else														  \
 	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)									; \
 	  fi														; \
