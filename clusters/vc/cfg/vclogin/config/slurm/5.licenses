@@ -47,48 +47,51 @@ existing_licenses=$(echo $(sacctmgr show resource format=name%-25 --noheader))
 # if license already exists, and we have a percentallowed, add that percentage, using our cluster=... entry
 # if this attribute is already set, with the same value, don't redo
 
-for name in ${licenses}
+for lic_name in ${licenses}
 do
-  n=$(basename ${name})
-  if [[ "${existing_licenses}" != *"${n}"* ]] ; then
-    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} name=${name}"
+  lic=$(basename ${lic_name})
+  if [[ "${existing_licenses}" != *"${lic}"* ]] ; then
+    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} lic_name=${lic_name}"
     Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
   fi
 
-  d=${LICENSES_D}/${name}
+  d=${LICENSES_D}/${lic_name}
   attributes=$(echo $(ls ${d}))
 
-  sacct_mgr="sacctmgr -iQ add resource name=${name} cluster=${cluster}"
-  didany=""
-  for v in ${attributes}
+  sacct_mgr_cmd="sacctmgr -iQ add resource name=${lic_name} cluster=${cluster}"
+  sacct_mgr=""
+  any_attr=""
+  for attr_name in ${attributes}
   do
-    fmt_name="${v}"
-    if [ "${v}" = "percentallowed" ] ; then
+    fmt_name="${attr_name}"
+    if [ "${attr_name}" = "percentallowed" ] ; then
       fmt_name="allowed"
     fi
-    existing=$(echo $(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|grep ${cluster}| awk '{print $2}' | tail -1))
-    existing_clusters=$(echo $(sacctmgr show resource withcluster format=name%25,${fmt_name},cluster --noheader|awk '{print $3}' | tail -1))
-    a=""
-    if [ -s ${d}/${v} ] ; then
-      a=$(cat ${d}/${v})
+    existing=$(echo $(sacctmgr show resource where cluster=${cluster} format="name%-20" -n))
+    attr_val=""
+    if [ -s ${d}/${attr_name} ] ; then
+      attr_val=$(cat ${d}/${attr_name})
     fi
-    if [ "${a}" = "${existing}" ] ; then
-      if [[ "${existing_clusters}" = *${cluster}* ]] ; then
-        Verbose "${n}: ${v}=${a}, cluster=${cluster} exists, skipped"
-        continue
-      fi
+    if [[ "${existing}" == *"${lic_name}"* ]] ; then
+	existing_val=$(sacctmgr show resource where cluster=${cluster} name=${lic_name} -n | awk '{print $5}') 
+	if [ "${existing_val}" = "${attr_val}" ] ; then
+          Verbose "license=${lic_name}, cluster=${cluster}, existing_val:${existing_val} = attr_val:${attr_val}, skipped"
+          continue
+	fi
     fi
-    if [[ "${didany}" != *"Nothing new added"* ]] ; then
-      didany="${didany} ${v}"
+    if [ -z "${attr_val}" ] ; then
+      continue
     fi
-    if [ -n "${a}" ] ; then
-      sacct_mgr="${sacct_mgr} ${v}=${a}"
+
+    if [ -z "${sacct_mgr}" ] ; then
+      sacct_mgr="${sacct_mgr_cmd} ${attr_name}=${attr_val}"
     fi
-  done
-  if [ -n "${didany}" ] ; then
+    any_attr="${any_attr} ${attr_name}"
+  done #attr_name
+  if [ -n "${any_attr}" ] ; then
     Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
   fi
-done
+done #lic_name
 
 trap '' 0
 
