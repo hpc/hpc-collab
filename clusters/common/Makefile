@@ -108,6 +108,7 @@ TIMEOUT_LT_MIN	       := $(shell (test $(MIN_TIMEOUT_SECS) -gt $(NODE_TIMEOUT) &
 ifeq ($(TIMEOUT_LT_MIN),"timeout_lessthan_minimum")
 NODE_TIMEOUT	       := $(MIN_TIMEOUT_SECS)
 endif
+RC_TIMEOUT_EXCEEDED	= 124
 
 TARBALLS		= tarballs
 TARBALLS_D		= ../../$(TARBALLS)
@@ -456,6 +457,11 @@ $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS):
 # XXX @todo 'vmtouch -d -L -q -t $(PREREQ)' provided they're not $(PHONY)
 $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
 	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"				; \
+	if [ -f $(CFG)/$(@F)/attributes/timeout/* ] ; then								  \
+	  export NODE_TIMEOUT=$$(basename $(CFG)/$(@F)/attributes/timeout/*)						; \
+	else														  \
+	  export NODE_TIMEOUT=$(NODE_TIMEOUT)										; \
+	fi														; \
 	for prereq in $^ $${_prereq_nodes}										; \
         do														  \
 	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then									  \
@@ -466,7 +472,7 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	    if [ -n "$(HUSH)" ] ; then											  \
 	      echo "prerequisite: $${prereq}"										; \
 	    fi														; \
-	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}				; \
+	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}			; \
 	    $(INGEST_STATE)												; \
 	    continue													; \
 	  fi														; \
@@ -484,15 +490,19 @@ $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requir
 	fi								    					  	; \
 	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      					 	  \
 	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)										; \
-	  timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)			; \
+	  timeout --foreground --kill-after=1 $${NODE_TIMEOUT}s vagrant --timestamp up --provision $(@F)		; \
 	  rc=$$?													; \
 	  $(INGEST_STATE)												; \
 	  if [ $${rc} -ne 0 ] ; then											  \
 	    echo "Warning: vagrant up $(@F), rc:$${rc} (retry)"								; \
+	    if [ $${rc} -eq $(RC_TIMEOUT_EXCEEDED) ] ; then								  \
+	      NODE_TIMEOUT=$$(expr $${NODE_TIMEOUT} + \( $${NODE_TIMEOUT} / 2 \) + 1)					; \
+	      echo "Timeout exceeded, increased to: $${NODE_TIMEOUT} seconds"						; \
+	    fi														; \
 	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)									; \
 	    if [ ! -f $(DEBUG_D)/$(@F) ] ; then										  \
 	      env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(VC_D) $(@F)_UNPROVISION					; \
-	      timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)		; \
+	      timeout --foreground --kill-after=1 $${NODE_TIMEOUT}s vagrant --timestamp up --provision $(@F)		; \
 	    else													  \
 	      if [ -s $(DEBUG_D)/$(@F) ] ; then										  \
 	        cat $(DEBUG_D)/$(@F)											; \
