@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -o pipefail
+set -o nounset
+
+export PATH=${PATH}:../bin
+
+LOGDIR=../logs
+TSTAMP=$(date +%y%m%d.%H%M)
+PWD=$(pwd)
+IAM=$(basename ${PWD})
+JOBNAME=${IAM}-
+TSTAMP=$(date +%y%m%d.%H%M)
+TIMEOUT=1
+
+QSTATS_PARAMETERS="-V -c -b -B -P -R"
+QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
+DEFAULT_PARTITION=$(sinfo -o "%P" | grep '\*' | sed 's/\*//')
+LIC=$(echo $(sacctmgr show resource format="name%-11" -n))
+LIC_ORIG=$(echo $(sacctmgr show resource format="count%-4" -n))
+
+declare -x SQUEUE_FORMAT="%.24i %.9Q %.9q %.20a %.18u %.8T %.12M %.12l %.20S %.20e %.6D %R"
+declare -x SQUEUE_SORT="-t,-p,e,S"
+
+prepOut() {
+  mkdir -p ${LOGDIR}/${TSTAMP}
+  touch "${LOGDIR}/${TSTAMP}/${IAM}"
+  return
+}
+
+checkIdle() {
+  queueLength=$(squeue --noheader | wc -l)
+  if [ ${queueLength} -ne 0 ] ; then
+    echo "Queue is not idle; queue length=${queueLength}" | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+  fi
+}
+
+ensureIdle() {
+  local queueLength
+  queuelength=$(squeue --noheader | wc -l)
+  if [ ${queuelength} -ne 0 ] ; then
+    squeue | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+    sleep ${TIMEOUT:-2}
+    echo $(date): queuelength:${queuelength} | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+  fi
+}
+
+main() {
+  checkIdle
+  squeue | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+  ensureIdle
+  return
+}
+
+main
+exit 0
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

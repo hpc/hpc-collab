@@ -1,0 +1,22 @@
+hypothetical reproducer:
+ 1. set license count to 0
+     sacctmgr -iQ modify resource name=homevagrant server=slurmdb set count=0
+
+ 2. set shared partition to down
+     scontrol update partition=shared state=down
+
+ 3. submit jobs of varying priority, with user holds, show queue & date on each step completion
+    a. use multiple user ids to get a spread of priority & fairshare history
+    b. ensure that the accumulated jobs' requested time total > calculated start time limit (24 hours)
+    c. release holds on user jobs
+    d. force a scheduler cycle, if necessary
+    e. reset license counter to non-zero
+       sacctmgr -iQ modify resource name=homevagrant server=slurmdb set count=4 ; squeue
+    f. set shared partition to up
+        scontrol update partition=shared state=state
+    g. monitor (short time cycle?) queue until empty
+ 
+4. refinement/complication/realism
+    background processes: a. flip the shared partition up and down
+                          b. flip the homevagrant license count between 0 and non-zero
+
