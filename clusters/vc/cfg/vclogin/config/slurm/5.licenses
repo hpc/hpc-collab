@@ -51,7 +51,7 @@ for lic_name in ${licenses}
 do
   lic=$(basename ${lic_name})
   if [[ "${existing_licenses}" != *"${lic}"* ]] ; then
-    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} lic_name=${lic_name}"
+    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} name=${lic_name}"
     Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
   fi
 
@@ -61,6 +61,7 @@ do
   sacct_mgr_cmd="sacctmgr -iQ add resource name=${lic_name} cluster=${cluster}"
   sacct_mgr=""
   any_attr=""
+
   for attr_name in ${attributes}
   do
     fmt_name="${attr_name}"
