@@ -34,9 +34,7 @@ count=$(( ${nodecnt} * ${n_clusters} ))
 
 # see if they match (are in conflict with) those in licenses/
 
-#existing_licenses=$(sacctmgr show resource format=name,count,allocated --noheader|awk '{print $1}')
-
-existing_licenses=$(echo $(sacctmgr show resource format=name%-25 --noheader))
+existing_licenses=$(echo $(sacctmgr show resource withcluster cluster=${cluster} format=name%-25 --noheader))
 
 # # sacctmgr show resource withclusters format=name%-25,server,type,count,allocated,cluster,allowed
 #      Name     Server     Type  Count % Allocated ServerType    Cluster  % Allowed 
@@ -51,14 +49,14 @@ for lic_name in ${licenses}
 do
   lic=$(basename ${lic_name})
   if [[ "${existing_licenses}" != *"${lic}"* ]] ; then
-    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} name=${lic_name}"
+    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} name=${lic_name} cluster=${cluster}"
     Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
   fi
 
   d=${LICENSES_D}/${lic_name}
   attributes=$(echo $(ls ${d}))
 
-  sacct_mgr_cmd="sacctmgr -iQ add resource name=${lic_name} cluster=${cluster}"
+  sacct_mgr_cmd="sacctmgr -iQ update resource name=${lic_name} cluster=${cluster}"
   sacct_mgr=""
   any_attr=""
 
@@ -85,7 +83,7 @@ do
     fi
 
     if [ -z "${sacct_mgr}" ] ; then
-      sacct_mgr="${sacct_mgr_cmd} ${attr_name}=${attr_val}"
+      sacct_mgr="${sacct_mgr_cmd} set ${attr_name}=${attr_val}"
     fi
     any_attr="${any_attr} ${attr_name}"
   done #attr_name
@@ -94,8 +92,10 @@ do
   fi
 done #lic_name
 
+sacctmgr show resource withcluster 
+
 trap '' 0
 
 exit ${EX_OK}
 
-# vim: set background=dark
+# vim: background=dark
