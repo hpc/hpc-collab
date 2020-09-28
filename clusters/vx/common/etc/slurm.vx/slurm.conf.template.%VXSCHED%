@@ -172,7 +172,7 @@ NodeName=vxsched Feature=controller,scheduler,slurmctld		State=UNKNOWN RealMemor
 #  shared allocates partial nodes, with an increased maximum time limit and a higher priority
 PartitionName=login     Nodes=vxlogin				  Default=NO   State=UP                        MaxTime=90-00:00:00	PriorityTier=1
 PartitionName=exclusive Nodes=vx[1-2] Oversubscribe=EXCLUSIVE	  Default=NO   State=UP	  DefaultTime=1:00:00  MaxTime=10-00:00:00	PriorityTier=100
-PartitionName=shared    Nodes=vx[1-2]				  Default=YES  State=UP	  DefaultTime=1:00:00  MaxTime=90-00:00:00	PriorityTier=1000
+PartitionName=shared    Nodes=vx[1-2] Oversubscribe=FORCE	  Default=YES  State=UP	  DefaultTime=1:00:00  MaxTime=90-00:00:00	PriorityTier=1000
 PartitionName=infrastructure Nodes=vxsched			  Default=NO   State=Down DefaultTime=0:00:01  MaxTime=00:00:30         PriorityTier=0
 
 

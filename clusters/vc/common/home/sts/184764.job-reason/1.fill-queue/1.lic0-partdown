@@ -1,0 +1,68 @@
+#!/bin/bash
+
+set -o pipefail
+set -o nounset
+
+export PATH=${PATH}:../bin
+
+LOGDIR=../logs
+TSTAMP=$(date +%y%m%d.%H%M)
+PWD=$(pwd)
+IAM=$(basename ${PWD})
+JOBNAME=${IAM}-
+TSTAMP=$(date +%y%m%d.%H%M)
+TIMEOUT=1
+
+QSTATS_PARAMETERS="-V -c -b -B -P -R"
+QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
+DEFAULT_PARTITION=$(sinfo -o "%P" | grep '\*' | sed 's/\*//')
+LIC=$(echo $(sacctmgr show resource format="name%-11" -n))
+LIC_ORIG=$(echo $(sacctmgr show resource format="count%-4" -n))
+
+prepOut() {
+  mkdir -p ${LOGDIR}/${TSTAMP}
+  touch "${LOGDIR}/${TSTAMP}/${IAM}"
+  return
+}
+
+partDown() {
+  if [ -z "${DEFAULT_PARTITION}" ] ; then
+    echo "DEFAULT_PARTITION empty"
+    exit 1
+  fi
+  scontrol update partitionname=${DEFAULT_PARTITION:-"_partition_unset_"} state=down
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    echo "failed: scontrol update partitionname=${DEFAULT_PARTITION} state=down" 
+    exit 2
+  fi
+  return
+}
+
+lic() {
+  count=${1:-0}
+  if [ -z "${LIC}" ] ; then
+    echo "LIC: empty" 
+    exit 3
+  fi
+  sacctmgr -iQ modify resource name=${LIC} server=slurmdb set count=${count}
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    echo "failed: sacctmgr -iQ modify resource name=${LIC} server=slurmdb set count=${count}"
+    exit 4
+  fi
+  scontrol show lic
+  return
+}
+
+main() {
+  prepOut
+  partDown
+  lic 0
+  return
+}
+
+main
+exit 0
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

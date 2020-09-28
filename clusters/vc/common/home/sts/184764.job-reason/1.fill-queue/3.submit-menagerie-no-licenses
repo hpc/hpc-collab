@@ -1,0 +1,147 @@
+#!/usr/bin/bash
+
+set -o pipefail
+set -o nounset
+
+export PATH=${PATH}:../bin
+
+LOGDIR=../logs
+TSTAMP=$(date +%y%m%d.%H%M)
+PWD=$(pwd)
+IAM=$(basename ${PWD})
+JOBNAME=${IAM}-
+TSTAMP=$(date +%y%m%d.%H%M)
+TIMEOUT=1
+
+QSTATS_PARAMETERS="-V -c -b -B -P -R"
+QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
+DEFAULT_PARTITION=$(sinfo -o "%P" | grep '\*' | sed 's/\*//')
+LIC=$(echo $(sacctmgr show resource format="name%-11" -n))
+LIC_ORIG=$(echo $(sacctmgr show resource none format="count%-4" -n))
+LIC_GUESS=$(echo $(scontrol show node -o | grep compute | wc -l))
+MENAGERIE=$(echo $(getent passwd | awk -F: '/\<[[:alpha:]]+[[:digit:]]/ {print $1}'))
+
+declare -x SQUEUE_FORMAT="%.24i %.9Q %.9q %.20a %.18u %.8T %.12M %.12l %.20S %.20e %.6D %R"
+declare -x SQUEUE_SORT="-t,-p,e,S"
+
+prepOut() {
+  mkdir -p ${LOGDIR}/${TSTAMP}
+  touch "${LOGDIR}/${TSTAMP}/${IAM}"
+  return
+}
+
+authorizedCheck() {
+  runningas=$(echo $(id -u -n))
+  if [ "${runningas}" != "root" ] ; then
+    echo "Warning: rerunning with authority, need root to submit jobs as other users (runningas:${runningas})"
+    sudo bash ${0}
+    exit $?
+  fi
+  return
+}
+
+submitMenagerieJobs(){
+  if [ -z "${MENAGERIE}" ] ; then
+    echo "MENAGERIE: empty, no users?"
+    exit 2
+  fi
+
+  for user in ${MENAGERIE}
+  do
+    # max is 1 day (1440 = 24 hrs * 60 minutes/hour)
+    prior=0
+    for minutes in 1 5 30 120 360 1440
+    do
+      # introduce some randomness to job time accumulation, skip some jobs 
+      skip=$((${RANDOM} % 7))
+      if [ "${skip}" -lt 3 ] ; then
+        continue
+      fi
+      nice=$(( ${skip} * 100000 ))
+      args="--uid=${user} --time=${minutes}:00 --nice=${skip} --chdir=/tmp -H --quiet -L none@slurmdb"
+      if [ "${prior}" -ne 0 ] ; then
+        args="${args} --begin=now+${prior}minutes --time-min=${prior}:00"
+        (( prior++ ))
+      fi
+      sbatch ${args} --wrap="sleep ${skip}; date"
+      rc=$?
+      if [ "${rc}" -ne 0 ] ; then
+        echo "failed: sbatch ${args}, rc=${rc}"
+        exit ${rc}
+      fi
+    done #minutes
+  done #user
+  return
+}
+
+releaseJobs() {
+  joblist=$(echo $(squeue -o "%A," -h) | sed 's/, /,/g' | sed 's/,$//')
+  scontrol release ${joblist}
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    echo "failed: scontrol release ${joblist}, rc=${rc}"
+    exit ${rc}
+  fi
+  return
+}
+
+lic() {
+  count=${1:-0}
+  if [ -z "${LIC}" ] ; then
+    echo "LIC: empty" 
+    exit 3
+  fi
+  sacctmgr -iQ modify resource name=${LIC} server=slurmdb set count=${count}
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    echo "failed: sacctmgr -iQ modify resource name=${LIC} server=slurmdb set count=${count}"
+    exit 4
+  fi
+  scontrol show lic
+  return
+}
+
+setPartitionUp() {
+  if [ -z "${DEFAULT_PARTITION}" ] ; then
+    echo "DEFAULT_PARTITION empty"
+    exit 5
+  fi
+  scontrol update partition="${DEFAULT_PARTITION}" state=up
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    echo "failed scontrol update partition=\"${DEFAULT_PARTITION}\" state=up, rc=${rc}"
+    exit ${rc}
+  fi
+  return
+}
+
+main() {
+  if [ -z "${LIC_ORIG}" ] ; then
+    echo "LIC_ORIG:${LIC_ORIG} empty"
+    exit 6
+  fi
+  if [ "${LIC_ORIG}" -le 0 ] ; then
+    if [ -z "${LIC_GUESS}" ] ; then
+      echo "LIC_GUESS empty"
+      exit 7
+    fi
+    if [ ${LIC_GUESS} -le 0 ] ; then
+      echo "LIC_GUESS:${LIC_GUESS} <= 0 and LIC_ORIG was too, cannot continue "
+      exit 8
+    fi
+    LIC_ORIG=${LIC_GUESS}
+  fi
+
+  prepOut
+  authorizedCheck
+  submitMenagerieJobs
+  releaseJobs
+  lic ${LIC_ORIG}
+  setPartitionUp
+  return
+}
+
+main
+exit 0
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

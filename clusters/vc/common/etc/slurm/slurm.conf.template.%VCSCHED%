@@ -189,7 +189,7 @@ DownNodes=vcgate Reason="public cluster gateway node"
 PartitionName=login     Nodes=vclogin				        Default=NO   State=UP                        MaxTime=90-00:00:00	PriorityTier=1
 PartitionName=compile   Nodes=vcbuild				        Default=NO   State=UP   	                    MaxTime=1-00:00:00 	PriorityTier=10
 PartitionName=exclusive Nodes=vc[1-2] Oversubscribe=EXCLUSIVE	        Default=NO   State=UP	DefaultTime=1:00:00 MaxTime=10-00:00:00	PriorityTier=100
-PartitionName=shared    Nodes=vc[1-2]			   	        Default=YES  State=UP	DefaultTime=1:00:00 MaxTime=90-00:00:00	PriorityTier=1000
+PartitionName=shared    Nodes=vc[1-2] Oversubscribe=FORCE   	        Default=YES  State=UP	DefaultTime=1:00:00 MaxTime=90-00:00:00	PriorityTier=1000
 PartitionName=infrastructure Nodes=vcfs,vcsvc,vcdb,vcaltdb,vcsched,vcgate Default=NO State=Down	DefaultTime=0:00:01 MaxTime=00:00:01    PriorityTier=0
 
 

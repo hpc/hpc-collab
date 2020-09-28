@@ -1,0 +1,89 @@
+#!/bin/bash
+
+set -o pipefail
+set -o nounset
+
+export PATH=${PATH}:../bin
+
+LOGDIR=../logs
+TSTAMP=$(date +%y%m%d.%H%M)
+PWD=$(pwd)
+IAM=$(basename ${PWD})
+JOBNAME=${IAM}-
+TSTAMP=$(date +%y%m%d.%H%M)
+TIMEOUT=1
+
+QSTATS_PARAMETERS="-V -c -b -B -P -R"
+QSTATS_STDOUT_PARAMETERS="-D ${QSTATS_PARAMETERS}"
+DEFAULT_PARTITION=$(sinfo -o "%P" | grep '\*' | sed 's/\*//')
+DEFAULT_LICENSE=homevagrant
+LIC=$(echo $(sacctmgr show resource ${DEFAULT_LICENSE} format="name%-11" -n))
+LIC_ORIG=$(echo $(sacctmgr show resource format="count%-4" -n))
+PRIME_DELAY=7
+
+declare -x SQUEUE_FORMAT="%.24i %.9Q %.9q %.20a %.18u %.8T %.12M %.12l %.20S %.20e %.6D %R"
+declare -x SQUEUE_SORT="-t,-p,e,S"
+
+prepOut() {
+  mkdir -p ${LOGDIR}/${TSTAMP}
+  touch "${LOGDIR}/${TSTAMP}/${IAM}"
+  return
+}
+
+lic() {
+  count=${1:-0}
+  if [ -z "${LIC}" ] ; then
+    echo "LIC: empty" 
+    exit 3
+  fi
+  sacctmgr -iQ modify resource name=${LIC} server=slurmdb set count=${count} >/dev/null 2>&1
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    echo "failed: sacctmgr -iQ modify resource name=${LIC} server=slurmdb set count=${count}"
+    exit 4
+  fi
+  return
+}
+
+fliplics() {
+  local queueLength
+  queueLength=$(squeue --noheader | wc -l)
+
+  while [ ${queueLength} -gt 0 ]
+  do
+    local sl
+    lic=$(echo $(sacctmgr show resource ${DEFAULT_LICENSE} format="count%-4" -n))
+    lic_abundant=$(( $(scontrol show node -o | wc -l) * 10))
+    sl=$(expr \( ${lic} \* ${PRIME_DELAY} \) + 1)
+    if [ ${queueLength} -ne 0 ] ; then
+      if [ "${lic}" -ne 0 ] ; then
+        lic 0
+      else
+        lic ${lic_abundant}
+      fi 
+    fi
+    sleep ${sl}
+    queueLength=$(squeue --noheader | wc -l)
+  done
+  return
+}
+
+ensureIdle() {
+  local queueLength
+  queueLength=$(squeue --noheader | wc -l)
+  if [ ${queueLength} -ne 0 ] ; then
+    squeue | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+    sleep ${TIMEOUT:-2}
+    echo $(date): queueLength:${queueLength} | tee "${LOGDIR}/${TSTAMP}/${IAM}"
+  fi
+}
+
+main() {
+  fliplics &
+  return
+}
+
+main
+exit 0
+
+# vim: tabstop=2 shiftwidth=2 expandtab background=dark

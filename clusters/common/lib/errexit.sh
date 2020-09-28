@@ -53,18 +53,19 @@ ErrExit() {
       fi
     fi
 
+    local detectvirt=$(which systemd-detect-virt)
+    local virthwat=$(which virt-what)
+
+    if [ -x "${detectvirt}" ] ; then
+      isvirt=$(systemd-detect-virt)
+    elif [ -x "${virtwhat}" -a "${isroot}" = "root" ] ; then
+      isvirt=$(${virtwhat})
+    fi
+
     if [ -n "${HALT_ERREXIT}" ] ; then
       local isvirt=""
       local nopoweroff="echo disabled:"
       local isroot=$(id -n -u)
-      local detectvirt=$(which systemd-detect-virt)
-      local virthwat=$(which virt-what)
-
-      if [ -x "${detectvirt}" ] ; then
-        isvirt=$(systemd-detect-virt)
-      elif [ -x "${virtwhat}" -a "${isroot}" = "root" ] ; then
-        isvirt=$(${virtwhat})
-      fi
 
       if [[ ${isvirt} != *kvm* && ${isvirt} != *virtualbox* ]] ; then
         echo "[refusing to poweroff non-virtual system]"
@@ -72,6 +73,19 @@ ErrExit() {
         ${nopoweroff} poweroff --force --no-wall
       fi
     fi
+
+    if [ -n "${isvirt}" ] ; then
+      if [ -d "${STATE_D}" ] ; then
+        local debug_d
+        debug_d=${STATE_D}/debug
+        if [ ! -d "${debug_d}" ] ; then
+          mkdir -p "${debug_d}"
+        fi
+        echo $@ > "${debug_d}"/$(hostname -s)
+      fi
+    fi
+
     exit ${rc}
 }
 
+# vim: background=dark

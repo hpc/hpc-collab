@@ -30,7 +30,8 @@ VIRTUALCLUSTER	= vc
 else
 VIRTUALCLUSTER ?= $(IAM)
 endif
-export VC	   ?= $(VIRTUALCLUSTER)
+export VC      ?= $(VIRTUALCLUSTER)
+VC_D		= $(CLUSTERS_DIR)/$(VC)
 
 CFG	        = cfg
 NODES  	        = $(filter $(VC)%, $(notdir $(wildcard $(CFG)/*)))
@@ -71,8 +72,9 @@ NONEXISTENT_D	    = $(STATE_D)/nonexistent
 POWEROFF_D	    = $(STATE_D)/poweroff
 RUNNING_D	    = $(STATE_D)/running
 PROVISIONED_D	    = $(STATE_D)/provisioned
+DEBUG_D		    = $(STATE_D)/debug
 
-STATE_DIRS_ALL	    = $(STATE_D) $(PROVISIONED_D) $(RUNNING_D) $(POWEROFF_D) $(NONEXISTENT_D)
+STATE_DIRS_ALL	    = $(STATE_D) $(PROVISIONED_D) $(RUNNING_D) $(POWEROFF_D) $(NONEXISTENT_D) $(DEBUG_D)
 STATE_DIRS	    = $(PROVISIONED_D) $(RUNNING_D) $(POWEROFF_D) $(NONEXISTENT_D)
 
 RUNNING_FLAGS       = $(addprefix $(RUNNING_D)/,     $(NODES))
@@ -106,6 +108,7 @@ TIMEOUT_LT_MIN	       := $(shell (test $(MIN_TIMEOUT_SECS) -gt $(NODE_TIMEOUT) &
 ifeq ($(TIMEOUT_LT_MIN),"timeout_lessthan_minimum")
 NODE_TIMEOUT	       := $(MIN_TIMEOUT_SECS)
 endif
+RC_TIMEOUT_EXCEEDED	= 124
 
 TARBALLS		= tarballs
 TARBALLS_D		= ../../$(TARBALLS)
@@ -141,7 +144,7 @@ XFR_PREREQ_PREMOUNT	= $(XFR_VBOXADD_ISO) $(XFR_REPOS_TGZ)
 XFR_PREREQ		= $(TARBALLS_VBOXADD_ISO) $(TARBALLS_REPOS_TGZ)
 
 # must match ../common/bin/generateproviderfiles.sh
-GENERATED_FLAG_F		= $(CLUSTERS_DIR)/$(VC)/.regenerated
+GENERATED_FLAG_F		= $(VC_D)/.regenerated
 
 VAGRANTFILE			= Vagrantfile
 VAGRANTFILE_D			= ../common/Vagrantfile.d
@@ -193,7 +196,7 @@ NODES_POWEROFF		= $(foreach n,$(NODES),$(POWEROFF_D)/$(n))
 NODES_NONEXISTENT	= $(foreach n,$(NODES),$(NONEXISTENT_D)/$(n))
 NODES_UNPROVISION	= $(foreach n,$(NODES),$(n)_UNPROVISION)
 
-SRC_PROVIDER_FILES	= $(shell find $(CLUSTERS_DIR)/$(VC) -name \*%\*% -type f)
+SRC_PROVIDER_FILES	= $(shell find $(VC_D) -name \*%\*% -type f)
 TARGET_PROVIDER_FILES	= $(foreach f,$(SRC_PROVIDER_FILES),$(basename $(f)))
 
 QUICK_HUMANFRIENDLY_FLAG_NAMES    = quick quick-flag flag-quick flags-quick flag-quicker \
@@ -367,20 +370,20 @@ flags flag: | $(PROVISION_FLAG_D)
 ###
 
 $(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) common/etc/hosts
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
+	cd $(VC_D) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
 
 generateproviderfiles: $(GENERATED_FLAG_F)
 
 $(TARGET_PROVIDER_FILES): $(GENERATED_FLAG_F)
 
 compilevagrantfile: $(VAGRANTFILE_PREREQ) $(GENERATED_FLAG_F)
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	cd $(VC_D) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
 
 $(VAGRANTFILE): $(GENERATED_FLAG_F) $(VAGRANTFILE_PREREQ) $(TARGET_PROVIDER_FILES)
-	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
+	cd $(VC_D) ; env VC=$(VC) $(COMPILE_VAGRANTFILE)
 
 validate: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES)
-	cd $(CLUSTERS_DIR)/$(VC) ; vagrant validate
+	cd $(VC_D) ; vagrant validate
 
 ingest-state: $(GENERATED_FLAG_F) $(VAGRANTFILE) clean-state
 	$(HUSH)env VC=$(VC) $(INGEST_STATE)
@@ -453,46 +456,66 @@ $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS):
 
 # XXX @todo 'vmtouch -d -L -q -t $(PREREQ)' provided they're not $(PHONY)
 $(PROVISIONED_D)/%: $(VAGRANTFILE) $(PREREQ) $(notdir $(wildcard $(CFG)/%/requires/*))
-	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"		; \
-	for prereq in $^ $${_prereq_nodes}								; \
-        do												  \
-	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then							  \
-	    continue											; \
-	  fi												; \
-	  export _VCC=$${prereq:0:2}									; \
-	  if [ -n "$${_VCC}" -a -d "../$${_VCC}" -a -d "../$${_VCC}/cfg/$${prereq}" ] ; then		  \
-	    if [ -n "$(HUSH)" ] ; then									  \
-	      echo "prerequisite: $${prereq}"								; \
-	    fi												; \
-	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}	; \
-	    $(INGEST_STATE)										; \
-	    continue											; \
-	  fi												; \
-	  if [ ! -f "$${prereq}" ] ; then								  \
-	    echo prerequisite: $${prereq} missing							; \
-	    exit 105											; \
-	  fi												; \
-	done												; \
-	if [ -f $(NONEXISTENT_D)/$(@F) ] ; then								  \
-	  vagrant destroy -f $(@F)									; \
-	  $(INGEST_STATE)										; \
-	fi												; \
-	if [ -f $(RUNNING_D)/$(@F) -a ! -f $(PROVISIONED_D)/$(@F) ] ; then				  \
-	  vagrant destroy -f $(@F) || exit 106								; \
-	fi								    			  	; \
-	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      			 	  \
-	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)								; \
-	  timeout --foreground --kill-after=1 $(NODE_TIMEOUT)s vagrant --timestamp up --provision $(@F)	; \
-	  rc=$$?											; \
-	  if [ $${rc} -ne 0 ] ; then									  \
-	    echo "Warning: vagrant up $(@F), rc:$${rc}"							; \
-	    $(INGEST_STATE)										; \
-	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)							; \
-	  else												  \
-	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)							; \
-	    $(INGEST_STATE)										; \
-	  fi												; \
-	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(MAKE) $(@F)!
+	$(HUSH)export _prereq_nodes="$(sort $(notdir $(wildcard $(CFG)/$(@F)/requires/*)))"				; \
+	if [ -f $(CFG)/$(@F)/attributes/timeout/* ] ; then								  \
+	  export NODE_TIMEOUT=$$(basename $(CFG)/$(@F)/attributes/timeout/*)						; \
+	else														  \
+	  export NODE_TIMEOUT=$(NODE_TIMEOUT)										; \
+	fi														; \
+	for prereq in $^ $${_prereq_nodes}										; \
+        do														  \
+	  if [[ "$(PHONY)" =~ $${prereq} ]] ; then									  \
+	    continue													; \
+	  fi														; \
+	  export _VCC=$${prereq:0:2}											; \
+	  if [ -n "$${_VCC}" -a -d "../$${_VCC}" -a -d "../$${_VCC}/cfg/$${prereq}" ] ; then				  \
+	    if [ -n "$(HUSH)" ] ; then											  \
+	      echo "prerequisite: $${prereq}"										; \
+	    fi														; \
+	    env VC=$${_VCC} VIRTUALCLUSTER=$${_VCC} $(MAKE) -s VC=$${_VCC} -C ../$${_VCC} $${prereq}			; \
+	    $(INGEST_STATE)												; \
+	    continue													; \
+	  fi														; \
+	  if [ ! -f "$${prereq}" ] ; then										  \
+	    echo prerequisite: $${prereq} missing									; \
+	    exit 105													; \
+	  fi														; \
+	done														; \
+	if [ -f $(NONEXISTENT_D)/$(@F) ] ; then										  \
+	  vagrant destroy -f $(@F)											; \
+	  $(INGEST_STATE)												; \
+	fi														; \
+	if [ -f $(RUNNING_D)/$(@F) -a ! -f $(PROVISIONED_D)/$(@F) ] ; then						  \
+	  vagrant destroy -f $(@F) || exit 106										; \
+	fi								    					  	; \
+	if [ ! -f $(PROVISIONED_D)/$(@F) ] ; then			      					 	  \
+	  export VBOXADD_ISO=$(XFR_VBOXADD_ISO)										; \
+	  timeout --foreground --kill-after=1 $${NODE_TIMEOUT}s vagrant --timestamp up --provision $(@F)		; \
+	  rc=$$?													; \
+	  $(INGEST_STATE)												; \
+	  if [ $${rc} -ne 0 ] ; then											  \
+	    echo "Warning: vagrant up $(@F), rc:$${rc} (retry)"								; \
+	    if [ $${rc} -eq $(RC_TIMEOUT_EXCEEDED) ] ; then								  \
+	      NODE_TIMEOUT=$$(expr $${NODE_TIMEOUT} + \( $${NODE_TIMEOUT} / 2 \) + 1)					; \
+	      echo "Timeout exceeded, increased to: $${NODE_TIMEOUT} seconds"						; \
+	    fi														; \
+	    $(DISABLE_RM) rm -f $(PROVISIONED_D)/$(@F)									; \
+	    if [ ! -f $(DEBUG_D)/$(@F) ] ; then										  \
+	      env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(VC_D) $(@F)_UNPROVISION					; \
+	      timeout --foreground --kill-after=1 $${NODE_TIMEOUT}s vagrant --timestamp up --provision $(@F)		; \
+	    else													  \
+	      if [ -s $(DEBUG_D)/$(@F) ] ; then										  \
+	        cat $(DEBUG_D)/$(@F)											; \
+	      else													  \
+	        echo "debug flag state file exists: $(DEBUG_D)/$(@F)"							; \
+	      fi													; \
+	      rm -f $(DEBUG_D)/$(@F)											; \
+	      exit 107													; \
+	    fi														; \
+	  else														  \
+	    env VC=$(VC) $(MARK_PROVISIONED) $(@F)									; \
+	  fi														; \
+	fi || env VC=$(VC) VIRTUALCLUSTER=$(VC) $(MAKE) -C $(VC_D) $(@F)
 
 $(RUNNING_D)/%: $(PREREQ) ingest-state
 	$(HUSH)if [ -f $(PROVISIONED_D)/$(@F) ] ; then							  \
