@@ -95,6 +95,7 @@ VC_TARGETS	= up ready provision					\
 		  clean-state clean					\
 		  show							\
 		  save-logs savelogs save-log savelog			\
+		  synchome sync-home savehome save-home			\
 		  collect-logs collectlogs collect-log collectlog
 
 PKG_TARGETS =	pkg tarball

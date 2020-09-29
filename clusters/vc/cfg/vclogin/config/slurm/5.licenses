@@ -34,9 +34,7 @@ count=$(( ${nodecnt} * ${n_clusters} ))
 
 # see if they match (are in conflict with) those in licenses/
 
-#existing_licenses=$(sacctmgr show resource format=name,count,allocated --noheader|awk '{print $1}')
-
-existing_licenses=$(echo $(sacctmgr show resource format=name%-25 --noheader))
+existing_licenses=$(echo $(sacctmgr show resource withcluster cluster=${cluster} format=name%-25 --noheader))
 
 # # sacctmgr show resource withclusters format=name%-25,server,type,count,allocated,cluster,allowed
 #      Name     Server     Type  Count % Allocated ServerType    Cluster  % Allowed 
@@ -49,25 +47,21 @@ existing_licenses=$(echo $(sacctmgr show resource format=name%-25 --noheader))
 
 for lic_name in ${licenses}
 do
+  sacct_mgr=""
   lic=$(basename ${lic_name})
+  action="add"
   if [[ "${existing_licenses}" != *"${lic}"* ]] ; then
-    sacct_mgr="sacctmgr -iQ add resource type=license count=${count} name=${lic_name}"
-    Rc ErrExit ${EX_CONFIG} "${sacct_mgr}"
+    acction="update"
   fi
 
   d=${LICENSES_D}/${lic_name}
   attributes=$(echo $(ls ${d}))
 
-  sacct_mgr_cmd="sacctmgr -iQ add resource name=${lic_name} cluster=${cluster}"
-  sacct_mgr=""
+  sacct_mgr_cmd="sacctmgr -iQ ${action} resource name=${lic_name} type=license count=${count} cluster=${cluster}"
   any_attr=""
 
   for attr_name in ${attributes}
   do
-    fmt_name="${attr_name}"
-    if [ "${attr_name}" = "percentallowed" ] ; then
-      fmt_name="allowed"
-    fi
     existing=$(echo $(sacctmgr show resource where cluster=${cluster} format="name%-20" -n))
     attr_val=""
     if [ -s ${d}/${attr_name} ] ; then
@@ -76,17 +70,24 @@ do
     if [[ "${existing}" == *"${lic_name}"* ]] ; then
 	existing_val=$(sacctmgr show resource where cluster=${cluster} name=${lic_name} -n | awk '{print $5}') 
 	if [ "${existing_val}" = "${attr_val}" ] ; then
-          Verbose "license=${lic_name}, cluster=${cluster}, existing_val:${existing_val} = attr_val:${attr_val}, skipped"
-          continue
+	  if [ "${attr_val}" -ne 0 ] ; then
+            Verbose "license=${lic_name}, cluster=${cluster}, existing_val:${existing_val} = attr_val:${attr_val}, skipped"
+            continue
+	  fi
 	fi
     fi
     if [ -z "${attr_val}" ] ; then
       continue
     fi
 
-    if [ -z "${sacct_mgr}" ] ; then
-      sacct_mgr="${sacct_mgr_cmd} ${attr_name}=${attr_val}"
-    fi
+    needs_set="set "
+    case "${action}" in
+      update)  ;;
+      add) needs_set="" ;;
+      *) ErrExit ${EX_SOFTWARE} "unknown action:${action}" ;;
+    esac
+
+    sacct_mgr="${sacct_mgr_cmd} ${needs_set} ${attr_name}=${attr_val}"
     any_attr="${any_attr} ${attr_name}"
   done #attr_name
   if [ -n "${any_attr}" ] ; then
@@ -94,8 +95,10 @@ do
   fi
 done #lic_name
 
+sacctmgr show resource withcluster 
+
 trap '' 0
 
 exit ${EX_OK}
 
-# vim: set background=dark
+# vim: background=dark
