@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file cfg/provision/bin/markprovisioned.sh
+## @file cfg/provision/bin/savelogsdb.sh
 
 ## This ANCHOR is used because the shell loader may be called from the primary host ("dom0") or from the guest host ("/vagrant/...")
 declare -x VC=${VC:-_VC_UNSET_}

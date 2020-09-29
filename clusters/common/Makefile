@@ -85,6 +85,10 @@ PROVISIONED_FLAGS   = $(addprefix $(PROVISIONED_D)/, $(NODES))
 # unprovision doesn't have a flag; so use explicit target
 TARGETS_UNPROVISION = $(addsuffix _UNPROVISION, $(NODES))
 
+COMMON_ETC		= $(COMMON_D)/etc
+COMMON_ETC_HOSTS	= $(COMMON_ETC)/hosts
+COMMON_HOME		= $(COMMON_D)/home
+
 TMP		       ?= $(COMMON_D)/tmp
 XFR			= xfr
 XFR_PREV		= $(WHERE_INVOKED)/$(VC)~/$(XFR)
@@ -174,6 +178,7 @@ UNPROVISION		= unprovision.sh
 MARK_PROVISIONED	= markprovisioned.sh
 VERIFY_LOCALENV		= verifylocalenv.sh
 SAVE_LOGSDB		= savelogsdb.sh
+SYNC_HOME		= synchome.sh
 COMPILE_VAGRANTFILE	= compilevagrantfile.sh
 GENERATE_PROVIDER_FILES	= generateproviderfiles.sh
 
@@ -209,12 +214,15 @@ HUMANFRIENDLY_FLAGS	= $(QUICK_HUMANFRIENDLY_FLAG_NAMES) \
 		$(COMPLETE_HUMANFRIENDLY_FLAG_NAMES)
 
 SAVELOGS_TARGETS	= savelogs save-logs savelog save-log collectlogs collect-logs collectlog collect-log
+SAVEHOME_TARGETS	= synchome sync-home savehome save-home
+SYNCHOME_TARGETS	= synchome sync-home savehome save-home
+SAVESTUFF_TARGETS	= $(SAVELOGS_TARGETS) $(SAVEHOME_TARGETS)
 
 HUMANFRIENDLY_TARGETS	= clean clean-state clean-state-prune compare-vc-cksum			\
 				compilevagrantfile copyright doc generateproviderfiles help 	\
 				ingest-state show show-state show-vars status			\
 				todo validate verifylocalenv					\
-				$(SAVELOGS_TARGETS)
+				$(SAVESTUFF_TARGETS)
 
 
 PHONY			= $(HUMANFRIENDLY_TARGETS) $(HUMANFRIENDLY_FLAGS)
@@ -287,7 +295,7 @@ show-vars:
 ## @todo use graphviz on Makefile to self-generate this
 help:	Makefile
 	$(HUSH)$(info ) 
-	$(HUSH)$(info   make [ up | provision | ready | poweroff | halt | down | nonexistent | unprovision | savelogs])
+	$(HUSH)$(info   make [ up | provision | ready | poweroff | halt | down | nonexistent | unprovision | savelogs | synchome])
 	$(HUSH)$(info   make [show | help])
 	$(HUSH)$(info   make [flag-quick | flag-complete | quick | complete | flag | show-flags])
 	$(HUSH)$(info   make ['$(NODES)'])
@@ -315,6 +323,7 @@ help:	Makefile
 	$(HUSH)$(info   make todo			= shows the current working notes)
 	$(HUSH)$(info   make ingest-state		= force recollection of vagrant state)
 	$(HUSH)$(info   make savelogs			= collect cluster logs and db dump from running cluster)
+	$(HUSH)$(info   make synchome			= collect in-cluster home dir from running cluster)
 	$(HUSH)$(info )
 	$(HUSH)$(info   "make up", "make <node>" or "make show"  will be of most use.)
 	$(HUSH)$(info )
@@ -369,7 +378,7 @@ flags flag: | $(PROVISION_FLAG_D)
 
 ###
 
-$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) common/etc/hosts
+$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) $(COMMON_ETC_HOSTS)
 	cd $(VC_D) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
 
 generateproviderfiles: $(GENERATED_FLAG_F)
