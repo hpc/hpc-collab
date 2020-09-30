@@ -100,6 +100,10 @@ do
   alias "${t}"="make -s -C ${BASE} ${t}"
 done
 alias  "savelogs"="( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/savelogsdb.sh )"
+for t in savehome synchome
+do
+  alias  "${t}"="( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/synchome.sh )"
+done
 
 # when/if needed
 # ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key > /dev/null 2>&1

@@ -92,6 +92,9 @@ foreach t (show pkg prereq provision unprovision down)
   alias "${t}"		"make -s -C ${BASE} ${t}"
 end
 alias  "savelogs"	"( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/savelogsdb.sh )"
+foreach t (savehome synchome)
+  alias  "${t}"	"( cd ${CLUSTERS}/vc ; env VC=vc ../common/bin/synchome.sh )"
+end
 
 # when/if needed
 #ssh-add ${CLUSTERS}/*/.vag*/machines/*/virtualbox/private_key >& /dev/null

@@ -560,7 +560,7 @@ $(POWEROFF_D)/%:
 		vagrant halt $(@F)									; \
 	fi
 
-$(NONEXISTENT_D)/%: $(POWEROFF_D)/%
+$(NONEXISTENT_D)/%: synchome $(POWEROFF_D)/%
 	$(HUSH)vagrant destroy -f $(@F)
 
 %_UNPROVISION: $(NONEXISTENT_D)/% ingest-state
