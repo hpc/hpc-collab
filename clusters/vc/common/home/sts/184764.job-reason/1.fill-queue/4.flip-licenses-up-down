@@ -23,6 +23,7 @@ PRIME_DELAY=7
 
 declare -x SQUEUE_FORMAT="%.24i %.9Q %.9q %.20a %.18u %.8T %.12M %.12l %.20S %.20e %.6D %R"
 declare -x SQUEUE_SORT="-t,-p,e,S"
+PATH=${PATH}:$(realpath ./bin)
 
 prepOut() {
   mkdir -p ${LOGDIR}/${TSTAMP}
@@ -78,8 +79,19 @@ ensureIdle() {
   fi
 }
 
+pokejobs() {
+  sl=$(expr ${PRIME_DELAY} \* 5)
+
+  while [ : ]
+  do
+    poke_pending_jobs.py
+    sleep ${sl}
+  done
+}
+
 main() {
   fliplics &
+  pokejobs &
   return
 }
 
