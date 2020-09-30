@@ -61,6 +61,10 @@ CollectHome() {
   local _vc=$(echo $(basename $(cd ${VC}; pwd)))
   local fshost="${_vc}fs"
 
+  if [ ! -f common/._state/provisioned/${fshost} ] ; then
+    ErrExit ${EX_SOFTWARE} " The cluster storage node (${fshost}) is not provisioned. There's nothing to sync."
+  fi
+
   Rc ErrExit ${EX_CONFIG}   "ping -n -q -w 1 ${fshost}"
   Rc ErrExit ${EX_SOFTWARE} "${SSH} ${fshost} /bin/true"
   Rc ErrExit ${EX_SOFTWARE} "${SSH} ${fshost} mkdir -p ${TMPDIR}"
