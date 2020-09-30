@@ -5,8 +5,10 @@ ALTERNATE_VC_D	= ../vc~
 $(SAVELOGS_TARGETS): $(wildcard $(PROVISIONED_D)/*)
 	$(HUSH)env VC=$(VC) $(SAVE_LOGSDB)
 
-$(SYNCHOME_TARGETS): $(PROVISIONED_D)/$(VC)fs
-	$(HUSH)env VC=$(VC) $(SYNC_HOME)
+$(SYNCHOME_TARGETS):
+	$(HUSH)if [ -f $(PROVISIONED_D)/$(VC)fs ] ; then	  \
+		env VC=$(VC) $(SYNC_HOME)			; \
+	fi
 
 $(COMMON_ETC_HOSTS):
 	cd $(CLUSTERS_DIR)/$(VC) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES)
