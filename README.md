@@ -106,7 +106,9 @@ In the interest of documentation that matches actual code, preliminary work has 
 <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen.sed</A>.</P>
 
 <P>
-Make systematizes the dependencies and invocations.
+Make systematizes the dependencies and invocations. In order to avoid all of its arguments, convenience
+aliases are created in the <em>setpath.csh</em> and <em>setpath.sh</em> shell-specific files. A future
+implementation will convert these to Modulefiles.
  <UL>
   <LI><EM>cd clusters/vc; make Vagrantfile</EM>	- to construct initial Vagrantfile<BR></LI>
   <LI><EM>make prereq</EM>      - simplistic check of underlying prerequisites</LI>
