@@ -176,7 +176,7 @@ main() {
 ##     3) synced_folder.d/<fstype>
 ##     4) cfg.vm.provider/<provider>
 
-#  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2}" 0
+  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2}" 0
   export PROVIDER=${provider}
   INSERT_NODES_PATTERN="_insert_nodes_"
   INSERT_NODES_LINENO=$(sed -n -e "/${INSERT_NODES_PATTERN}/=" < ${VAGRANTFILE_TEMPLATE})

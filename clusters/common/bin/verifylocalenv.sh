@@ -90,6 +90,7 @@ do
       echo --- cut here ${f} cut here ---
     fi
   fi
+  rm -f ${tmp}
 done
 
 for x in ${OPTIONAL_EXE}
