@@ -65,7 +65,7 @@ $(HUMAN_FRIENDLY): $(PREREQ) $(PREREQ_LIST) $(basename $(PREREQ_LIST))
 	$(MAKE) -C requires/storage
 	$(MAKE) -C requires/ingest
 	$(MAKE) -C requires/auth
-	$(HUSH)set first=""											; \
+	$(HUSH)export first="Prerequisites: "									; \
 	for f in $(sort $^)											; \
         do													  \
 		is=$$(requires/sw/$$f/cmd)									; \
