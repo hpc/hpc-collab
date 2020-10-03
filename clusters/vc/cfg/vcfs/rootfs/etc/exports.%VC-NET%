@@ -1,12 +1,12 @@
 #
-/home/vagrant				%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant				%VC-0NET%/24(fsid=101,rw,no_root_squash,security_label,subtree_check,async)
 #
-/home/vagrant/common/home		%VC-0NET%/24(rw,no_root_squash,security_label,sync)
-#
-/home/vagrant/common/repos		%VC-0NET%/24(rw,no_root_squash,security_label,async)
-/home/vagrant/common/root		%VC-0NET%/24(rw,no_root_squash,security_label,async)
-/home/vagrant/common/var/log/rsyslog	%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
-/home/vagrant/common/var/log/slurm	%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant/common/home		%VC-0NET%/24(fsid=111,rw,no_root_squash,security_label,sync)
+/home/vagrant/common/repos		%VC-0NET%/24(fsid=112,rw,no_root_squash,security_label,async)
+/home/vagrant/common/root		%VC-0NET%/24(fsid=113,rw,no_root_squash,security_label,async)
 
-/home/vx				%VC-0NET%/24(rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant/common/var/log/rsyslog	%VC-0NET%/24(fsid=121,rw,no_root_squash,security_label,subtree_check,async)
+/home/vagrant/common/var/log/slurm	%VC-0NET%/24(fsid=122,rw,no_root_squash,security_label,subtree_check,async)
+
+/home/vx				%VC-0NET%/24(fsid=201,rw,no_root_squash,security_label,subtree_check,async)
 

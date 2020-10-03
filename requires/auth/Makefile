@@ -18,12 +18,12 @@ all: $(TARGETS)
 
 modify-exports:
 ifneq ($(EXPORTS_UNPRIV),"") 
-  $(warning Unprivileged access failed, will try using sudo)
+	$(warning Warning: Unprivileged access failed, will try using sudo)
 endif
 
 sudo-auth: sudo-modify-exports
 ifneq ($(SUDO_CHECK), $(SUDO_NEED))
-  $(warning Insufficient authorization for NFS: $(SUDO_CHECK) != $(SUDO_NEED))
+	$(warning Warning: Insufficient authorization for NFS: $(SUDO_CHECK) != $(SUDO_NEED))
 endif
 
 sudo-modify-exports:
@@ -34,5 +34,8 @@ sudo-modify-exports:
 	fi
 
 sudo-enable-nfs-through-firewall:
-	sudo firewall-cmd --zone=trusted --add-interface=vboxnet0
-	sudo firewall-cmd --zone=trusted --add-service=nfs
+	firewall_running=$$(systemctl status firewalld | grep Active: | awk '{print $$2}')	; \
+	if [ "${firewall_running}" = "active" ] ; then						  \
+		sudo firewall-cmd --zone=trusted --add-interface=vboxnet0			; \
+		sudo firewall-cmd --zone=trusted --add-service=nfs				; \
+	fi

@@ -109,6 +109,7 @@ PriorityType=priority/multifactor
 #PriorityMaxAge=32-0
 ##PriorityUsageResetPeriod=
 PriorityWeightAge=14400
+PriorityWeightAssoc=1
 PriorityWeightFairshare=48000
 PriorityWeightJobSize=14400
 PriorityWeightPartition=0

@@ -31,6 +31,13 @@ cluster=${HOSTNAME:0:2}
 nodecnt=$(echo $(sinfo --format="%n %f" | grep compute | awk '{print $1}' | sort | uniq | wc -l))
 n_clusters=$(ls /home | wc -l)
 count=$(( ${nodecnt} * ${n_clusters} ))
+numeric='^[0-9]+$'
+if [ -z "${count}" ] ; then
+  ErrExit ${EX_SOFTWARE} "empty count for licenses"
+fi
+if ! [[ ${count} =~ $numeric ]] ; then
+  ErrExit ${EX_SOFTWARE} "count:${count} is non-numeric"
+fi
 
 # see if they match (are in conflict with) those in licenses/
 
