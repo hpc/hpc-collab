@@ -63,6 +63,7 @@ $(HUMAN_FRIENDLY): $(PREREQ) $(PREREQ_LIST) $(basename $(PREREQ_LIST))
 	$(MAKE) -C clusters/vx Vagrantfile
 	$(MAKE) -C clusters/vc Vagrantfile
 	$(MAKE) -C requires/storage
+	$(MAKE) -C requires/memory
 	$(MAKE) -C requires/ingest
 	$(MAKE) -C requires/auth
 	$(HUSH)export first="Prerequisites: "									; \
