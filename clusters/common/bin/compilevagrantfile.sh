@@ -48,7 +48,9 @@ declare -x TSTAMP=$(date +%Y.%m.%d.%H%M)
 declare -x VAGRANTFILE_TMP1=${TMP}/${IAM}.${TSTAMP}.tmp1
 declare -x VAGRANTFILE_TMP2=${TMP}/${IAM}.${TSTAMP}.tmp2
 declare -x VAGRANTFILE_TARGET=$(realpath ${VC}/Vagrantfile)
+declare -x REGENERATED=$(realpath ${VC}/.regenerated)
 declare -x PROVIDER
+numeric="^[0-9]+$"
 
 cd ${VC}
 
@@ -176,7 +178,7 @@ main() {
 ##     3) synced_folder.d/<fstype>
 ##     4) cfg.vm.provider/<provider>
 
-  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2}" 0
+  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2} ${REGENERATED}" 0
   export PROVIDER=${provider}
   INSERT_NODES_PATTERN="_insert_nodes_"
   INSERT_NODES_LINENO=$(sed -n -e "/${INSERT_NODES_PATTERN}/=" < ${VAGRANTFILE_TEMPLATE})
@@ -269,16 +271,34 @@ main() {
   if [[ ${n_NODES_ORDERED} != ${n_NODES} ]] ; then
     ErrExit ${EX_CONFIG} "n_NODES_ORDERED:${n_NODES_ORDERED} != n_NODES:${n_NODES}"
   fi
+  trap "rm ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TMP2} ${VAGRANTFILE_TARGET} ${REGENERATED}" 0
 
   (
     echo "${NODESTAB_PREFIX}"
     for n in ${NODES_BOOTORDER}
     do
-    CFG_NODE_D=${CFG}/${n}
+      CFG_NODE_D=${CFG}/${n}
       ATTR_D=${CFG_NODE_D}/attributes
 
       memory=$(ls ${ATTR_D}/memory)
+      if ! [[ ${memory} =~ ${numeric} ]] ; then
+        ErrExit ${EX_CONFIG} "memory:${ATTR_D}/memory value is not numeric:\"${memory}\""
+      fi
+      memory=( ${memory} )
+      if [ ${#memory[@]} -ne 1 ] ; then
+        ErrExit ${EX_CONFIG} "memory:${ATTR_D}/memory directory has invalid specification:${memory[*]}"
+      fi
+      memory="${memory[*]}"
+
       procs=$(ls ${ATTR_D}/procs)
+      if ! [[ ${procs} =~ ${numeric} ]] ; then
+        ErrExit ${EX_CONFIG} "procs:${ATTR_D}/procs value is not numeric:\"${procs}\""
+      fi
+      procs=( ${procs} )
+      if [ ${#procs[@]} -ne 1 ] ; then
+        ErrExit ${EX_CONFIG} "procs:${ATTR_D}/procs directory has invalid specification:${procs[*]}"
+      fi
+      procs="${procs[*]}"
 
       ip=$(grep -e " ${n} "    ${HOSTS} | awk '{printf "%s",$1}') 
       mac=$(grep -e "[ 	]${n}" ${ETHERS}| awk '{printf "%s",$1}' | sed 's/://g')
@@ -348,6 +368,10 @@ main() {
     sed -n -e "${SYNCEDFOLDERS_APPEND},${INSERT_PROVIDER_TRIM}p" < ${VAGRANTFILE_TEMPLATE}
     cat ${CFG_VM_PROVIDERS_D}/${PROVIDER} ${VAGRANTFILE_TMP2}
   ) >> ${VAGRANTFILE_TMP1}
+  rc=$?
+  if [ ${rc} -ne 0 ] ; then
+    Rc ErrExit ${EX_OSFILE} "rm -f ${VAGRANTFILE_TMP1}"
+  fi
 
   #Rc ErrExit ${EX_OSFILE} "cp -buv ${VAGRANTFILE_TMP1} ${VAGRANTFILE_TARGET}"
   Rc ErrExit ${EX_OSFILE} "sed -i -e \"/%CLUSTERNAME%/s//${env_VC}/g\" ${VAGRANTFILE_TMP1} ;"
