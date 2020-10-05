@@ -1,2 +1,2 @@
 appendwhere: repos
-appendwhat: vcfs:/home/vagrant/common/home /home/vagrant/common/home nfs defaults,_netdev,nfsvers=4.2,nosharecache,rw,actimeo=3,context=unconfined_u:object_r:user_home_dir_t:s0 0 0
+appendwhat: vcfs:/home/vagrant/common/home /home/vagrant/common/home	nfs	defaults,_netdev,nfsvers=4.2,nosharecache,rw,actimeo=3,context=unconfined_u:object_r:user_home_dir_t:s0 0 0
