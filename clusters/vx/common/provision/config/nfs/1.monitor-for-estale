@@ -1,0 +1,96 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc*/common/provision/config/nfs/1.monitor-for-estale
+
+## @brief This nfs configuration script constructs and enables the cron directive to detect ESTALE on NFS-mounted partitions, and attempt to remount them
+
+## @todo consider converting to a systemd.timer, systemd.unit rather than cron
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+
+declare -x ETC=/etc
+declare -x ETCFSTAB=${ETC}/fstab
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x USRSBIN=/usr/sbin
+declare -x COMMON_USRSBIN=${COMMON}${USRSBIN}
+
+declare -x CROND=${ETC}/cron.d
+declare -x CROND_MON_NFS_ESTALE=${CROND}/mon_nfs_estale
+declare -x MON_NFS_ESTALE=${USRSBIN}/mon_nfs_estale
+
+numeric="[0-9]+$"
+local_estale=$(echo $(find / -name errno.h  -exec grep ESTALE \{\} \; | sort | uniq | awk '{print $3}'))
+if [ -z "${local_estale}" ] ; then
+  declare -x ESTALE=116
+fi
+if ! [[ ${local_estale} =~ ${numeric} ]] ; then
+  declare -x ESTALE=116
+fi
+if ! [[ ${ESTALE} =~ ${numeric} ]] ; then
+  declare -x ESTALE=116
+fi
+
+Rc ErrExit ${EX_OSFILE} "test -f ${ETCFSTAB}"
+Rc ErrExit ${EX_OSFILE} "mkdir -p ${USRSBIN}"
+
+cat - << _MON_NFS_ESTALE_SHELL_SCRIPT_ > ${MON_NFS_ESTALE}
+#!/bin/bash
+
+fs_nfs_list="$(echo $(echo $(awk '/\s\<nfs\>\s/ { print $2 ; }' < ${ETCFSTAB} | sort -d)))"
+need_remount=""
+rc=${EX_OK}
+for fs in \${fs_nfs_list}
+do
+	timeout 1s stat -f \${fs} >/dev/null 2>&1
+	rc=\$?
+	if [ \${rc} = ${ESTALE} ] ; then
+		need_remount="\${need_remount} \${fs}"
+	fi
+done
+
+for unmnt_fs in \${need_remount}
+do
+	timeout 1s umount -fl \${unmnt_fs}
+	rc=\$?
+done
+
+for mnt_fs in \${need_remount}
+do
+	timeout 1s mount \${mnt_fs}
+	rc=\$?
+done
+
+exit \${rc}
+_MON_NFS_ESTALE_SHELL_SCRIPT_
+Rc ErrExit ${EX_OSFILE} "chmod u+x ${MON_NFS_ESTALE}"
+
+cat - << __CRON_HOURLY_ENTRY_EOF__ > ${CROND_MON_NFS_ESTALE}
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+
+*/2 * * * * root ${MON_NFS_ESTALE}
+__CRON_HOURLY_ENTRY_EOF__
+
+Rc ErrExit ${EX_OSERR} "systemctl restart crond"
+
+exit ${EX_OK}
+
+# vim: background=dark
