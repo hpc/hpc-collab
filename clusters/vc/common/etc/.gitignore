@@ -1,2 +1,4 @@
 chrony.conf.client
 chrony.conf.server
+hosts
+networks
