@@ -15,3 +15,5 @@
  
 4. collects slurm logs & queue CSV data => timestamped tarball
  
+This is not true CSV data, but does leverage the existing qstats script.
+The problem is that qstats emits multiple tables which adapts poorly to CSV.
