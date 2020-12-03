@@ -1061,11 +1061,15 @@ exit ${EX_SOFTWARE}
 : << _USAGE_
 #
 # stash_jobscript - save a copy of a slurm jobscript and its environment
-#  Usage: stash_jobscript [-j -m | -S] [-D] | [-?]
+#  Usage: stash_jobscript [-j -m [-l] | -S] [-D] | [-?]
 #
 #  Options:
 #   -j  Record the jobscript and environment for previously-submitted jobs that
 #       exist in the SlurmStateLoc
+#
+#   -l  While recording jobs [-j] or monitoring [-m] the batch jobs submitted,
+#       create a tree of hard links to the StateSaveLocation. This is intended for
+#       convenient packaging to ship to an external repository
 #
 #   -m  Monitor batch jobs as they are submitted to the slurm controller daemon
 #       This causes multiple children processes to be spawned, one for each hash
@@ -1080,4 +1084,4 @@ exit ${EX_SOFTWARE}
 #
 _USAGE_
 
-# vim: background=dark expandtab shiftwidth=2 syntax=enable tabstop=2
+# vim  background=dark tabstop=2 shiftwidth=2 expandtab syntax=enable
