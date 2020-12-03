@@ -36,6 +36,7 @@ RPMBUILD=${BUILDWHERE}/rpmbuild
 ARCH=${ARCH:-$(uname -m)}
 RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
+NEED_BUILD_FLAG="/tmp/build.${PRODUCT}.need_build"
 
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
@@ -64,3 +65,5 @@ fi
 Rc ErrExit ${EX_OSFILE} "cp -bv ${RPMS_ARCH}/*${SLURM_VERSION}*.rpm ${COMMON_LOCALREPO}/${ARCH}"
 
 exit ${EX_OK}
+
+# vim: background=dark ts=2 sw=2 syntax

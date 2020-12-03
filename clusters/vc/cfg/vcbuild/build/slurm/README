@@ -1,6 +1,5 @@
 To update slurm:
- 1. pull latest tarball from schedmd.com or github.com
- 2. untar into ../../../../build/ (BUILDWHERE)
- 3. change generic "slurm" link to point to the untarred directory (ex. ln -s slurm-20.02.0 slurm)
- 4. Copy tarball into the untarred directory (where the rpm slurm.spec file is located)
- 5. If need be, adjust slurm.spec to match build options (debug, pmix, etc)
+ Increase the version number in the file version.
+ If needed, update the prerequisite RPM list.
+To do:
+ Populate local-vcbuild with copies of required RPMs, such as MariaDB-shared, for WHICH_DB=mariadb-*

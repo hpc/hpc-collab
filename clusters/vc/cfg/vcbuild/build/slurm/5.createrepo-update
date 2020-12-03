@@ -37,7 +37,7 @@ ARCH=${ARCH:-$(uname -m)}
 RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
 CREATEREPO_CACHE=/run/createrepo/cache
-
+NEED_BUILD_FLAG="/tmp/build.${PRODUCT}.need_build"
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
 SLURM_VERSION=$(cat ${VERSION})
@@ -50,13 +50,18 @@ if [ ! -d "${COMMON_LOCALREPO}" ] ; then
   ErrExit ${EX_OSFILE}  "COMMON_LOCALREPO:${COMMON_LOCALREPO} not directory"
 fi
 
-for d in ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH} ${CREATEREPO_CACHE}
+for d in ${COMMON_LOCALREPO} ${CREATEREPO_CACHE} ${COMMON_LOCALREPO}/${ARCH}
 do
   if [ ! -d ${d} ] ; then
-    Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
+    ErrExit ${EX_OSFILE} "${d} does not exist or is not a directory"
   fi
 done
 
-Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --cachedir ${CREATEREPO_CACHE} --workers 2 --revision ${tstamp} --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}"
+Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --cachedir ${CREATEREPO_CACHE} --workers 2 --revision ${tstamp} --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}"
+
+Rc ErrExit ${EX_OSERR} "yum-config-manager --enable local-vcbuild"
+Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=local-vcbuild.gpgcheck=0 --save" 
 
 exit ${EX_OK}
+
+# vim: background=dark ts=2 sw=2 syntax

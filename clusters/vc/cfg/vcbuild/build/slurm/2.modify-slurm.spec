@@ -168,3 +168,4 @@ __SED_BUMP_RELEASE_EOF__
 Rc ErrExit ${EX_OSFILE} "cp -b ${tmpfile1} ${SLURM_SPEC}"
 
 exit ${EX_OK}
+# vim: background=dark ts=2 sw=2 syntax
