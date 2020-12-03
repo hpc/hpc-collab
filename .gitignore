@@ -1,1 +1,9 @@
 *~
+clusters/vc/common/home/sts/.gnupg
+clusters/vx/common/etc/slurm
+tarballs
+schedmd.8849
+clusters/vc/.regenerated
+clusters/vc/cfg/vcaltdb/config/community-mysql/.my.cnf
+clusters/vc/cfg/vcdb/config/community-mysql/.my.cnf
+clusters/vc/cfg/vcbuild/build/slurm/last.built
