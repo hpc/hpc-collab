@@ -8,24 +8,33 @@
 # hlsearch on (H) or off (h):
 ~H
 # Last Search Pattern:
-~MSle0~/install
+~MSle0~/numeric
 
 # Command Line History (newest to oldest):
-:q
+:wq
+:w
 :$
+:1
+:!ls bin
+:4
+:!pwd
+:q
 :16
 :n
-:w
 :w!
 :q!
 :w!/tmp/%
-:wq
 :!which pigz
 :!mysql
 :!man mysqldump
 :!which mysqldump
 
 # Search String History (newest to oldest):
+?/numeric
+?/PRIME_DELAY
+?/sleep 
+?/TIMEOUT:-
+?/fliplics
 ?/install
 ?/Epilog=
 ?/prolog
@@ -39,22 +48,40 @@
 # Input Line History (newest to oldest):
 
 # Registers:
+"1	LINE	0
+	
 ""-	CHAR	0
-	xterms
+	f
 
 # File marks:
-'0  1  0  ~/rmfs/SOURCES/lib/collect/collectslurm_attr.c
-'1  78  0  /tc/build/slurm-19.05.3-2/Makefile
-'2  93  0  ~/.ssh/config
-'3  16  0  ~/rmfs/SOURCES/Makefile
-'4  1  0  ~/.login.tc0
-'5  1  0  /tc/cfg/tc0/rootfs/etc/ssh/sshd_config
-'6  11  13  /etc/cron.daily/mysqldump_slurmacctdb
-'7  9  39  /etc/cron.daily/mysqldump_slurmacctdb
-'8  8  92  /etc/cron.daily/mysqldump_slurmacctdb
-'9  6  0  /etc/cron.daily/mysqldump.sh
+'0  19  75  ~/qpat/Notes
+'1  1083  0  ~/stash_jobscripts/stash_jobscripts.sh
+'2  83  27  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+'3  88  14  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+'4  101  12  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+'5  94  11  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+'6  4  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+'7  93  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+'8  1  0  ~/rmfs/SOURCES/lib/collect/collectslurm_attr.c
+'9  78  0  /tc/build/slurm-19.05.3-2/Makefile
 
 # Jumplist (newest first):
+-'  19  75  ~/qpat/Notes
+-'  1  0  ~/qpat/Notes
+-'  1083  0  ~/stash_jobscripts/stash_jobscripts.sh
+-'  1  0  ~/stash_jobscripts/stash_jobscripts.sh
+-'  83  27  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  88  4  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  101  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  89  2  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  94  2  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  58  29  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  22  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  77  12  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  95  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  4  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  93  2  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+-'  1  0  ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
 -'  1  0  ~/rmfs/SOURCES/lib/collect/collectslurm_attr.c
 -'  78  0  /tc/build/slurm-19.05.3-2/Makefile
 -'  1  0  /tc/build/slurm-19.05.3-2/Makefile
@@ -138,23 +165,41 @@
 -'  24806  37  /tc/build/slurm/slurm-19.05.3-2/configure
 -'  24805  50  /tc/build/slurm/slurm-19.05.3-2/configure
 -'  18571  44  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18570  71  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18568  14  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18566  23  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18561  7  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18560  7  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18558  7  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18557  7  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18551  20  /tc/build/slurm/slurm-19.05.3-2/configure
--'  18512  11  /tc/build/slurm/slurm-19.05.3-2/configure
--'  785  0  /tc/build/slurm/slurm-19.05.3-2/configure
--'  784  5  /tc/build/slurm/slurm-19.05.3-2/configure
--'  1  0  /tc/build/slurm/slurm-19.05.3-2/configure
--'  1743  2  /tc/build/slurm/slurm-19.05.3-2/configure
--'  1409  22  /tc/build/slurm/slurm-19.05.3-2/configure
--'  1387  74  /tc/build/slurm/slurm-19.05.3-2/configure
 
 # History of marks within files (newest to oldest):
+
+> ~/qpat/Notes
+	"	19	75
+	^	19	76
+	.	19	75
+	+	18	72
+	+	19	75
+
+> ~/stash_jobscripts/stash_jobscripts.sh
+	"	1083	0
+	.	1084	0
+	+	1083	69
+	+	1084	0
+
+> ~/184764.job-reason/1.fill-queue/4.flip-licenses-up-down
+	"	83	27
+	^	83	28
+	.	83	27
+	+	26	24
+	+	90	0
+	+	87	21
+	+	85	11
+	+	87	3
+	+	89	5
+	+	88	34
+	+	94	11
+	+	85	8
+	+	86	3
+	+	85	12
+	+	83	30
+	+	84	0
+	+	88	14
+	+	83	27
 
 > ~/rmfs/SOURCES/lib/collect/collectslurm_attr.c
 	"	1	0

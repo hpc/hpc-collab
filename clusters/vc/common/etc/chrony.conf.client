@@ -1,5 +1,5 @@
 # Use local server
-server 192.168.56.71
+server 192.168.56.78
 
 # Record the rate at which the system clock gains/losses time.
 driftfile /var/lib/chrony/drift
