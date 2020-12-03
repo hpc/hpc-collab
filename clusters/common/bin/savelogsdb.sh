@@ -36,6 +36,7 @@ declare -x IAM=$(basename $0 .sh)
 declare -x TSTAMP=$(date +%Y.%m.%d.%H%M)
 declare -x REQUESTED_HOST=${1-""}
 declare -x VARLOG=/var/log
+declare -x COMMON_PROC=${COMMON}/proc
 
 declare -x STORAGE_HOST=""
 declare -x DB_HOST=""
@@ -80,12 +81,15 @@ SaveLogs() {
   Rc ErrExit ${EX_OSFILE} "ssh ${SSH_OPTARGS} ${_h} sudo -n sh -c \"/usr/sbin/logrotate --force ${LOGROTATE_CONF}; exit 0\""
   Rc ErrExit ${EX_CONFIG} "mkdir -p ${TMPDIR}/${_h}"
 
-  LOGDIRS=( ${LOGDIRS} )
-  for _l in ${VARLOG}/slurm ${VARLOG}/rsyslog
+  for _l in ${VARLOG}/slurm ${VARLOG}/rsyslog ${COMMON_PROC}
   do
     local _t=$(basename ${_l})
+    local _exists=""
     Rc ErrExit ${EX_OSFILE} "mkdir -p ${TMPDIR}/${_h}/${_t}"
-    Rc ErrExit ${EX_OSFILE} "scp -Bpq ${SSH_OPTARGS} ${_h}:${_l}/* ${TMPDIR}/${_h}/${_t}/"
+    _exists=$(ssh ${SSH_OPTARGS} ${_h} test -d ${_l} && echo exists)
+    if [ -n "${_exists}" ] ; then
+      Rc ErrExit ${EX_OSFILE} "scp -Bpqr ${SSH_OPTARGS} ${_h}:${_l}/* ${TMPDIR}/${_h}/${_t}/"
+    fi
   done
   return
 }

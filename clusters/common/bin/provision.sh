@@ -82,11 +82,14 @@ fi
 # This structure allows us (eventually) to invoke each of these separately
 # for debugging and/or unprovisioning.
 
-declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeStamp VerifyEnv SetupSecondDisk CopyHomeVagrant    \
-                                     CopyCommon OverlayRootFS AppendFilesRootFS CreateNFSMountPoints \
-                                     InstallEarlyRPMS ConfigureLocalRepos WaitForPrerequisites       \
-                                     InstallRPMS BuildSW InstallLocalSW ConfigSW SetServices UserAdd \
-                                     VerifySW UpdateRPMS MarkNodeProvisioned UserVerificationJobs    "
+# debugging note: each of these routines must be able to be called in a state where the node is already
+# provisioned or partially provisioned, allowing for it to be run or rerun manually.
+
+declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeStamp VerifyEnv SetupSecondDisk CopyHomeVagrant                \
+                                     CopyCommon OverlayRootFS AppendFilesRootFS CreateNFSMountPoints             \
+                                     InstallEarlyRPMS ConfigureCentOSRepos WaitForPrerequisites ConfigureDBRepos \
+                                     InstallRPMS InstallFlaggedRPMS BuildSW InstallLocalSW ConfigSW SetServices  \
+                                     UserAdd VerifySW UpdateRPMS MarkNodeProvisioned UserVerificationJobs        "
 
 declare -x DEBUG_DEFAULT_ORDER_OF_OPERATIONS="DebugNote VerbosePWD ClearSELinuxEnforce ${CORE_ORDER_OF_OPERATIONS}"
 
@@ -191,7 +194,9 @@ WaitForPrerequisites() {
         sleep ${REQUIREMENT_RETRY_SLEEP}
       done
       cd ${pwd} || ErrExit ${EX_OSERR} "cd ${pwd}"
-      if [ ${rc} -ne 0 ] ; then
+      if [ ${rc} -eq 0 ] ; then
+        Rc ErrExit ${EX_OSFILE} "rm ${out}"
+      else
         if [ -n "${HALT_PREREQ_ERROR}" ] ; then
           shutdown -h -P --no-wall +0
         fi
@@ -252,7 +257,9 @@ GetOSVersion() {
 declare -A RequiredCommands
 # @todo build this via introspection of ourselves
 # [base] linux-distribution independent required commands
-RequiredCommands[base]="awk base64 basename cat dirname echo env fmt grep head hostname ifconfig ip logger ls mkdir pgrep pkill poweroff printf ps pwd rm su sed setsid stat strings stty sum tail tar test timeout"
+RequiredCommands[base]="awk base64 basename cat dirname du echo env findmnt fmt grep head hostname ifconfig ip \
+                        logger ls lsof mkdir pgrep pkill poweroff printf ps pwd rm rpm su sed setsid stat      \
+                        strings stty sum tail tar test timeout"
 # [cray] Cray-specific required commands
 RequiredCommands[cray]=""
 # [rhel] RHEL or RHEL-alike (TOSS, CentOS, &c) required commands
@@ -261,6 +268,20 @@ RequiredCommands[rhel]=""
 RequiredCommands[sles]=""
 # [slurm] Slurm dependencies - all distributions
 RequiredCommands[slurm]="sacct sacctmgr scontrol sdiag sinfo sprio squeue sshare"
+
+declare -x CREATEREPO=""
+declare -x REPOSYNC=""
+declare -x RSYNC=""
+declare -x WGET=""
+declare -x YUM=""
+
+declare -x CREATEREPO_CACHE=/run/createrepo/cache
+
+declare -x ETCFSTAB=/etc/fstab
+declare -x ETCEXPORTS=/etc/exports
+declare -x MOUNTINFO=/proc/self/mountinfo
+declare -x MEMINFO=/proc/meminfo
+declare -x CPUINFO=/proc/cpuinfo
 
 ## @fn VerifyEnv()
 ## verifies that the command environment appears sane (path, etc)
@@ -426,17 +447,25 @@ isRoot() {
   return
 }
 
-## @fn ConfigureLocalRepos()
+## @fn ConfigureCentOSRepos()
 ##
-ConfigureLocalRepos() {
-  local createrepo=$(which createrepo 2>&1)
-  local reposync=$(which reposync 2>&1)
-  local rsync=$(which rsync 2>&1)
+ConfigureCentOSRepos() {
   local repos_size
   local numeric="^[0-9]+$"
   local _ingested_tarball=""
   local _ingested_tarball_flagfile="${COMMON}/repos/._ingested_tarball"
   local _have_repos=""
+  local repo_is_local=""
+  local n_workers=$(ls /${CLUSTERNAME}/cfg/${HOSTNAME}/attributes/procs/)
+  local _disable_repo=""
+
+  export CREATEREPO=$(which createrepo 2>&1)
+  export REPOSYNC=$(which reposync 2>&1)
+  export RSYNC=$(which rsync 2>&1)
+  export WGET=$(which wget 2>&1)
+  export RPM_CMD=$(which rpm 2>&1)
+  export YUM=$(which yum 2>&1)
+  export YUM_CFG_MGR=$(which yum-config-manager 2>&1)
 
   for tb in ${XFR}/repos ${XFR}/repos.tar ${XFR}/repos.tgz
   do
@@ -451,6 +480,13 @@ ConfigureLocalRepos() {
     _have_repos=${tb}
     break
   done
+  local _root_fsid=$(stat -f --format "%i" /)
+  local _repos_fsid=$(stat -f --format "%i" ${COMMON}/repos)
+  local _repos_fstype=$(stat -f --format "%T" ${COMMON}/repos)
+
+  if [ "${_repos_fsid}" != "${_root_fsid}" -a "${_repos_fstype}" != "nfs" ] ; then
+    repo_is_local="${COMMON}/repos ${_repos_fstype} ${_repos_fsid}"
+  fi 
 
   if [ -z "${_have_repos}" ] ; then
       Verbose "  cannot find XFR=${XFR} repos tarball or directory: ONLY_REMOTE_REPOS=true"
@@ -470,33 +506,36 @@ ConfigureLocalRepos() {
     return
   fi
 
+  for r in base updates
+  do
+    Rc ErrExit ${EX_OSERR} "${YUM_CFG_MGR} --enable ${r}"
+  done
+
   # only copy the repos area into this VM if we appear to be the one with repo-related tools installed
-  ## XXX key on actual per-host attribute
-  [ ! -x "${createrepo}" ] && return
-  [ ! -x "${reposync}" ]   && return
-  [ ! -x "${rsync}" ]      && return
-  [ -z "${REPO_MOUNT}" ]   && return
-  [ ! -b "${REPO_DISK}" ]  && return 
-  [ ! -b "${REPO_PART}" ]  && return 
+  ## XXX @future key on actual per-host attribute, ex. "repohost"
+  [ -z "${repo_is_local}" ] && return
+  [ -z "${REPO_MOUNT}" ]    && return
+  [ ! -b "${REPO_DISK}" ]   && return 
+  [ ! -b "${REPO_PART}" ]   && return 
 
-  Rc ErrExit ${EX_OSERR}  "mkdir -p ${REPO_MOUNT} 2>&1"
-  Rc ErrExit ${EX_OSERR}  "mount ${REPO_MOUNT}    2>&1"
+  Rc ErrExit ${EX_OSERR} "mkdir -p ${REPO_MOUNT} 2>&1"
+  Rc ErrExit ${EX_OSERR} "findmnt -n -k -l ${REPO_MOUNT} >/dev/null || mount -t xfs ${REPO_PART} ${REPO_MOUNT} 2>&1"
+  Rc ErrExit ${EX_OSERR} "mkdir -p ${CREATEREPO_CACHE} 2>&1"
 
-  declare -x CREATEREPO_CACHE=/run/createrepo/cache
-  Rc ErrExit ${EX_OSERR}  "mkdir -p ${CREATEREPO_CACHE}  2>&1"
-
-  ## XXX collect an attribute of the host from somewhere? yes, we have it in slurm.conf, but that's not (really) available yet
   houses_storage="fs$"
   if ! [[ ${HOSTNAME} =~ ${houses_storage} ]] ; then
     Verbose " HOSTNAME:${HOSTNAME} does not appear to house the repository directly, would skip repo update"
     ## return
   fi
 
-
-  ## XXX where, externally, to read from -- and know that it is authoritative?
+  # manually peek into the repo hierarchy so that we don't need to call the expensive & slow yum if it will fail
   local _enabled=""
-
-  _enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo local-base | grep 'Repo-status' | sed 's/Repo-status.*://'))
+  local repo_dir=${REPO_MOUNT}/centos/7/os/x86_64/repodata
+  if [ -d "${repo_dir}" -a -f "${repo_dir}/repomd.xml" ] ; then
+    _disable_repo="--disablerepo=epel,mariadb-main,mariadb-es-main,mariadb-tools"
+    _enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} ${_disable_repo} repoinfo local-base | \
+                          grep 'Repo-status' | sed 's/Repo-status.*://'))
+  fi
   if ! [[ ${_enabled} =~ *enabled* ]] ; then
     if [ ! -f ${_ingested_tarball_flagfile} ] ; then
       repos_size=$(expr ${repos_size} / 1024)
@@ -524,26 +563,30 @@ ConfigureLocalRepos() {
 
     if [ -r ${YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL} ] ; then
       Verbose " + ${YUM_CENTOS_REPO_LOCAL} "
-      Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^enabled=0/s/=0/=1/ ${YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL}"
       for r in $(grep baseurl ${YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL} | sed 's/^#.*//' | sed 's/baseurl=file:\/\///')
       do
-        # @todo #workers from node attributes
-        if [ ! -d ${r}/repodata ] ; then
-          Rc ErrExit ${EX_CONFIG} "export basearch=${ARCH} releasever=${YUM_CENTOS_RELEASEVER} ; createrepo --workers 4 --cachedir ${CREATEREPO_CACHE} ${r}"
+        if [ ! -d "${r}/repodata" -a ! -f "${r}/repodata/repomd.xml" ] ; then
+          local workers="--workers ${n_workers}"
+          local cache="--cachedir ${CREATEREPO_CACHE}"
+          Rc ErrExit ${EX_CONFIG} "export basearch=${ARCH} releasever=${YUM_CENTOS_RELEASEVER} ; ${CREATEREPO} ${workers} ${cache} ${r}"
         fi
+        Rc ErrExit ${EX_OSERR} "${YUM_CFG_MGR} --enable ${r}"
       done
     fi
 
     if [ -r ${YUM_REPOS_D}/${YUM_CENTOS_REPO_REMOTE} ] ; then
       Verbose " - ${YUM_CENTOS_REPO_REMOTE} "
-      Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^enabled=1/s/=1/=0/ ${YUM_REPOS_D}/${YUM_CENTOS_REPO_REMOTE}"
+      Rc ErrExit ${EX_OSERR} "${YUM_CFG_MGR} --disable base"
+      Rc ErrExit ${EX_OSERR} "${YUM_CFG_MGR} --disable updates"
     fi
+    if [ -d ${VC_COMMON}/repos ] ; then
+      size=$(du -x -s -m ${VC_COMMON}/repos | awk 'BEGIN {total=0} {total += $1} END {print total}')
 
-    size=$(du -x -s -m ${VC_COMMON}/repos | awk 'BEGIN {total=0} {total += $1} END {print total}')
-    if [ "${size}" -ne 0 ] ; then
-      Verbose "   ${VC_COMMON}/repos => ${COMMON}/repos ${size}Mb "
-      Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${VC_COMMON} repos | \
+      if [ "${size}" -ne 0 ] ; then
+        Verbose "   ${VC_COMMON}/repos => ${COMMON}/repos ${size}Mb "
+        Rc ErrExit ${EX_SOFTWARE} "tar -cf - -C ${VC_COMMON} repos | \
                               (cd ${COMMON}; tar ${TAR_LONG_ARGS} -${TAR_DEBUG_ARGS}${TAR_ARGS}f -)"
+      fi
     fi
   fi
 
@@ -581,7 +624,7 @@ ConfigureLocalRepos() {
       local _timeout=${RSYNC_TIMEOUT}
       while [ ${retries} -le ${RSYNC_RETRY_LIMIT} -a ${rc} -ne 0 ]
       do
-        timeout ${RSYNC_TIMEOUT_DRYRUN} rsync --dry-run -4 -az --delete --exclude='repo*' ${repo_url}/${suffix}/ ${d} >/dev/null 2>&1
+        timeout ${RSYNC_TIMEOUT_DRYRUN} ${RSYNC} --dry-run -4 -az --delete --exclude='repo*' ${repo_url}/${suffix}/ ${d} >/dev/null 2>&1
         rc=$?
         if [ "${repo_url}" != ${DEFAULT_PREFERRED_REPO} ] ; then
           if [ ${rc} -ne ${EX_OK} ] ; then
@@ -591,7 +634,7 @@ ConfigureLocalRepos() {
         fi
         (( ++retries ))
         _timeout=$(expr ${_timeout} \* retries)
-        timeout ${_timeout} rsync -4 -az --delete --exclude='repo*' --exclude='._*' ${repo_url}/${suffix}/ ${d}/ >/dev/null 2>&1
+        timeout ${_timeout} ${RSYNC }-4 -az --delete --exclude='repo*' --exclude='._*' ${repo_url}/${suffix}/ ${d}/ >/dev/null 2>&1
         rc=$?
       done
     fi
@@ -607,8 +650,444 @@ ConfigureLocalRepos() {
     if [ ! -d ${d} ] ; then
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
     fi
-    Rc ErrExit ${EX_OSERR} "${createrepo} --update --workers 4 --cachedir ${CREATEREPO_CACHE} ${d}"
+    if [ ! -d "${d}/repodata" -a ! -f "${d}/repodata/repomd.xml" ] ; then
+      local workers="--workers ${n_workers}"
+      local cache="--cachedir ${CREATEREPO_CACHE}"
+      Rc ErrExit ${EX_OSERR} "${CREATEREPO} --update ${workers} ${cache} ${d}"
+    fi
   done
+  return
+}
+
+##@fn ConfigureDBMariaEnterpriseRepo()
+##
+ConfigureDBMariaEnterpriseRepo() {
+  local mariadb_repo_conf=mariadb-enterprise.repo
+  local mariadb_local_repo_conf=mariadb-enterprise-local.repo
+  local mariadb_repo_conf_path=${YUM_REPOS_D}/${mariadb_repo_conf}
+  local mariadb_local_repo_conf_path=${YUM_REPOS_D}/${mariadb_local_repo_conf}
+  local xfr_d=${XFR}/${WHICH_DB}
+  local _enabled=""
+
+  # don't call the slow and expensive yum repoinfo if the directory hierarchy is not present
+  local repo_dir=${COMMON}/${REPOS}/${WHICH_DB}/mariadb-es-main
+  if [ -d "${repo_dir}" -a -f "${repo_dir}/repomd.xml" ] ; then
+    _enabled=$(egrep '/^enabled[[:space:]]*=[[:space:]]*1/' ${mariadb_local_repo_conf_path})
+    #_enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo mariadb-es-main | \
+    #                        grep 'Repo-status' | sed 's/Repo-status.*://'))
+  fi
+  if [[ ${_enabled} =~ *enabled* ]] ; then
+    return
+  fi
+
+  # we do this download on the node itself to honor the rules of the commercial mariadb-enterprise
+  # users must register with mariadb.com and obtain the download_token themselves
+
+  dl_url="https://dlm.mariadb.com/enterprise-release-helpers/mariadb_es_repo_setup"
+  dl_token_file=${xfr_d}/download_token
+  
+  if [ ! -f ${xfr_d}/mariadb_es_repo_setup ] ; then
+    Verbose "  wget: mariadb_es_repo_setup"
+    Rc ErrExit ${EX_OSERR} "${WGET} -4 ${dl_url} -P ${xfr_d}"
+    Rc ErrExit ${EX_OSFILE} "chmod +x ${xfr_d}/mariadb_es_repo_setup"
+  fi
+
+  # the following is necessary to comply with the mariadb (the company) rules regarding downloads, and
+  # controlling access to the download token.
+  if [ ! -f ${dl_token_file} ] ; then
+    ErrExit ${EX_CONFIG} "dl_token_file:${dl_token_file} missing. Obtain one from: MariaDB.com.\n  (https://mariadb.com/downloads/#mariadb_platform-enterprise_server)"
+  fi
+  if [ ! -s ${dl_token_file} ] ; then
+    ErrExit ${EX_CONFIG} "dl_token_file:${dl_token_file} empty"
+  fi
+  export dl_token=$(cat ${dl_token_file})
+
+  token_is_valid=$(echo $(wget https://dlm.mariadb.com/repo/${dl_token}/ 2>&1))
+  if [[ "${token_is_valid}" = *"404: Not Found"* ]] ; then
+    ErrExit ${EX_CONFIG} "MariaDB Enterprise download token may not be valid; received '404: Not Found'\n  Consider changing the WHICH_DB configuration flag to the default: 'mariadb-community'\n  The flag is clusters${PROVISION_SRC_D}/flag/WHICH_DB"
+  fi
+
+  Verbose "  exec: mariadb_es_repo_setup"
+  Rc ErrExit ${EX_SOFTWARE} "bash ${xfr_d}/mariadb_es_repo_setup --token=${dl_token} > ${YUM_REPOS_D}/${WHICH_DB}.repo"
+
+  if [ -f ${xfr_d}/MariaDB-Enterprise-GPG-KEY ] ; then
+    mariadbenterprise_url=$(egrep 'gpgkey =.*Enterprise' ${mariadb_repo_conf_path} | sort | uniq | \
+                              sed 's/gpgkey = //')
+    if [ -z "${mariadbenterprise_url}" ] ; then
+      ErrExit "  GPG URL is empty (from ${mariadb_repo_conf_path})"
+    fi
+    Rc ErrExit ${EX_IOERR} "${WGET} -4 -P ${xfr_d} ${mariadbenterprise_url}"
+  fi
+  Verbose "   MariaDB-Enterprise-GPG-KEY"
+  local rpm=$(which rpm)
+  Rc ErrExit ${EX_SOFTWARE} "${rpm} --import ${xfr_d}/MariaDB-Enterprise-GPG-KEY"
+
+  local repo_is_local=""
+  if [ "${_repos_fsid}" != "${_root_fsid}" -a "${_repos_fstype}" != "nfs" ] ; then
+    repo_is_local="${COMMON}/repos ${_repos_fstype} ${_repos_fsid}"
+  fi 
+
+  # if repo is local (vcfs), reposync, else minimally verify that it appears in good state
+  if [ -n "${repo_is_local}" ] ; then
+    Verbose "  reposync"
+    for r in mariadb-es-main mariadb-tools
+    do
+      Verbose "   ${r}"
+      Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_INSTALL} ${REPOSYNC} --gpgcheck -l --repoid=${r} --download_path=${repo_root}"
+    done
+  else
+    for r in mariadb-es-main mariadb-tools
+    do
+      Verbose "   ${r}"
+      if [ ! -d ${repo_root}/${r}/repodata -o ! -f ${repo_root}/${r}/repodata/repomd.xml ] ; then
+        ErrExit ${EX_SOFTWARE} "Repo: ${r} does not appear to be valid, no repodata or repomd.xml. Was the download token valid?"
+      fi
+    done
+    Verbose "  reposync (skipped, repository is not local)"
+  fi
+
+  local disabled_repo_list=$(echo $(${YUM} repolist -v disabled | grep Repo-id | sed -e 's/Repo-id[[:space:]]*: //'))
+  for r in mariadb-es-main mariadb-tools
+  do
+    Verbose "  ${r}"
+    repo_dir=${repo_root}/${r}
+    if [ ! -d ${repo_dir} ] ; then
+      ErrExit ${EX_OSFILE} "  repo_dir:${repo_dir} does not exist"
+    fi
+    Verbose "   createrepo"
+    if [ -f ${mariadb_repo_conf_path} ] ; then 
+      Verbose " - ${mariadb_repo_conf} ${r}"
+      Rc ErrExit ${EX_OSFILE} "sed -i -e '/^enabled = 1/s/= 1/= 0/' ${mariadb_repo_conf_path} ;"
+    fi
+    if [ ! -f ${mariadb_local_repo_conf_path} ] ; then
+      ErrExit ${EX_CONFIG} "mariadb_local_repo_conf_path:${mariadb_local_repo_conf_path} missing from this node's configuration"
+    fi
+
+    local rdir=${rbase}/${r/local-/}
+    local localrepo=local-$(basename ${rdir})
+    local repo=${localrepo//[[a-zA-Z_]]* /local-/}
+    if [[ ${disabled_repo_list} == *${repo}* ]] ; then 
+      Rc ErrExit ${EX_OSFILE} "sed -i -e '/^enabled=0/s/=0/=1/' ${mariadb_local_repo_conf_path} ;"
+      Verbose " + ${mariadb_local_repo_conf} ${r}"
+    fi
+    if [ ! -d "${r}/repodata" -a ! -f "${r}/repodata/repomd.xml" ] ; then
+      local workers="--workers ${n_workers}"
+      local cache="--cachedir ${CREATEREPO_CACHE}"
+      local update="--update"
+      Rc ErrExit ${EX_CONFIG} "${CREATEREPO} ${update} ${workers} ${cache} ${repo_dir}/${ARCH}"
+    fi
+  done
+  return
+}
+
+##@fn ConfigureDBMariaCommunityRepo()
+##
+ConfigureDBMariaCommunityRepo() {
+  local mariadb_repo_conf=mariadb.repo
+  local mariadb_local_repo_conf=mariadb-local.repo
+  local mariadb_repo_conf_path=${YUM_REPOS_D}/${mariadb_repo_conf}
+  local mariadb_local_repo_conf_path=${YUM_REPOS_D}/${mariadb_local_repo_conf}
+  local _enabled=""
+
+  for _f in url repo_setup
+  do
+    if [ ! -s ${XFR}/WHICH_DB/${_f} ] ; then
+      ErrExit ${EX_SOFTWARE} "${_f}:${!_f} is empty or missing"
+    fi
+  done
+
+  _enabled=$(egrep '/^enabled[[:space:]]*=[[:space:]]*1/' ${mariadb_local_repo_conf_path})
+  #_enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo mariadb-main | \
+  #                              grep 'Repo-status' | sed 's/Repo-status.*://'))
+  if [[ ${_enabled} =~ *enabled* ]] ; then
+    return
+  fi
+
+  local URL=$(cat ${XFR}/WHICH_DB/url)
+  local SETUP=$(cat ${XFR}/WHICH_DB/repo_setup)
+  local setup=$(basename ${SETUP})
+  local target_d=${XFR}/${WHICH_DB}
+  local target=${target_d}/${setup}
+  local target_repo_file=${YUM_REPOS_D}/${WHICH_DB/-community/}.repo
+  local disabled_repo_list=$(echo $(${YUM} repolist -v disabled | grep Repo-id | sed -e 's/Repo-id[[:space:]]*: //'))
+  if [ "${target_repo_file}" != "${mariadb_repo_conf_path}" ] ; then
+    ErrExit ${EX_SOFTWARE} "target_repo_file:${target_repo_file} != mariadb_repo_conf_path:${mariadb_repo_conf_path}"
+  fi
+
+  if [ ! -s ${mariadb_repo_conf_path} ] ; then
+    if [ ! -d ${target_d} ] ; then
+      ErrExit ${EX_SOFTWARE} "target_d:${target_d} not a directory"
+    fi
+
+    if [ ! -f ${target} ] ; then
+      Rc ErrExit ${EX_OSERR} "${WGET} -4 -P ${target_d} ${URL}/${SETUP}"
+      if [ ! -s ${target} ] ; then
+        ErrExit ${EX_SOFTWARE} "target:${target} is empty or missing"
+      fi
+    fi
+    if [ ! -x ${target} ] ; then
+      Rc ErrExit ${EX_OSFILE} "chmod +x ${target}"
+    fi
+
+    Rc ErrExit ${EX_SOFTWARE} "bash ${target}"
+  fi
+ 
+  _enabled=$(egrep '/^enabled[[:space:]]*=[[:space:]]*1/' ${mariadb_local_repo_conf_path})
+  #_enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo mariadb-main | \
+  #                          grep 'Repo-status' | sed 's/Repo-status.*://'))
+  if [[ ${_enabled} =~ *enabled* ]] ; then
+    return
+  fi
+
+  local _root_fsid=$(stat -f --format "%i" /)
+  local _repos_fsid=$(stat -f --format "%i" ${COMMON}/repos)
+  local _repos_fstype=$(stat -f --format "%T" ${COMMON}/repos)
+
+  if [ "${_repos_fsid}" != "${_root_fsid}" -a "${_repos_fstype}" != "nfs" ] ; then
+    repo_is_local="${COMMON}/repos ${_repos_fstype} ${_repos_fsid}"
+  fi 
+
+  for r in mariadb-main
+  do
+    Verbose "    ${r}"
+    repo_dir=${repo_root}/${r}
+    if [ -n "${repo_is_local}" ] ; then
+      Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${repo_dir}"
+      Verbose "     reposync"
+      Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_INSTALL} ${REPOSYNC} --gpgcheck -l --newest-only --repoid=${r} --download_path=${repo_root}"
+    fi
+    Verbose "     createrepo"
+    Verbose "   - ${mariadb_repo_conf} ${r}"
+    Rc ErrExit ${EX_OSFILE} "sed -i -e '/^enabled = 1/s/= 1/= 0/' ${mariadb_repo_conf_path} ;"
+    if [ ! -f ${mariadb_local_repo_conf_path} ] ; then
+      ErrExit ${EX_CONFIG} "mariadb_local_repo_conf_path:${mariadb_local_repo_conf_path} missing from this node's configuration"
+    fi
+
+    local rdir=${rbase}/${r/local-/}
+    local localrepo=local-$(basename ${rdir})
+    local repo=${localrepo//[[a-zA-Z_]]* /local-/}
+    if [[ ${disabled_repo_list} == *${repo}* ]] ; then 
+      Rc ErrExit ${EX_OSFILE} "sed -i -e '/^enabled = 0/s/ = 0/ = 1/' ${mariadb_local_repo_conf_path} ;"
+      Verbose "   + ${mariadb_local_repo_conf} ${r}"
+    fi
+
+    if [ ! -d "${repo_dir}/repodata" -a ! -f "${repo_dir}/repodata/repomd.xml" ] ; then
+      local workers="--workers ${n_workers}"
+      local cache="--cachedir ${CREATEREPO_CACHE}"
+      local update="--update"
+      Verbose "     createrepo (update)"
+      Rc ErrExit ${EX_CONFIG} "${CREATEREPO} ${update} ${workers} ${cache} ${repo_dir}"
+    fi
+  done
+  return
+}
+
+
+##@fn ConfigureDBCommunityMysqlRepo()
+##
+ConfigureDBCommunityMysqlRepo() {
+  local communitymysql_local_repo_conf=community-mysql-local.repo
+  local communitymysql_repo_conf_path=${YUM_REPOS_D}/${communitymysql_local_repo_conf}
+  local communitymysql_local_repo_conf_path=${YUM_REPOS_D}/${communitymysql_local_repo_conf}
+
+  # configure community-mysql repo
+  #  1. collect GPG key and import it
+  #  2. collect RPMS and populate local repo copy
+  #  3. local createrepo
+  local rpms_d=${RPM}/flagged/WHICH_DB/${WHICH_DB}/add
+  local target_d=${XFR}/${WHICH_DB}/RPMS
+
+  local mysql_community_primer_url="https://dev.mysql.com/get/mysql80-community-release-el7-3.noarch.rpm"
+  local primer_mysql_rpm=mysql80-community-release-el7-3.noarch.rpm
+  local need_primer_rpm=$(rpm -a -q | grep -i mysql80-community-release)
+
+  if [ -z "${need_primer_rpm}" ] ; then
+    local target=${target_d}/${primer_mysql_rpm}
+
+    if [ ! -d ${target_d} ] ; then
+      Rc ErrExit ${EX_CONFIG} "mkdir -p ${target_d}"
+    fi
+    if [ ! -f ${target} ] ; then
+      Rc ErrExit ${EX_IOERR} "${WGET} -P ${target_d} -4 ${mysql_community_primer_url}/${primer_mysql_rpm}"
+    fi
+    if [ ! -f ${target} ] ; then
+      ErrExit ${EX_CONFIG} "${target} missing"
+    fi
+    Rc ErrExit ${EX_SOFTWARE} "${YUM} --disablerepo=\* --disableplugin=fastestmirror -y localinstall ${target}"
+  fi
+
+  repo_dir=${repo_root}/mysql80-community
+
+  local _root_fsid=$(stat -f --format "%i" /)
+  local _repos_fsid=$(stat -f --format "%i" ${COMMON}/repos)
+  local _repos_fstype=$(stat -f --format "%T" ${COMMON}/repos)
+
+  if [ "${_repos_fsid}" != "${_root_fsid}" -a "${_repos_fstype}" != "nfs" ] ; then
+    repo_is_local="${COMMON}/repos ${_repos_fstype} ${_repos_fsid}"
+  fi 
+
+  if [ -n "${repo_is_local}" ] ; then
+    Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${repo_dir}"
+    if [ -z "${repo_root}" ] ; then
+      ErrExit ${EX_SOFTWARE} "repo_root:${repo_root}"
+    fi
+    Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${repo_root}"
+
+    if [ ! -d ${rpms_d} ] ; then
+      ErrExit ${EX_CONFIG} "rpm repo is local, rpms_d:${rpms_d} is not a directory"
+    fi
+
+    local mysql_pubkey_file=${XFR}/${WHICH_DB}/RPM-GPG-KEY-mysql
+    if [ ! -f ${mysql_pubkey_file} ] ; then
+      Warn ${EX_CONFIG} "GPG key file: $(basename ${mysql_pubkey_file}) missing, proceeding without it"
+    else
+      if [ ! -s ${mysql_pubkey_file} ] ; then
+        Warn ${EX_CONFIG} "GPG key file: empty, proceeding without it"
+      else
+        Rc ErrExit ${EX_SOFTWARE} "gpg --import ${mysql_pubkey_file}"
+        Rc ErrExit ${EX_SOFTWARE} "rpm --import ${mysql_pubkey_file}"
+      fi
+    fi
+
+    local rpms_add=$(ls ${rpms_d}/*.rpm 2>/dev/null)
+    if [ -n "${rpms_add}" ] ; then
+      for r in ${rpms_add}
+      do
+        if [ -s "${r}" ] ; then
+          Rc ErrExit ${EX_SOFTWARE} "cp ${rpms_add} ${repo_root}/mysql80-community"
+        fi
+      done
+    else
+      if [ -n "${REPOSYNC_EMPTY_DBREPO}" ] ; then
+        Rc Warn ${EX_CONFIG} "rpms_d:${rpms_d} empty"
+        Verbose "   reposync"
+        GPGCHECK="--gpgcheck "
+        Rc ErrExit ${EX_SOFTWARE} "${REPOSYNC} ${GPGCHECK} -l --repoid=${r} --newest-only --download_path=${repo_root}"
+      else
+        Rc ErrExit ${EX_CONFIG} "  rpms_d:${rpms_d}/ empty,\n   no RPMS found\n"
+      fi
+    fi
+  fi
+
+  if [ ! -f "${communitymysql_local_repo_conf_path}" ] ; then
+    Rc ErrExit ${EX_CONFIG} "communitymysql_local_repo_conf_path:${communitymysql_local_repo_conf_path}"
+  fi
+
+  _enabled=$(egrep '/^enabled[[:space:]]*=[[:space:]]*1/' ${communitymysql_local_repo_conf_path})
+  if [[ ${_enabled} =~ *enabled* ]] ; then
+    Verbose " + ${communitymysql_local_repo_conf} mysql80-community (already enabled)"
+    return
+  fi
+  Verbose " + ${communitymysql_local_repo_conf} mysql80-community"
+  Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=local-comunity-mysql.enabled=1 --save"
+
+  if [ ! -d "${r}/repodata" -a ! -f "${r}/repodata/repomd.xml" ] ; then
+    local workers="--workers ${n_workers}"
+    local cache="--cachedir ${CREATEREPO_CACHE}"
+    local update="--update"
+
+    Rc ErrExit ${EX_CONFIG} "${CREATEREPO} ${update} ${workers} ${cache} ${repo_dir}"
+  fi
+  return
+}
+
+
+##@fn ConfigureDBRepos()
+## @brief if repos aren't configured, do so.  if repo is to be loaded locally, also reposync
+## @todo break out into per-DB functions, possibly in an external module
+##
+##
+ConfigureDBRepos() {
+  local repo_d=""
+  local repo_is_local=""
+  local n_workers=$(ls /${CLUSTERNAME}/cfg/${HOSTNAME}/attributes/procs/)
+
+  export CREATEREPO=$(which createrepo 2>&1)
+  export REPOSYNC=$(which reposync 2>&1)
+  export RSYNC=$(which rsync 2>&1)
+  export WGET=$(which wget 2>&1)
+  export RPM_CMD=$(which rpm 2>&1)
+  export YUM=$(which yum 2>&1)
+
+  # this isn't a check in RequiredCommands because we need to install early RPMs first
+  for _x in CREATEREPO REPOSYNC RPM WGET YUM
+  do
+    if [ ! -x "${!_x}" ] ; then
+      ErrExit ${EX_CONFIG} "${_x}:${!_x}"
+    fi
+  done
+
+  if [ -z "${CREATEREPO_CACHE}" ] ; then
+    ErrExit ${EX_SOFTWARE} "CREATEREPO_CACHE: empty"
+  fi
+  if [ ! -d ${CREATEREPO_CACHE} ] ; then
+    Rc ErrExit ${EX_OSFILE} "mkdir -p ${CREATEREPO_CACHE}  2>&1"
+  fi
+
+  # configure per-db repository
+  repo_d=$(findmnt -n -k -l --output TARGET ${COMMON}/repos | sort | uniq)
+  if [ -z "${repo_d}" ] ; then
+    repo_d=${COMMON}/repos
+  fi
+  if [ ! -d "${repo_d}" ] ; then
+    ErrExit ${EX_CONFIG} "repo_d:${repo_d} not a directory"
+  fi
+
+  #if ${COMMON}/repos is not a mount point, is on a different device from root and isn't NFS,
+  #then point a symlink at the location of the actual repositories from COMMON/repos -> repo_d
+  local repos_fstype=$(stat -f --format="%T" ${COMMON}/repos)
+  local repos_fsid=$(stat -f --format="%i" ${COMMON}/repos)
+  local root_fsid=$(stat -f --format="%i" /)
+  local repos_ismnt=$(findmnt -n -k --output TARGET ${COMMON}/repos)
+  local repos_source=$(findmnt -n -k --output SOURCE ${COMMON}/repos)
+  local yum_action=enable
+
+  if [ -n "${repos_ismnt}" -a "${repos_fstype}" = "xfs" -a -b "${repos_source}" ] ; then
+    yum_action=disable
+  fi
+
+  if [ -z "${repos_ismnt}" -a "${repos_fsid}" != "${root_fsid}" -a "${repos_fstype}" != "nfs" ] ; then
+    if [ "${repo_d}" != "${COMMON}/repos" ] ; then
+      Rc ErrExit ${EX_SOFTWARE} "ln -s -f ${repo_d} ${COMMON}/repos"
+    fi
+  fi
+
+  repo_root=${repo_d}/${WHICH_DB}
+  Verbose " ${WHICH_DB}"
+  repo_is_local=$(egrep "${COMMON}/repos.* xfs" ${ETCFSTAB})
+
+  local _rlist="local-mariadb-main local-mariadb-tools local-mariadb-es-main  \
+                  mariadb-es-main mariadb-main mariadb-tools                  \
+                  mysql80-community"
+  for r in ${_rlist}
+  do
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --${yum_action} ${r}"
+  done
+  case "${WHICH_DB}" in
+    mariadb-enterprise)
+      Verbose "   ConfigureDBMariaEnterpriseRepo"
+      ConfigureDBMariaEnterpriseRepo
+      ;;
+    mariadb-community)
+      Verbose "   ConfigureDBMariaCommunityRepo"
+      ConfigureDBMariaCommunityRepo
+      ;;
+    community-mysql)
+      Verbose "   ConfigureDBCommunityMysqlRepo"
+      ConfigureDBCommunityMysqlRepo
+      ;;
+    *)
+      ErrExit ${EX_CONFIG} "which_db:${WHICH_DB} unimplemented?"
+      ;;
+  esac
+  if [ -z "${SKIP_YUMDOWNLOAD}" ] ; then
+    Verbose "   yum update"
+    Rc ErrExit ${EX_OSERR} "${YUM} -y update"
+  fi
+  if [ -n "${DEBUG}" ] ; then
+    Verbose " Repository List:"
+    ${YUM} repolist
+  fi
   return
 }
 
@@ -655,9 +1134,10 @@ CopyCommon() {
 ## @fn SetupSecondDisk()
 ##
 SetupSecondDisk() {
-
   export REPO_MOUNT=${COMMON}/repos
   export REPO_LOCAL=${REPO_MOUNT}/local
+
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${REPO_MOUNT}"
 
   # Sensibly skip these: so, if we don't have a 2nd disk, but could otherwise proceed, continue
   for dsk in ${REPO_DISK_LIST[@]}
@@ -669,20 +1149,64 @@ SetupSecondDisk() {
     REPO_PART=${dsk}${REPO_PART_NO}
     break
   done
-
   if [ -z "${REPO_DISK}" ] ; then
     return
   fi
 
-  if [ ! -b "${REPO_PART}" ] ; then
+  already_msg=""
+  partition_exists=$(parted -s ${REPO_DISK} "print" 2>&1 | grep xfs)
+  exists_rc=$?
+  mounted=""
+  if [ "${exists_rc}" -ne 0 ] ; then
+    partition_exists=""
+    mounted=$(findmnt -n -k -l --output TARGET ${REPO_MOUNT} | sort | uniq)
+  else
+    if [ -z "${partition_exists}" -a -n "${mounted}" ] ; then
+      Warn ${EX_OSERR} "${REPO_MOUNT} is mounted, but partition does not appear to exist anymore."
+      Rc ErrExit ${EX_OSERR} "umount -f ${REPO_MOUNT}"
+      mounted=$(findmnt -n -k -l --output TARGET ${REPO_MOUNT} | sort | uniq)
+    fi
+  fi
+  if [ -z "${mounted}" -a \( ! -b "${REPO_PART}" -o -z "${partition_exists}" \) ] ; then
     Rc ErrExit ${EX_CONFIG} "parted -s ${REPO_DISK} --align opt mklabel gpt 2>&1 </dev/null   ;"
     # end=100% sets the end to the maximum partition size as defined by the virtualization provider, often 2Tb 
     Rc ErrExit ${EX_CONFIG} "parted -s ${REPO_DISK} mkpart primary 2048s 100% 2>&1 </dev/null ;"
   fi
-  Rc ErrExit ${EX_CONFIG} "mkfs.xfs -f -L repos ${REPO_PART} 2>&1"
-  Rc ErrExit ${EX_CONFIG} "xfs_repair ${REPO_PART} 2>&1"
-  echo "${REPO_PART}  ${COMMON}/repos  xfs rw,defaults,noatime,async,nobarrier 0 0" >> /etc/fstab
-  Verbose " ${REPO_PART} ${REPO_MOUNT}"
+  if [ -z "${partition_exists}" ] ; then
+    Rc ErrExit ${EX_CONFIG} "mkfs.xfs -f -L repos ${REPO_PART} 2>&1"
+  else
+    already_msg="(already exists"
+    # The following forces any outstanding log writes to be sync'd and is the recommended guidance
+    # to make a dirty XFS file system clean.
+    Rc ErrExit ${EX_CONFIG} "findmnt -n -k -l ${REPO_MOUNT} || mount -t xfs ${REPO_PART} ${REPO_MOUNT}"
+    still_in_use=$(lsof | grep -i cwd | awk '{print $9}' | grep '/' | sort | uniq | egrep "^${REPO_MOUNT}")
+    if [ -z  "${still_in_use}" ] ; then
+      Rc ErrExit ${EX_CONFIG} "umount -f ${REPO_PART}"
+    fi
+  fi
+
+  mounted=$(findmnt -n -k -l --output TARGET ${REPO_MOUNT} | sort | uniq)
+  rc=$?
+  if [ "${mounted}" = "${REPO_MOUNT}" ] ; then
+    if [ -z "${already_msg}" ] ; then
+      already_msg="(already mounted"
+    else
+      already_msg="${already_msg}, mounted"
+    fi
+  fi
+  if [ -n "${already_msg}" ] ; then
+    already_msg="${already_msg})"
+  fi
+  in_fstab=$(findmnt -n -l -s ${REPO_PART} | sort | uniq)
+  if [ -n "${in_fstab}" ] ; then
+    echo "${REPO_PART}  ${REPO_MOUNT}  xfs rw,defaults,noatime,async,nobarrier 0 0" >> ${ETCFSTAB}
+  fi
+
+  mounted=$(findmnt -n -k -l ${REPO_MOUNT} | sort | uniq)
+  if [ -z "${mounted}" ] ; then
+    Rc ErrExit ${EX_SOFTWARE} "mount -t xfs -o rw,defaults,noatime,async,nobarrier ${REPO_PART} ${REPO_MOUNT}"
+  fi
+  Verbose " ${REPO_PART} ${REPO_MOUNT} ${already_msg}"
   return
 }
 
@@ -763,7 +1287,8 @@ FlagSlashVagrant() {
     cd /
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
-    awk '{print $5}' < /proc/self/mountinfo | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
+    # XXX findmnt
+    awk '{print $5}' < ${MOUNTINFO} | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
     rc=$?
 
     fstype=$(stat -f --format "%T" ${BASEDIR})
@@ -841,8 +1366,8 @@ FlagSlashVagrant() {
     fi
   done
 
-  local mem=$(expr $(grep -i MemTotal /proc/meminfo  | awk '{print $2}') / 1024)
-  local procs=$(grep -i processor /proc/cpuinfo | wc -l)
+  local mem=$(expr $(grep -i MemTotal ${MEMINFO} | awk '{print $2}') / 1024)
+  local procs=$(grep -i processor ${CPUINFO} | wc -l)
   Verbose " mem:${mem}Mb procs:${procs}"
   Verbose " provisioned."
   return
@@ -923,19 +1448,38 @@ CreateNFSMountPoints() {
   local _options
   local _check
   local _dump
+  local anynfs
 
+  anynfs=$(grep nfs ${ETCFSTAB})
+  if [ -n "${anynfs}" ] ; then
+    Verbose "  fstab:"
+  fi
   while read _dev _mnt _fstyp _options _check _dump
   do
-    if [[ ${_def} =~ ^# ]] ; then
+    if [[ ${_dev} =~ ^# ]] ; then
       continue
     fi
     if [[ ${_fstyp} =~ nfs ]] ; then
       if [ ! -d ${_mnt} -a ! -L ${_mnt} ] ; then
-        Verbose "  ${_mnt}"
+        Verbose "    ${_mnt}"
         Rc ErrExit ${EX_OSFILE} "mkdir -p ${_mnt}"
       fi
     fi
-  done < /etc/fstab
+  done < ${ETCFSTAB}
+
+  if [ -s ${ETCEXPORTS} -a -r ${ETCEXPORTS} ] ; then
+    Verbose "  exports:"
+    while read _mnt _args
+    do
+      if [[ ${_mnt} =~ ^# ]] ; then
+        continue
+      fi
+      if [ ! -d ${_mnt} ] ; then
+          Verbose "    ${_mnt}"
+          Rc ErrExit ${EX_OSFILE} "mkdir -p ${_mnt}"
+      fi
+    done < ${ETCEXPORTS}
+  fi
   return
 }
 
@@ -943,15 +1487,19 @@ CreateNFSMountPoints() {
 ##
 InstallRPMS() {
   local early=${1:-"_not_early_rpms_"}
-  local which
+  local which="${1}"
   local timeout
-  local rpms_add
+  local rpms_add=""
+  local rpms_rm=""
   local _rpms_add
   local _r
-  local _disable_localrepo_arg_
+  local _disable_repo
   local _need_clean
+  local rpms_manifest="${RPM}/${which}/RPMS.Manifest"
+  local manifest_src_d=${XFR}/repos/centos/7/os/${ARCH}/Packages
+  local manifest_list=""
 
-  case "${1}" in
+  case "${which}" in
   install|"")
 	    which=install
   	  timeout=${YUM_TIMEOUT_INSTALL}
@@ -971,24 +1519,72 @@ InstallRPMS() {
           _need_clean=true
         fi
       fi
-
 	    ;;
+
   early)
-    	    which=early
     	    timeout=${YUM_TIMEOUT_EARLY}
-          if [ -n "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" ] ; then
-            if [ -f ${YUM_LOCALREPO_DEF} ] ; then
-              _disable_localrepo_arg=" --disablerepo=${LOCAL_REPO_ID},local-base "
-            fi
+          if [ -n "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" -a -f "${YUM_LOCAL_REPO_DEF}" ] ; then
+            ## if all of the early RPMS have no dependencies, this could be:
+            ## _disable_repo=" --disablerepo=\* "
+            ## but that may change based on however the upstream-supplied RPMs are built
+            _disable_repo=" --disablerepo=${LOCAL_REPO_ID} "
           fi
 	    ;;
+
   local)
-	    which=local
-    	    timeout=${YUM_TIMEOUT_BASE}
+    	timeout=${YUM_TIMEOUT_BASE}
 	    ;;
+
+  flagged)
+    ## collect flags
+      local f
+
+  	  timeout=${YUM_TIMEOUT_INSTALL}
+      if [ ! -d ${RPM}/${which} ] ; then
+        return
+      fi
+
+      flag_d=$(echo $(find ${RPM}/${which} -maxdepth 1 -type d))
+      for f in ${flag_d[@]}
+      do
+        local _f=$(basename ${f})
+        if [ "${_f}" = "." ] ; then
+          continue
+        fi
+        if [ "${_f}" = "${which}" ] ; then
+          continue
+        fi
+        if [ -z "${!_f}" ] ; then
+          continue
+        fi
+
+        local _flag=$(basename ${!_f})
+        local _d=${f}/${_flag}
+        local rpms_rmdir=""
+
+        if [ -d ${_d}/add ] ; then
+          rpms_manifest=${d}/add/RPMS.Manifest
+          if [ -s ${rpms_manifest} ] ; then
+            manifest_list=$(echo $(cat ${rpms_manifest}))
+            rpms_add="${manifest_list}"
+          else
+            rpms_add=$(echo $(ls ${_d}/add))
+          fi
+        fi
+        rpms_rmdir=${_d}/rm
+        if [ -d ${rpms_rmdir} ] ; then
+          rpms_rm=$(echo $(cd ${rpms_rmdir}; ls))
+        fi
+      done
+      if [ -z "${rpms_add}" -a -z "${rpms_rm}" ] ; then
+        return
+      fi
+      ;;
+
   _not_early_rpms_)
 	    ErrExit ${EX_SOFTWARE} "_not_early_rpms_"
 	    ;;
+
   *)
 	    ErrExit ${EX_SOFTWARE} "${1}"
 	    ;;
@@ -996,37 +1592,80 @@ InstallRPMS() {
 
   if [ -n "${_need_clean}" ] ; then
     Verbose "    yum -y clean metadata"
-    Rc ErrExit ${EX_SOFTWARE} "yum -y clean metadata"
+    Rc ErrExit ${EX_SOFTWARE} "${YUM} -y clean metadata"
   fi
-  ## collect list of rpms. This list may either be a string subset of rpm names, or actual rpms
+  ## do removes first in case they are being removed due to installation conflicts
+  if [ -n "${rpms_rm}" ] ; then
+    Rc Warn ${EX_IOERR} \
+      "timeout ${timeout} ${YUM} ${_disable_repo} --disableplugin=fastestmirror -y remove ${rpms_rm}"
+  fi
+
+  ## collect list of rpms, if it isn't set already
+  ## This list may either be a manifest, string subset of rpm names, or actual rpms
   ## If it appears to be an actual RPM, we will attempt to localinstall it rather than reach out to a remote repo
-  rpms_add=$(echo $(ls ${RPM}/${which} | grep -v README))
+
+  if [ -s "${rpms_manifest}" ] ; then
+    manifest_list=$(echo $(cat ${rpms_manifest}))
+    rpms_add=""
+    local r
+    if [ ! -d "${manifest_src_d}" ] ; then
+      ErrExit ${EX_CONFIG} "manifest_src_d:${manifest_src_d} not a directory"
+    fi
+    for r in ${manifest_list}
+    do
+      local _r
+      _r=$(echo ${manifest_src_d}/${r}*.rpm)
+      if [ -f "${_r}" ] ; then
+        rpms_add="${rpms_add} ${_r}"
+      fi
+    done
+  fi
+
+  if [ -n "${manifest_list}" ] ; then
+    if [ ! -d ${manifest_src_d} ] ; then
+      ErrExit ${EX_CONFIG} "RPMS.Manifest specified; manifest_src_d:${manifest_src_d} not a directory"
+    fi
+
+    Verbose "  Manifest source: ${manifest_src_d}"
+  fi
+
+  if [ -z "${rpms_add}" ] ; then
+    rpms_add=$(echo $(ls ${RPM}/${which} | egrep -v 'README|RPMS.Manifest'))
+  fi
+  # _rpms_add, _rpms_localinstall used to construct msg and cmd
   _rpms_add=""
   _rpms_localinstall=""
   _rpms_msg=""
   for _r in ${rpms_add}
   do
     local nm=${_r//-[0-9].*/}
-    _rpms_msg="${_rpms_msg} ${nm}"
+    _rpms_msg="${_rpms_msg} $(basename ${nm})"
     # if this appears to be an actual RPM, then do a localinstall
     if [[ ${_r} = *.rpm ]] ; then
-      _rpms_localinstall="${_rpms_localinstall} ./${_r}"
+      _rpms_localinstall="${_rpms_localinstall} ${_r}"
+      #_rpms_localinstall="${_rpms_localinstall} ./${_r}"
       #XXX _rpms_localinstall="${_rpms_localinstall} \"./${_r}\"" -- if RPM contains a shell meaningful character like parentheses in perl rpms
     else
       _rpms_add="${_rpms_add} ${_r}"
     fi
   done
 
-  Verbose "${_rpms_msg}"
+  Verbose " ${_rpms_msg}"
 
   rpms_add=${_rpms_add}
   localinstall_add=${_rpms_localinstall}
   ## Attempt to do a bulk installation.
   ## @todo If that fails, proceed with each one singly to capture the failure.
   if [ -n "${localinstall_add}" ] ; then
-    Rc Warn ${EX_IOERR} "cd ${RPM}/${which}; \
-                              timeout ${timeout} ${YUM} ${_disable_localrepo_arg} --disableplugin=fastestmirror -y localinstall ${localinstall_add}"
+    export _d=${RPM}/${which}
+    if [ -n "${manifest_list}" ] ; then
+      _d=${manifest_src_d}
+    fi
+
+    Rc Warn ${EX_IOERR} "cd ${_d}; \
+                              timeout ${timeout} ${YUM} ${_disable_repo} --disableplugin=fastestmirror -y localinstall ${localinstall_add}"
     rc=$?
+
     if [ "${rc}" -ne ${EX_OK} ] ; then
       Verbose "  fallback from bulk install to individual rpms: "
       Verbose "  ${localinstall_add}"
@@ -1050,13 +1689,13 @@ InstallRPMS() {
     fi
     if [ -n "${_need_clean}" ] ; then
       Verbose "  yum -y clean metadata && yum -y upgrade"
-      Rc ErrExit ${EX_SOFTWARE} "yum -y clean metadata && yum -y upgrade"
+      Rc ErrExit ${EX_SOFTWARE} "${YUM} -y clean metadata && ${YUM} -y upgrade"
     fi
     if [ -x $(which yumdownloader) ] ; then
       Rc ErrExit ${EX_IOERR} "timeout ${timeout} yumdownloader --resolve --destdir=${RPM}/${which} --archlist=${ARCH} \"${r}\" ; "
     else
       ## change the downloaddir to the local repo (${COMMON}/repos) rather than remain in the configuration tree
-      Rc ErrExit ${EX_IOERR} "timeout ${timeout} ${YUM} ${_disable_localrepo_arg} --downloadonly --downloaddir=${RPM}/${which} --disableplugin=fastestmirror install \"${r}\" ; "
+      Rc ErrExit ${EX_IOERR} "timeout ${timeout} ${YUM} ${_disable_repo} --downloadonly --downloaddir=${RPM}/${which} --disableplugin=fastestmirror install \"${r}\" ; "
     fi
     Rc ErrExit ${EX_IOERR} "rm -f ${RPM}/${which}/\"${r}\" ; "
   done
@@ -1072,12 +1711,12 @@ InstallRPMS() {
       cd ${RPM}/${which}
       ## if the local repos.tgz appears recent, "--disablerepo=\*", otherwise... 
       _which_repos=""
-      if [ -z "${_disable_localrepo_arg}" -a -f "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" ] ; then
-        #_which_repos="--disablerepo=\* --enablerepo=local-base,local-base-updates,${LOCAL_REPO_ID}"
-        _which_repos="--enablerepo=local-base,local-base-updates,${LOCAL_REPO_ID}"
+      if [ -z "${_disable_repo}" -a -f "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" ] ; then
+        _which_repos="--disablerepo=\* --enablerepo=local-base,local-updates,${LOCAL_REPO_ID}"
+        #_which_repos="--enablerepo=local-base,local-updates,${LOCAL_REPO_ID}"
       else
-        #_which_repos="--disablerepo=\* --enablerepo=local-base,local-base-updates"
-        _which_repos="--enablerepo=local-base,local-base-updates"
+        _which_repos="--disablerepo=\* --enablerepo=local-base,local-updates"
+        #_which_repos="--enablerepo=local-base,local-updates"
       fi
       if [ "${retries}" -ne 0 -a "${which}" != "early" ] ; then
         _which_repos=""
@@ -1090,10 +1729,32 @@ InstallRPMS() {
   return
 }
 
+## @fn BaselineYumRepos
+##
+BaselineYumRepos() {
+  ## reset all repos to disabled, except for CentOS base and updates, so that early RPMS may be installed
+  ## don't use yum-config-manager as yum utilities are susceptible to breakage if repos are inconsistent
+  local repolist=$(ls ${YUM_REPOS_D}/*.repo | egrep -v 'CentOS-Base.repo')
+  for repofile in ${repolist}
+  do
+    Verbose "  - $(basename ${repofile})"
+    Rc ErrExit ${EX_SOFTWARE} "sed -i -e '/^enabled[[:space:]]*=[[:space:]]*1/s/1/0/' ${repofile} ;"
+  done
+}
+
 ## @fn InstallEarlyRPMS()
 ##
 InstallEarlyRPMS() {
+  Verbose "  BaselineYumRepos"
+  BaselineYumRepos
   InstallRPMS early $@
+  return
+}
+
+## @fn InstallFlaggedRPMS()
+##
+InstallFlaggedRPMS() {
+  InstallRPMS flagged $@
   return
 }
 
@@ -1337,7 +1998,8 @@ ClearSELinuxEnforce() {
 ##
 SetVagrantfileSyncFolderDisabled() {
   grep "${HOSTNAME}.*synced_folder.*disabled: true" ${VAGRANTFILE} >/dev/null 2>&1
-  if [ ${GREP_NOTFOUND} -eq $? ] ; then
+  rc=$?
+  if [ ${GREP_NOTFOUND} -eq ${rc} ] ; then
     sed -i "/${HOSTNAME}.*synced_folder.*/s/\$/, disabled: true/" ${VAGRANTFILE}
     if [ $? -ne ${EX_OK} ] ; then
       ErrExit ${EX_OSFILE} "failed sed: set synced_folder disabled: true"
@@ -1430,7 +2092,7 @@ UpdateRPMS() {
   Verbose "  cache"
   Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_BASE}  ${YUM} --disableplugin=fastestmirror clean all >/dev/null 2>&1"
 
-  repo_fstype=$(stat -f --format="%T" $(yum repoinfo local-base | grep Repo-baseurl | sed 's/Repo-baseurl.*:.*file://'))
+  repo_fstype=$(stat -f --format="%T" $(${YUM} repoinfo local-base | grep Repo-baseurl | sed 's/Repo-baseurl.*:.*file://'))
   if [[ ${repo_fstype} =~ nfs ]] ; then
     Verbose "  updates skipped; repos are not local."
     return
@@ -1443,9 +2105,9 @@ UpdateRPMS() {
   Verbose "  update"
   if [ -d "${COMMON_REPOS}" ] ; then
     if [ -f "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" ] ; then
-      Rc ErrExit ${EX_IOERR} "timeout ${YUM_TIMEOUT_UPDATE} ${YUM} --disableplugin=fastestmirror --disablerepo=\* --enablerepo=local-base,local-base-updates,${LOCAL_REPO_ID} -y update"
+      Rc ErrExit ${EX_IOERR} "timeout ${YUM_TIMEOUT_UPDATE} ${YUM} --disableplugin=fastestmirror --disablerepo=\* --enablerepo=local-base,local-updates,${LOCAL_REPO_ID} -y update"
     else
-      Rc ErrExit ${EX_IOERR} "timeout ${YUM_TIMEOUT_UPDATE} ${YUM} --disableplugin=fastestmirror --disablerepo=\* --enablerepo=local-base,local-base-updates -y update"
+      Rc ErrExit ${EX_IOERR} "timeout ${YUM_TIMEOUT_UPDATE} ${YUM} --disableplugin=fastestmirror --disablerepo=\* --enablerepo=local-base,local-updates -y update"
     fi
   fi
 
@@ -1523,7 +2185,7 @@ SW() {
     local needTo=""
     local activePattern=""
     case "${dowhat}" in
-    build)   where=${BUILDWHERE}/${_s}; verify="ls -R ${COMMON_LOCALREPO}/${ARCH}" ;;
+    build)   where=${BUILDWHERE}/${_s}; verify="ls -R ${COMMON_LOCALREPO}"         ;;
     install) where="${what}/${_s}"; verify="rpm -q -a"                             ;;
     config)  where="${what}/${_s}"; verify=":"                                     ;;
     verify)  where="${what}/${_s}"; verify="systemctl --state=active --plain"      ;;
@@ -1607,8 +2269,9 @@ BuildSW(){
   local createrepo=$(which createrepo 2>&1)
   local verbose_was=""
   local d
+  local ARCH=$(uname -m)
 
-  for d in ${LOCALREPO} ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}
+  for d in ${LOCALREPO} ${COMMON_LOCALREPO}
   do
     if [ -n "${d}" ] ; then
       if [ ! -d ${d} -a ! -L ${d} ] ; then
@@ -1624,10 +2287,16 @@ BuildSW(){
   fi
 
   SW build $@
-  if [ ! -d "${COMMON_LOCALREPO}/repodata" -a -x "${createrepo}" ] ; then
-    Verbose " createrepo COMMON_LOCALREPO:${COMMON_LOCALREPO}"
-    mkdir -p /run/createrepo/cache
-    ${createrepo} --workers 2 --cachedir /run/createrepo/cache ${COMMON_LOCALREPO}
+
+  if [ ! -d "${COMMON_LOCALREPO}/${ARCH}/repodata" -o ! -f "${COMMON_LOCALREPO}/${ARCH}/repodata/repomd.xml" ] ; then
+    if [ -x "${CREATEREPO}" ] ; then
+      Verbose " ${CREATEREPO} COMMON_LOCALREPO:${COMMON_LOCALREPO}"
+      Rc ErrExit ${EX_OSFILE} "mkdir -p /run/createrepo/cache"
+      local n_workers=$(ls /${CLUSTERNAME}/cfg/${HOSTNAME}/attributes/procs/)
+      local workers="--workers ${n_workers}"
+      local cache="--cachedir /run/createrepo/cache"
+      Rc ErrExit ${EX_OSERR} "${CREATEREPO} ${workers} ${cache} ${COMMON_LOCALREPO}/${ARCH}"
+    fi
   fi
   VERBOSE="${verbose_was}"
   return

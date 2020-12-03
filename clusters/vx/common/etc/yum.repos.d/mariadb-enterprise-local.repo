@@ -1,0 +1,19 @@
+[local-mariadb-es-main]
+name=MariaDB Server (local copy)
+baseurl=file:/home/vx/common/repos/mariadb-enterprise/mariadb-es-main
+gpgkey=https://downloads.mariadb.com/MariaDB/MariaDB-Enterprise-GPG-KEY
+gpgcheck=0
+enabled=0
+priority=1
+skip_if_unavailable=1
+
+
+[local-mariadb-tools]
+name=MariaDB Tools (local copy)
+baseurl=file:/home/vx/common/repos/mariadb-enterprise/mariadb-tools
+gpgkey=https://downloads.mariadb.com/MariaDB/MariaDB-Enterprise-GPG-KEY
+gpgcheck=0
+enabled=0
+priority=1
+skip_if_unavailable=1
+

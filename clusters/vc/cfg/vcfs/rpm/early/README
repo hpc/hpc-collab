@@ -1,1 +1,2 @@
 These cannot be stubs as they are needed to set up the initial in-cluster repository.
+Directories will be descended into and attempt to be installed, conditionally.

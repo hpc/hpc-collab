@@ -193,7 +193,7 @@ SetFlags() {
 	    JUMBOFRAMES="true"
       set_flags="${set_flags} JUMBO_FRAMES"
   	;;
-  REMOTE_RSYSLOG)
+    REMOTE_RSYSLOG)
     # if the contents exist and start with an '@'
       if [ -s "${FLAGS}/REMOTE_RSYSLOG" ] ; then
         local remote_rsyslog
@@ -205,6 +205,27 @@ SetFlags() {
         fi
       fi
       set_flags="${set_flags} REMOTE_RSYSLOG:${REMOTE_RSYSLOG}" 
+    ;;
+    WHICH_DB)
+      local which_db
+      if [ -z "${WHICH_DB}" ] ; then
+        WHICH_DB=${DEFAULT_DB}
+      fi
+      if [ -s "${FLAGS}/WHICH_DB" ] ; then
+        which_db=$(cat "${FLAGS}/WHICH_DB")
+      fi
+      case "${which_db}" in
+        mysql|community-mysql|mysql-community)          WHICH_DB="community-mysql"    ;;
+        mariadb-enterprise)                             WHICH_DB="mariadb-enterprise" ;;
+        mariadb|mariadb-community|community-mariadb|"") WHICH_DB="mariadb-community"  ;;
+        os-provided)
+          ErrExit ${EX_CONFIG} "WHICH_DB:${WHICH_DB} non-recommended db version: ${WHICH_DB}"
+          ;;
+        *)
+          ErrExit ${EX_CONFIG} "WHICH_DB:${WHICH_DB} unknown value, \n expected: community-mysql|mariadb-enterprise|mariadb-community|mariadb|(null)" >/dev/tty
+          ;;
+      esac
+      set_flags="${set_flags} WHICH_DB:${WHICH_DB}"
     ;;
     esac
   done

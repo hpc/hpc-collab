@@ -29,6 +29,14 @@ declare -x _f=${_d}/$$f
 declare -x COMMON_YUM_REPOS_D=${VC_COMMON}/${YUM_REPOS_D}
 declare -x YUM_CENTOS_REPO_LOCAL=CentOS-Base-local.repo
 
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+declare -x CL=${HOSTNAME:0:2}
+declare -x REPOS_D=/home/${CL}/common/repos
+declare -x COMMON_REPOS_D=${COMMON}/repos
+declare -x LOCAL_REPO=centos/7/local
+declare -x LOCAL_REPO_NAME=local-vcbuild
+declare -x ARCH=$(uname -m)
+
 SetFlags >/dev/null 2>&1
 
 Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
@@ -45,7 +53,64 @@ do
   fi
 done
 
+# Verify the local copy of the CentOS repo
 local_repo=${COMMON_YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL}
+common_repos_mntpnt=$(stat --format "%m" ${COMMON_REPOS_D})
+is_mnt=""
+if [ "${common_repos_mntpnt}" = "${COMMON_REPOS_D}" ] ; then
+  is_mnt=true
+fi
+
+if [ -z "${is_mnt}" ] ; then
+
+	if [ ! -L ${COMMON_REPOS_D} ] ; then
+		if [ -f "${COMMON_REPOS_D}" ] ; then
+			Rc ErrExit ${EX_OSFILE} "rm -f ${COMMON_REPOS_D}"
+		fi
+		if [ -d "${COMMON_REPOS_D}" ] ; then
+			Rc ErrExit ${EX_OSFILE} "rmdir ${COMMON_REPOS_D}"
+		fi
+		Rc ErrExit ${EX_OSFILE} "ln -s ${REPOS_D} ${COMMON_REPOS_D}"
+
+		repos_link_target=$(readlink ${COMMON_REPOS_D})
+	fi
+	if [ ! -d "${repos_link_target}" ] ; then
+		ErrExit ${EX_CONFIG} "${COMMON_REPOS_D} !-> ${repos_link_target} "
+	fi
+
+	if [ "${repos_link_target}" != "${REPOS_D}" ] ; then
+		ErrExit ${EX_CONFIG} "${COMMON_REPOS_D} -> ${repos_link_target} != ${REPOS_D}"
+	fi
+fi
+
+if [ -f "${YUM_REPOS_D}/${LOCAL_REPO_NAME}.repo" -a -d "${COMMON_REPOS_D}/${LOCAL_REPO}" \
+		 -a -d "${COMMON_REPOS_D}/${LOCAL_REPO}/${ARCH}/repodata" -a 											 \
+		 -f "${COMMON_REPOS_D}/${LOCAL_REPO}/${ARCH}/repodata/repomd.xml" ] ; then
+  Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=${LOCAL_REPO_NAME}.enabled=1 --save"
+  Verbose "    + ${LOCAL_REPO_NAME}"
+else
+	Rc ErrExit ${EX_OSERR} "yum-config-manager --disable ${LOCAL_REPO_NAME}"
+fi
+
+case "${WHICH_DB}" in
+	community-mysql|mysql-community)
+  	Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=local-community-mysql.enabled=1 --save"
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=mysql80-community-mysql.enabled=0 --save"
+	  ;;
+
+	mariadb-community|community-mariadb)
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=local-mariadb-main.enabled=1 --save"
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=mariadb-main.enabled=0 --save"
+		;;
+
+	mariadb-enterprise|enterprise-mariadb)
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=local-mariadb-es-main.enabled=1 --save"
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=mariadb-es-main.enabled=0 --save"
+
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=local-mariadb-tools.enabled=1 --save"
+    Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=mariadb-tools.enabled=0 --save"
+		;;
+esac
 
 if [ -L "${local_repo}" ] ; then
   target=$(readlink ${local_repo})
@@ -56,30 +121,86 @@ if [ ! -f "${local_repo}" ] ; then
   ErrExit ${EX_OSFILE} "${local_repo} does not exist"
 fi
 
+disable_localrepo_arg=""
+if [ -z "${COMMON_LOCALREPO}" ] ; then
+  ErrExit ${EX_CONFIG} " COMMON_LOCALREPO empty"
+fi
+if [ ! -d ${COMMON_LOCALREPO} -o ! -d ${COMMON_LOCALREPO}/${ARCH} -o ! -d ${COMMON_LOCALREPO}/${ARCH}/repodata -o ! -f ${COMMON_LOCALREPO}/${ARCH}/repodata/repomd.xml ] ; then
+  if [ -n "${DEBUG}" ] ; then
+    Warn ${EX_SOFTWARE} "  local repo:${COMMON_LOCALREPO}/${ARCH} missing repodata"
+  fi
+  disable_localrepo_arg="--disablerepo=${LOCAL_REPO_NAME}"
+fi
+
 # this disables the centos repo located off-cluster and enables the one provided within the cluster
-Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^enabled=0/s/=0/=1/ ${COMMON_YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL} ;"
-Rc ErrExit ${EX_OSFILE} "sed -i~ -e /^gpgcheck=1/s/=1/=0/ ${COMMON_YUM_REPOS_D}/${YUM_CENTOS_REPO_LOCAL};"
+for r in base updates
+do
+  l=local-${r}
+  Verbose "    + ${l}"
+  Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=${l}.enabled=1 --save"
+  Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=${l}.gpgcheck=0 --save"
+  # don't disable the remote site, in case the local cache isn't up to date
+  ## Verbose "    - ${r}"
+  ## Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=${r}.enabled=0 --save"
+done
 
 if [ -n "${SKIP_UPDATERPMS}" ] ; then
   Verbose "   SKIP_UPDATERPMS"
 else
-
   # This can be expensive, especially if the virtualbox additions rpms are not the latest, as it will trigger a dkms rebuild
-  disable_localrepo_arg=""
-  ARCH=${ARCH:-$(uname -m)}
-  if [ -z "${ARCH}" ] ; then
-    ErrExit ${EX_CONFIG} " ARCH empty"
-  fi
-  if [ -z "${COMMON_LOCALREPO}" ] ; then
-    ErrExit ${EX_CONFIG} " COMMON_LOCALREPO empty"
-  fi
-  if [ ! -d ${COMMON_LOCALREPO} -o ! -d ${COMMON_LOCALREPO}/repodata ] ; then
-    disable_localrepo_arg="--disablerepo=local-vcbuild"
-  fi
   Rc Warn ${EX_OSFILE} "timeout ${YUM_TIMEOUT_UPDATE} yum ${disable_localrepo_arg} -y update"
   rc=$?
-  Rc ErrExit ${EX_OSFILE} "timeout ${YUM_TIMEOUT_UPDATE} yum-complete-transaction ${disable_localrepo_arg}"
+  if [ ${rc} -ne 0 ] ; then
+    Rc ErrExit ${EX_OSFILE} "timeout ${YUM_TIMEOUT_UPDATE} yum-complete-transaction ${disable_localrepo_arg}"
+  fi
 fi
+
+disabled_repo_list=""
+disabled_repo_list=$(echo $(yum repolist -v disabled | grep Repo-id | sed -e 's/Repo-id[[:space:]]*: //'))
+rbase=${REPOS_D}/${WHICH_DB}
+ETC_YUM_REPO_D=/etc/yum.repos.d
+
+for r in ${enable_repo}
+do
+  if [ -z "${disabled_repo_list}" ] ; then
+    disabled_repo_list=$(echo $(yum repolist -v disabled | grep Repo-id | sed -e 's/Repo-id[[:space:]]*: //'))
+  fi
+  rdir=${rbase}/${r/local-/}
+  localrepo=local-$(basename ${rdir})
+  repo=${localrepo//[[a-zA-Z_]]* /local-/}
+  f=""
+  if [[ ${disabled_repo_list} == *${repo}* ]] ; then
+    f=$(grep -l ${r} ${ETC_YUM_REPO_D}/*\.repo)
+    if [ ! -f "${f}" ] ; then
+      ErrExit ${EX_SOFTWARE} "grep \"${r}\" ${ETC_YUM_REPO_D} not found"
+    fi
+  fi
+  if [ -z "${repo}" ] ; then
+    ErrExit ${EX_CONFIG} "no repositories in local data base: ${rbase}"
+  fi
+  if [ ! -d ${rdir} ] ; then
+    _rdir=${rdir}
+    ## repoinfo is expensive and slow
+    rdir=$(yum repoinfo ${r} | sed -n 's/Repo-baseurl : file://p')
+    if [ ! -d "${rdir}" ] ; then
+      ErrExit ${EX_CONFIG} "${rdir} directory does not exist"
+    fi
+  fi
+  if [ ! -s ${rdir}/repodata/repomd.xml ] ; then
+    ErrExit ${EX_CONFIG} "${r} does not appear to be a repository, repodata/repomd.xml not found"
+  fi
+  if [ ! -f "${f}" ] ; then
+    ErrExit ${EX_CONFIG} "yum conf file not found for ${r}"
+  fi
+
+  ## need more regex fu, to handle variety of yum.repo.d/files and their variety (or a better yum-config-manager)
+  ## Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=${repo}.enabled=1 --save"
+  Rc ErrExit ${EX_OSFILE} "sed -i~ -e '/^enabled[[:space:]]*=[[:space:]]0/s/=[[:space:]]0/= 1/' ${f} ;"
+  Rc ErrExit ${EX_OSFILE} "sed -i~ -e '/^enabled=0/s/=0/=1/' ${f} ;"
+  Verbose "   + ${r}"
+done
 
 trap '' 0
 exit ${EX_OK}
+
+# vim: background=dark ts=2 sw=2 syntax

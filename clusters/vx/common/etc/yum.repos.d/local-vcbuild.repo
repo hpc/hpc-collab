@@ -1,14 +1,8 @@
 [local-vcbuild]
 name=locally-built software (vcbuild)
-#baseurl=file:///home/vx/common/repos/centos/$releasever/local/$basearch
-baseurl=file:///home/vx/common/repos/centos/$releasever/local
+baseurl=file:///home/vx/common/repos/centos/$releasever/local/$basearch
 gpgcheck=0
 #gpgkey=file:///home/vx/common/etc/pki/rpm-gpg/RPM-GPG-KEY-Local-Build
 enabled=0
-mirrorlist_expire = 0
-metadata_expire = 0
-retries = 128
-skip_if_unavailable = 1
-keepcache = 0
-timeout = 45.0
+skip_if_unavailable=1
 

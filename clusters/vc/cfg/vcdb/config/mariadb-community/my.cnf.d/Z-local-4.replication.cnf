@@ -1,0 +1,13 @@
+[mysqld]
+#
+## replication
+server_id=1
+#
+gtid_domain_id=1
+gtid_strict_mode=on
+#
+binlog_do_db=slurm_acct_db
+log_bin=/var/log/mysql/mysql-bin.log
+innodb_flush_log_at_trx_commit=1
+sync_binlog=1
+

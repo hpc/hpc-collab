@@ -1,0 +1,3 @@
+/var/lib/mysql				unconfined_u:object_r:mysqld_db_t:s0
+/var/lib/mysql				unconfined_u:object_r:mysqld_db_t:s0
+/var/log/mysql				unconfined_u:object_r:mysqld_log_t:s0

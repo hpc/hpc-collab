@@ -1,0 +1,19 @@
+[local-mariadb-es-main]
+name=MariaDB Server (local copy)
+baseurl=file:/home/vagrant/common/repos/mariadb-enterprise/mariadb-es-main
+gpgkey=https://downloads.mariadb.com/MariaDB/MariaDB-Enterprise-GPG-KEY
+gpgcheck=0
+enabled=0
+priority=1
+skip_if_unavailable=true
+
+
+[local-mariadb-tools]
+name=MariaDB Tools (local copy)
+baseurl=file:/home/vagrant/common/repos/mariadb-enterprise/mariadb-tools
+gpgkey=https://downloads.mariadb.com/MariaDB/MariaDB-Enterprise-GPG-KEY
+gpgcheck=0
+enabled=0
+priority=1
+skip_if_unavailable=true
+

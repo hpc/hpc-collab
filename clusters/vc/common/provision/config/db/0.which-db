@@ -1,0 +1,45 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/mysql/0.which-db
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+
+if [ -z "${WHICH_DB}" ] ; then
+  ErrExit ${EX_CONFIG} "WHICH_DB empty"
+fi
+
+if [ "${WHICH_DB}" != "${PROD}" ] ; then
+  Warn ${EX_CONFIG} "skipping configuration of ${PROD}, WHICH_DB specifies: ${WHICH_DB}"
+  Rc ErrExit ${EX_OSFILE} "find . -maxdepth 1 -type f -executable -exec chmod -x \\{\\} \\; ; "
+  Rc ErrExit ${EX_OSFILE} "chmod +x ${0} ;"
+fi
+
+if [ ! -x "1.*" ] ; then
+  Rc ErrExit ${EX_OSFILE} "chmod +x [0-9]\.* ${0} ;"
+fi
+
+trap '' 0
+exit ${EX_OK}
+
+# vim: background=dark

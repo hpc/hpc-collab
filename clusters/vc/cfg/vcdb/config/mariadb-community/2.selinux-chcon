@@ -1,0 +1,105 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcfs/config/nfs/3.chcon
+
+## @brief this marks the /home/vagrant/common fs hierarchy as having been successfully copied for its nfs clients
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+if [ "${PROD}" != "${WHICH_DB}" ] ; then
+  echo "PROD:${PROD} != WHICH_DB:${WHICH_DB}"
+  exit ${EX_OK}
+fi
+
+SEBOOL=$(echo $(cat sebool))
+
+for _s in ${SEBOOL}
+do
+  Rc ErrExit ${EX_OSERR} "setsebool -P ${_s} 1"
+done
+
+SEDIRSTYPES=dirs-setypes
+EXPORTS=/etc/exports
+common_in_exports=""
+
+if [ ! -f ${SEDIRSTYPES} ] ; then
+  ErrExit ${EX_CONFIG} "missing ${SEDIRSTYPES}"
+fi
+
+if [ -s ${EXPORTS} ] ; then
+  for f in $(awk '{print $1}' < ${EXPORTS})
+  do
+    if [[ "${f}" = "#"* || "${f}" = "" ]] ; then
+      continue
+    fi
+    grep ${f} ${SEDIRSTYPES} >/dev/null 2>&1
+    rc=$?
+    if [ ${rc} -eq ${GREP_NOTFOUND} ] ; then
+      ErrExit ${EX_CONFIG} "exported file system (${EXPORTS} ${f}) is not listed in ${SEDIRSTYPES}, secontext unknown"
+    fi
+    if [[ ${COMMON} =~ ${f} ]] ; then
+      common_in_exports="true" 
+    fi
+  done
+
+  if [ -z "${common_in_exports}" ] ; then
+    ErrExit ${EX_CONFIG} "${COMMON} was not found in ${EXPORTS}"
+  fi
+fi
+
+_dir_or_file=""
+_secontext=""
+while read -r _dir_or_file _secontext
+do
+  _setype=""
+  _symlink_arg=""
+
+  # skip blank lines and comments
+  [[ "${_dir_or_file}" =~ ^$ ]] && continue
+  if [[ "${_dir_or_file}" =~ ^#.*$ ]] ; then
+    Verbose " skipped: ${_dir_or_file} ${_secontext}"
+    continue
+  fi
+
+  if [ ! -d "${_dir_or_file}" ] ; then
+    if [ ! -f "${_dir_or_file}" ] ; then
+      touch ${_dir_or_file}
+    fi
+  fi
+  if [ -L "${_dir_or_file}" ] ; then
+    _symlink_arg="-h"
+  fi
+  if [ -z "${_secontext}" ] ; then
+    ErrExit ${EX_CONFIG} "empty secontext in ${SEDIRSTYPES}: dir: ${_dir_or_file}"
+  fi
+  _setype=$(echo "${_secontext}" | sed 's/:/ /g' | awk '{print $3}')
+  if [ -z "${_setype}" ] ; then
+    ErrExit ${EX_CONFIG} "empty setype: in ${SEDIRSTYPES}: dir:${_dir_or_file}, secontext:${_secontext}"
+  fi
+  Rc ErrExit ${EX_OSERR} "chcon -R ${_symlink_arg} ${_secontext} ${_dir_or_file}"
+  Rc ErrExit ${EX_OSERR} "semanage fcontext -a -t ${_setype} ${_dir_or_file}\(/.*\)\?"
+  Rc ErrExit ${EX_OSERR} "restorecon -R -v ${_dir_or_file}"
+done < ${SEDIRSTYPES}
+
+trap '' 0
+exit ${EX_OK}

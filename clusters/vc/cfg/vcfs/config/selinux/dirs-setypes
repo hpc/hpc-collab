@@ -14,6 +14,7 @@
 /home/vagrant/common				system_u:object_r:public_content_rw_t:s0
 
 /home/vagrant/common/home			system_u:object_r:home_root_t:s0
+/home/vagrant/common/proc			system_u:object_r:proc_t:s0
 /home/vagrant/common/repos			unconfined_u:object_r:public_content_rw_t:s0
 /home/vagrant/common/root 			system_u:object_r:admin_home_t:s0
 

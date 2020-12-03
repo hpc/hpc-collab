@@ -103,6 +103,9 @@ PROVISION_FLAG_D	= $(PROVISION_D)/flag
 PROVISION_ENV	 	= $(PROVISION_D)/env
 PROVISION_BIN	 	= $(PROVISION_D)/bin
 
+FLAG_WHICH_DB		= ../common/flag/WHICH_DB
+WHICH_DB		:= $(shell test -s $(FLAG_WHICH_DB) && cat $(FLAG_WHICH_DB) || touch $(FLAG_WHICH_DB))
+
 DISABLE_RM_FLAG_FILE	= $(PROVISION_FLAG_D)/DISABLE_RM
 DISABLE_RM	       := $(shell test -s ${PROVISION_FLAG_D}/DISABLE_RM && cat ${PROVISION_FLAG_D}/DISABLE_RM)
 MIN_TIMEOUT_SECS	= 900
@@ -131,7 +134,6 @@ endif
 TAR_VERBOSE_ARGS	= $(TAR_EXCLUDE_ARGS) -cvzf $(TAR_GET) $(TAR_CHECKPOINT_ARGS)
 TAR_ARGS		= $(TAR_EXCLUDE_ARGS) -czf $(TAR_GET) $(TAR_CHECKPOINT_ARGS)
 TAR_ADDITIONAL_FILES	= Makefile README Doxyfile setpath.csh setpath.sh
-#TAR_ADDITIONAL_FILE	= $(TAR_ADDITIONAL_FILES) $(PROVISION_D)/Modules/*
 
 vc_tgz			= $(VC).tgz
 vc_cksum		= $(VC).cksum
@@ -156,7 +158,8 @@ VAGRANTFILE_SYNCEDFOLDERS_D	= $(VAGRANTFILE_D)/synced_folders.d
 VAGRANTFILE_PROVIDERS_D		= $(VAGRANTFILE_D)/cfg.vm.providers.d
 VAGRANTFILE_PREREQ		= $(VAGRANTFILE_D)/Vagrantfile.template		\
 				  $(wildcard $(VAGRANTFILE_SYNCEDFOLDERS_D)/*)	\
-				  $(wildcard $(VAGRANTFILE_PROVIDERS_D)/*)
+				  $(wildcard $(VAGRANTFILE_PROVIDERS_D)/*)	\
+				  $(FLAG_WHICH_DB)
 #				  ../common/flag/NO_NFS
 
 PREREQ				= $(GENERATED_FLAG_F) $(XFR_PREREQ) $(TARGET_PROVIDER_FILES)
@@ -279,6 +282,7 @@ show-vars:
 	$(HUSH)$(info TARGET_PROVIDER_FILES: $(TARGET_PROVIDER_FILES))
 	$(HUSH)$(info IAM:$(IAM) WHERE_INVOKED:$(WHERE_INVOKED))
 	$(HUSH)$(info VC:$(VC))
+	$(HUSH)$(info PROVISION_FLAG_D:$(PROVISION_FLAG_D))
 	$(HUSH)$(info VAGRANTFILE:$(VAGRANTFILE))
 	$(HUSH)$(info )
 #	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
@@ -378,7 +382,10 @@ flags flag: | $(PROVISION_FLAG_D)
 
 ###
 
-$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) $(COMMON_ETC_HOSTS)
+$(FLAG_WHICH_DB):
+	[ $(FLAG_WHICH_DB) -nt $(GENERATED_FLAG_F) ] && rm -f $(GENERATED_FLAG_F)
+
+$(GENERATED_FLAG_F): $(SRC_PROVIDER_FILES) $(COMMON_ETC_HOSTS) $(FLAG_WHICH_DB)
 	cd $(VC_D) ; env VC=$(VC) $(GENERATE_PROVIDER_FILES) ; echo -n ""
 
 generateproviderfiles: $(GENERATED_FLAG_F)
@@ -578,7 +585,7 @@ $(TARBALLS_D):
 
 $(TARBALLS_REPOS_TGZ) $(TARBALLS_VBOXADD_ISO): $(TARBALLS_D)
 	$(MAKE) -C ../../requires/ingest
-	$(HUSH)for _f in $@										; \
+	for _f in $@										; \
 	do												  \
 	  if [ ! -f $${_f} ] ; then									  \
 	    echo missing prerequisite: $${_f}								; \

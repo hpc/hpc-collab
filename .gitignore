@@ -139,3 +139,5 @@ clusters/vx/common/provision/requires/vx2/ipaddr~
 clusters/vx/common/provision/requires/vxlogin/ipaddr~
 clusters/vx/common/provision/requires/vxsched/ipaddr~
 clusters/vx/common/provision/verify/rsyslog/ipaddr~
+clusters/vc/.regnerated
+clusters/vx/.regnerated

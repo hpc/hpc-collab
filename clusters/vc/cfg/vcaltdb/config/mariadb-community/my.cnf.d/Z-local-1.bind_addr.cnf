@@ -1,0 +1,3 @@
+[mysqld]
+bind_address=vcaltdb
+

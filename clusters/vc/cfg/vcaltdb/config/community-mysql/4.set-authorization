@@ -1,0 +1,163 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcaltdb/config/mariadb-enterprise/4.set-authorization
+
+## @brief start mysqld service early, as required by slurm configurator
+
+VCLOAD=../../../provision/loader/shload.sh
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+declare -x HOSTNAME_FQDN=$(hostname -f)
+declare -x ALTDB_HOSTNAME=${HOSTNAME:0:2}altdb
+declare -x DB_HOSTNAME=${HOSTNAME:0:2}db
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+
+ETC=/etc
+MY_CONF=my.cnf
+MY_CONF_D=${MY_CONF}.d
+CONF_FILES=${MY_CONF_D}/*
+tstamp=`date +%Y.%m.%d.%H:%M`
+
+if [ "${PROD}" != "${WHICH_DB}" ] ; then
+  echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
+  exit 0
+fi
+
+numeric="[0-9]+$"
+socket=$(grep -h socket ${CONF_FILES} | sed 's/socket=//')
+if [ -z "${socket}" ] ; then
+  ErrExit ${EX_CONFIG} "socket: empty"
+fi
+
+if [ ! -S ${socket} ] ; then
+  Warn ${EX_SOFTWARE} "socket:${socket} is not a socket, mysqld may not be running"
+fi
+
+datadir=$(grep -h datadir ${CONF_FILES} | sed 's/datadir=//')
+if [ -z "${datadir}" ] ; then
+  ErrExit ${EX_CONFIG} "datadir: empty"
+fi
+if [ ! -d "${datadir}" ] ; then
+  ErrExit ${EX_CONFIG} "datadir:${datadir} does not exist or isn't a directory"
+fi
+
+pidfile=$(grep -h pid-file ${CONF_FILES} | sed 's/pid-file=//')
+if [ -z "${pidfile}" ] ; then
+  ErrExit ${EX_SOFTWARE} "pidfile: empty"
+fi
+
+logerror=$(grep -h log-error ${CONF_FILES} | sed 's/log-error=//')
+if [ -z "${logerror}" ] ; then
+  ErrExit ${EX_SOFTWARE} "logerror: empty"
+fi
+
+iam=$(id -n -u)
+if [ ${iam} != "root" ] ; then
+  ErrExit ${EX_NOPERM} "insufficient authority"
+fi
+
+declare -x ETC_NETWORKS=/etc/networks
+declare -x RESET_ALREADY_FLAG_PRIMARY=/home/vagrant/common/root/mysql_pw
+declare -x RESET_ALREADY_FLAG=${RESET_ALREADY_FLAG_PRIMARY}.${HOSTNAME}
+declare -x INITIAL_AUTH=""
+declare -x NEW_PW=""
+declare -x MYSQL_DB_VERSION_ARGS=""
+declare -x SET_PASSWORD_SQL=""
+
+case "${WHICH_DB}" in
+"") ErrExit ${EX_CONFIG} "WHICH_DB empty" ;;
+mariadb-enterprise)
+	# mariadb initially allows root to connect via the socket connection without initial authentication
+	INITIAL_AUTH=""
+	;;
+community-mysql|mysql-community)
+	MYSQL_TMPW=$(grep 'temporary password is generated' ${logerror} | sort | uniq | awk '{print $NF}')
+	INITIAL_AUTH="--user=root --password=\"${MYSQL_TMPW}\""
+	MYSQL_DB_VERSION_ARGS="--syslog  --connect-expired-password"
+	;;
+*) ErrExit ${EX_CONFIG} "WHICH_DB:${WHICH_DB} unknown db flavor"	;;
+esac
+
+trap 'rm -f "${RESET_ALREADY_FLAG}"' 0 1 2 3 15
+
+if [ -f "${RESET_ALREADY_FLAG}" ] ; then
+  NEW_PW=$(cat ${RESET_ALREADY_FLAG})
+  if [ -z "${NEW_PW}" ] ; then
+    ErrExit ${EX_CONFIG} "NEW_PW (${RESET_ALREADY_FLAG}) empty"
+  fi
+  if [ -z "${INITIAL_AUTH}" ] ; then
+    INITIAL_AUTH="--user=root --password=\"${NEW_PW}\""
+    Verbose "  Re-using INITIAL_AUTH from RESET_ALREADY_FLAG:${RESET_ALREADY_FLAG}"
+  fi
+else
+  if [ -f ${RESET_ALREADY_FLAG_PRIMARY} ] ; then
+    NEW_PW=$(cat ${RESET_ALREADY_FLAG_PRIMARY})
+    if [ -z "${NEW_PW}" ] ; then
+      ErrExit ${EX_CONFIG} "NEW_PW (${RESET_ALREADY_FLAG_PRIMARY}) empty"
+    fi
+    if [ -z "${INITIAL_AUTH}" ] ; then
+      INITIAL_AUTH="--user=root \"--password=${NEW_PW}\""
+      Verbose "  Re-using INITIAL_AUTH from RESET_ALREADY_FLAG_PRIMARY:${RESET_ALREADY_FLAG_PRIMARY}"
+    fi
+  else
+      ErrExit ${EX_CONFIG} "NEW_PW (${RESET_ALREADY_FLAG_PRIMARY} not found"
+  fi
+fi
+
+declare -x VC_NET=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}' | sed 's/\.0$/.%/')
+if [ -z "${VC_NET}" ] ; then
+  ErrExit ${EX_CONFIG} "VC_NET empty"
+fi
+
+case "${WHICH_DB}" in
+	"")					ErrExit ${EX_CONFIG} "WHICH_DB empty"				;;
+	mariadb-enterprise)			SET_PASSWORD_SQL="SET PASSWORD = PASSWORD('${NEW_PW}');"	;;
+	community-mysql|mysql-community)	SET_PASSWORD_SQL="SET PASSWORD = '${NEW_PW}';"			;;
+	*) ErrExit ${EX_CONFIG}			"WHICH_DB:${WHICH_DB} unknown db flavor"			;;
+esac
+
+eval mysql --line-numbers ${MYSQL_DB_VERSION_ARGS} "${INITIAL_AUTH}" << _MYSQL_PW_COMMANDS_
+${SET_PASSWORD_SQL}
+ALTER USER 'root'@'localhost'		IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${VC_NET}'		IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME}'	IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${DB_HOSTNAME}'	IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME_FQDN}'	IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+GRANT ALL ON *.* TO 'root'@'localhost';
+GRANT ALL ON *.* TO 'root'@'${VC_NET}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${ALTDB_HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME_FQDN}';
+FLUSH PRIVILEGES;
+_MYSQL_PW_COMMANDS_
+rc=$?
+if [ ${rc} -ne ${EX_OK} ] ; then
+  export _msg="[INITIAL_AUTH] mysql ${MYSQL_DB_VERSION_ARGS} ${INITIAL_AUTH} failed:rc=${rc}"
+  ErrExit ${EX_CONFIG} "${_msg}"
+fi
+Rc ErrExit ${EX_OSERR} "echo \"${NEW_PW}\" > ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0400 ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0700 $(dirname ${RESET_ALREADY_FLAG})"
+
+trap '' 0
+exit ${EX_OK}
+
+# vim: background=dark syntax

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/install/slurm/4.mysqld-service-on-early
+
+## @brief start mysqld service early, as required by slurm configurator
+
+VCLOAD=../../../provision/loader/shload.sh
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+
+MY_CONF=/etc/my.cnf
+tstamp=`date +%Y.%m.%d.%H:%M`
+
+if [ "${PROD}" != "${WHICH_DB}" ] ; then
+  echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
+  exit ${EX_OK}
+fi
+
+socket=$(grep socket ${MY_CONF} | sed 's/socket=//')
+
+iam=$(id -n -u)
+if [ ${iam} != "root" ] ; then
+  ErrExit ${EX_NOPERM} "insufficient authority"
+fi
+
+if [ -S "${socket}" -a -f "${pidfile}" ] ; then
+  Verbose "  already running? pid:"$(cat ${pidfile})
+  exit ${EX_OK}
+  ### ErrExit ${EX_OSERR} "socket: ${socket} exists, another instance running?"
+fi
+
+status=$(systemctl status mysqld| grep Active: | awk '{print $2}')
+
+if [ ${status} != active ] ; then
+  Rc ErrExit ${EX_OSERR} "systemctl start mysqld"
+  Rc ErrExit ${EX_OSERR} "systemctl status mysqld -l"
+fi
+
+Rc ErrExit ${EX_OSERR} "mysql --version"
+
+trap '' 0
+exit ${EX_OK}

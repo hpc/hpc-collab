@@ -1,0 +1,8 @@
+[local-mariadb-main]
+name = MariaDB Server (local)
+#baseurl = https://downloads.mariadb.com/MariaDB/mariadb-10.5/yum/rhel/$releasever/$basearch
+baseurl=file:/home/vx/common/repos/mariadb-community/mariadb-main
+gpgkey = file:///etc/pki/rpm-gpg/MariaDB-Server-GPG-KEY
+gpgcheck = 1
+enabled = 0
+skip_if_unavailable = 1

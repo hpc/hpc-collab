@@ -1,0 +1,10 @@
+[mysqld]
+
+innodb_lock_wait_timeout=900
+
+# the following allows community-mysql to self-tune
+# see: https://dev.mysql.com/doc/refman/8.0/en/innodb-dedicated-server.html
+innodb_dedicated_server=true
+
+# https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html
+#innodb_buffer_pool_instances=2
