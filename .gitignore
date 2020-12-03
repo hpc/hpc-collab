@@ -141,3 +141,5 @@ clusters/vx/common/provision/requires/vxsched/ipaddr~
 clusters/vx/common/provision/verify/rsyslog/ipaddr~
 clusters/vc/.regnerated
 clusters/vx/.regnerated
+clusters/vc/.regenerated
+clusters/vx/common/etc/slurm
