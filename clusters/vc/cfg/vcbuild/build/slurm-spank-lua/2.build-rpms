@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcbuild/build/slurm/1.build-rpms
+## @file vcbuild/build/slurm/2.build-rpms
 
 _d=$(dirname $0)
 provision_d=${_d}/../../../provision
@@ -38,6 +38,7 @@ ARCH=$(uname -m)
 RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
 need_build="true"
+SLURM_NEED_BUILD=/tmp/build.slurm.need_build
 
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
@@ -69,19 +70,24 @@ SPECFILE_VERSION=$(grep -i '^Version:' ${SLURMSPANKLUA_SPEC} | grep -v '%{versio
 #SPECFILE_VERSION=$(rpm -q --qf '%{VERSION}\n' --specfile ${SLURMSPANKLUA_SPEC} 2>&1 | sort | uniq | grep -v -i Warning)
 SPECFILE_RELEASE=$(grep '^Release:\s' ${SLURMSPANKLUA_SPEC} | awk '{print $2}')
 
-rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
+built_rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
+repo_rpms=$(ls ${COMMON_LOCALREPO}/${ARCH}/*${PRODUCT}*.rpm 2>&1)
 
 # if RPMS do *not* include dist changes (DIST tag), => need_build
 
 if [ "${SPECFILE_VERSION}" = "${SLURMSPANKLUA_VERSION}" ] ; then
-  case "${rpms}" in
+  case "${repo_rpms}" in
   *"No such file or directory"*)
     Verbose " [need build]"
     ## XXX also search in localrepo?
     ;;
   *rpm)
-    echo " [skipped] ${PRODUCT} ${SLURMSPANKLUA_VERSION} rpms already built"
-    need_build=""
+		if [ -s ${SLURM_NEED_BUILD} ] ; then
+			echo "  slurm was rebuilt; rebuild of ${PRODUCT} rpms is required."
+		else
+			echo " ${PRODUCT} ${SLURMSPANKLUA_VERSION} (rpms already built)"
+      			need_build=""
+		fi
     ;;
   esac
 fi
@@ -95,3 +101,5 @@ if [ -n "${need_build}" ] ; then
 fi
 
 exit ${rc}
+
+# vim: background=dark ts=2 sw=2 syntax

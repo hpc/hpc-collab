@@ -1,0 +1,40 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vc*/common/config/perf-kvm/2.cp-proc-kallsyms-modules
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x PROC=/proc
+declare -x COMMON_PROC=${COMMON}${PROC}
+declare -x COMMON_PROC_HOSTNAME=${COMMON_PROC}/${HOSTNAME:-$(hostname -s)}
+declare -x PROC_TARGETS="kallsyms modules"
+
+Rc ErrExit ${EX_OSFILE} "test -d ${COMMON_PROC_HOSTNAME}"
+
+for f in ${PROC_TARGETS}
+do
+  Rc ErrExit ${EX_CONFIG} "cat ${PROC}/${f} > ${COMMON_PROC_HOSTNAME}/${f}"
+  if [ ! -s ${COMMON_PROC_HOSTNAME}/${f} ] ; then
+    ErrExit ${EX_OSERR} "${COMMON_PROC_HOSTNAME}/${f} zero length"
+  fi
+done
+Rc ErrExit ${EX_CONFIG} "chown -R -h root:root ${COMMON_PROC}"
+
+trap '' 0
+exit ${EX_OK}

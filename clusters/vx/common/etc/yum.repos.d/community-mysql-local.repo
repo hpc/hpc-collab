@@ -1,0 +1,8 @@
+[local-community-mysql]
+name=Community MySQL (local copy)
+baseurl=file:/home/vx/common/repos/community-mysql/mysql80-community
+#gpgkey=
+gpgcheck=0
+enabled=0
+skip_if_unavailable=1
+priority=1

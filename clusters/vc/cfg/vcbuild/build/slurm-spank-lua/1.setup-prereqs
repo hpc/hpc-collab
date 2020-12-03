@@ -107,7 +107,6 @@ if [ ! -r "${SLURM_SPANK_LUA_SPEC}" ] ; then
 fi
 
 SPECFILE_VERSION=$(grep -i '^Version:' ${SLURM_SPANK_LUA_SPEC} | grep -v '%{version}' | sed 's/Version:\t//')
-rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
 
 if [ -n "${PREREQ_RPMS}" ] ; then
   Rc ErrExit ${EX_OSFILE}   "yum -y install ${PREREQ_RPMS}"
@@ -129,3 +128,4 @@ fi
 Rc ErrExit ${EX_OSFILE} "cp -v --preserve=all ${RPMBUILD}/SOURCES/${slurm_spank_lua_vers}${TAR_SUFFIX} ${XFR}"
 
 exit ${EX_OK}
+# vim: background=dark

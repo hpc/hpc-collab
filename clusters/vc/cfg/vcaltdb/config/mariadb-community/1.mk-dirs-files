@@ -1,0 +1,120 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/mariadb-community/1.mk-dirs-files
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw.${HOSTNAME}
+
+ETC=/etc
+MY_CONF=my.cnf
+MY_CONF_D=${MY_CONF}.d
+CONF_FILES="${MY_CONF}.d/*"
+if [ -s ${MY_CONF} ] ; then
+ CONF_FILES="${CONF_FILES} ${MY_CONF}"
+fi
+
+MYSQL_SOCKET=$(grep -h socket ${CONF_FILES} | sed 's/socket=//')
+if [ -z "${MYSQL_SOCKET}" ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_SOCKET empty"
+fi
+MYSQL_LOGFILE=$(grep -h log-error ${CONF_FILES} | sed 's/log-error=//')
+if [ -z "${MYSQL_LOGFILE}" ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_LOGFILE empty"
+fi
+
+MYSQL_PIDFILE=$(grep -h pid-file ${CONF_FILES} | sed 's/pid-file=//')
+if [ -z "${MYSQL_PIDFILE}" ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_PIDFILE empty"
+fi
+MYSQL_DATADIR=$(grep -h datadir ${CONF_FILES} | sed 's/datadir=//')
+if [ -z "${MYSQL_DATADIR}" ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_DATADIR empty"
+fi
+MYSQL_LOGBIN=$(grep -h log_bin ${CONF_FILES} | sed 's/log_bin=//')
+if [ -z "${MYSQL_LOGBIN}" ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_LOGBIN empty"
+fi
+
+MYSQL_LOGBIN_DIR=$(dirname ${MYSQL_LOGBIN})
+MYSQL_LOGBIN_INDEX=${MYSQL_LOGBIN/.log/.index}
+MYSQL_LOGDIR=$(dirname ${MYSQL_LOGFILE})
+
+IAM=$(id -n -u)
+if [ ${IAM} != "root" ] ; then
+  ErrExit ${EX_NOPERM} "insufficient authority"
+fi
+
+if [ -f ${RESET_ALREADY_FLAG} ] ; then
+  Warn ${EX_CONFIG} "RESET_ALREADY_FLAG:${RESET_ALREADY_FLAG} exists"
+fi
+
+Rc ErrExit ${EX_OSFILE} "rm -f ${RESET_ALREADY_FLAG}"
+
+mysql_u=$(getent passwd mysql)
+mysql_g=$(getent group mysql)
+
+if [ -z "${mysql_u}" ] ; then
+  ErrExit ${EX_CONFIG} "mysql is not in passwd db: ${mysql_u}"
+fi
+if [ -z "${mysql_g}" ] ; then
+  ErrExit ${EX_CONFIG} "mysql is not in group db: ${mysql_g}"
+fi
+
+if [ "${MYSQL_LOGBIN_DIR}" != "${MYSQL_LOGDIR}" ] ; then
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${MYSQL_LOGBIN_DIR}"
+  Rc ErrExit ${EX_OSERR}  "chown mysql:mysql ${MYSQL_LOGBIN_DIR}"
+fi
+
+#p = preexisting
+for p in MYSQL_LOGFILE MYSQL_LOGBIN_DIR
+do
+  if [ -s "${MYSQL_LOGFILE}" ] ; then
+    Rc ErrExit ${EX_OSFILE} "mv ${!p} ${!p}.${tstamp}"
+    Rc ErrExit ${EX_OSFILE} "touch ${!p}"
+    Rc ErrExit ${EX_OSERR}  "chown mysql:mysql ${!p}"
+  fi
+done
+
+if [ -S "${MYSQL_SOCKET}" -a -f "${MYSQL_PIDFILE}" ] ; then
+  Verbose "  already running? pid:"$(cat ${MYSQL_PIDFILE})
+  exit ${EX_OK}
+fi
+
+for d in MYSQL_LOGDIR MYSQL_LOGBIN_DIR
+do
+  if [ -f ${!d} ] ; then
+    Rc ErrExit ${EX_OSFILE} "rm -f ${!d}"
+  fi
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${!d}"
+  Rc ErrExit ${EX_CONFIG} "chown -h mysql:mysql ${!d}"
+done
+
+for f in MYSQL_LOGFILE MYSQL_LOGBIN MYSQL_LOGBIN_INDEX
+do
+  Rc ErrExit ${EX_OSFILE} "touch ${!f}"
+  Rc ErrExit ${EX_CONFIG} "chown -h mysql:mysql ${!f}"
+done
+
+Rc ErrExit ${EX_OSFILE} "cp ${MY_CONF_D}/* /etc/${MY_CONF_D}"
+
+trap '' 0
+exit ${EX_OK}

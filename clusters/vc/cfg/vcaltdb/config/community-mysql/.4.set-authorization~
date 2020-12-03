@@ -1,0 +1,186 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/community-mysql/4.set-authorization
+
+## @brief start mysqld service early, as required by slurm configurator
+
+VCLOAD=../../../provision/loader/shload.sh
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+declare -x HOSTNAME_FQDN=$(hostname -f)
+declare -x ALTDB_HOSTNAME=${HOSTNAME:0:2}altdb
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+
+ETC=/etc
+MY_CONF=my.cnf
+MY_CONF_D=${MY_CONF}.d
+CONF_FILES=${MY_CONF_D}/*
+tstamp=`date +%Y.%m.%d.%H:%M`
+
+if [ "${PROD}" != "${WHICH_DB}" ] ; then
+  echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
+  exit 0
+fi
+
+numeric="[0-9]+$"
+socket=$(grep -h socket ${CONF_FILES} | sed 's/socket=//')
+if [ -z "${socket}" ] ; then
+  ErrExit ${EX_CONFIG} "socket: empty"
+fi
+
+if [ ! -S ${socket} ] ; then
+  Warn ${EX_SOFTWARE} "socket:${socket} is not a socket, mysqld may not be running"
+fi
+
+datadir=$(grep -h datadir ${CONF_FILES} | sed 's/datadir=//')
+if [ -z "${datadir}" ] ; then
+  ErrExit ${EX_CONFIG} "datadir: empty"
+fi
+if [ ! -d "${datadir}" ] ; then
+  ErrExit ${EX_CONFIG} "datadir:${datadir} does not exist or isn't a directory"
+fi
+
+pidfile=$(grep -h pid-file ${CONF_FILES} | sed 's/pid-file=//')
+if [ -z "${pidfile}" ] ; then
+  ErrExit ${EX_SOFTWARE} "pidfile: empty"
+fi
+
+logerror=$(grep -h log-error ${CONF_FILES} | sed 's/log-error=//')
+if [ -z "${logerror}" ] ; then
+  ErrExit ${EX_SOFTWARE} "logerror: empty"
+fi
+
+iam=$(id -n -u)
+if [ ${iam} != "root" ] ; then
+  ErrExit ${EX_NOPERM} "insufficient authority"
+fi
+
+declare -x IAM=$(basename $0)
+declare -x ETC_NETWORKS=/etc/networks
+declare -x RESET_ALREADY_FLAG=/home/vagrant/common/root/mysql_pw
+declare -x INITIAL_AUTH
+declare -x NEW_PW
+declare -x MYSQL_INIT_FILE=/tmp/${IAM}.${tstamp}.initfile
+declare -x EXPIRED_PW=""
+
+MYSQL_TMPW=$(journalctl -xe | egrep 'mysqld.*systemd.*temporary password is generated' | tail -1 | awk '{print $18}')
+if [ -z "${MYSQL_TMPW}" ] ; then
+	if [ -s ${logerror} ] ; then
+		MYSQL_TMPW=$(egrep 'mysqld.*systemd.*temporary password is generated' ${logerror} | tail -1 | awk '{print $18}')
+	fi
+fi
+INITIAL_AUTH="${MYSQL_TMPW}"
+
+if [ -z "${MYSQL_TMPW}" ] ; then
+  Warn ${EX_SOFTWARE} "could not find community-mysql systemd generated temporary password, attempting to reset"
+  if [ -f "${pidfile}" ] ; then
+    Rc ErrExit ${EX_SOFTWARE} "kill $(cat ${pidfile})"
+  fi
+
+  authpw=$(echo $(cat authpw))
+  salt=$(date +%Y%m%d%H%M)
+  NEW_PW="${authpw}.${salt}"
+  INITIAL_AUTH="${NEW_PW}"
+  ( echo "FLUSH PRIVILEGES;"										; \
+      echo "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';"	; \
+  ) > ${MYSQL_INIT_FILE}
+
+  mysqld --user=mysql --skip-grant-tables --init-file=${MYSQL_INIT_FILE} &
+  rc=$?
+  if [ "${rc}" -ne 0 ] ; then
+    ErrExit ${EX_SOFTWARE} "mysqld --user=mysql --skip-grant-tables --init-file=${MYSQL_INIT_FILE} startup failed"
+  fi
+  i=600
+  while [ ${i} -gt 0 ]
+  do
+    if [ -f ${pidfile} -a -S ${socket} ] ; then
+      i=0
+      kill $(cat ${pidfile})
+      sleep 5
+      if [ -f ${pidfile} ] ; then
+        echo -n ','
+        pkill --pidfile ${pidfile} mysqld
+        sleep 5
+      fi
+    else
+      i=$(expr ${i} - 1) 
+    fi
+    sleep 0.34
+    echo -n '.'
+  done
+  if [ -f ${pidfile} ] ; then
+    kill $(cat ${pidfile})
+  fi
+
+  Rc ErrExit ${EX_SOFTWARE} "systemctl start mysqld"
+  Rc ErrExit ${EX_SOFTWARE} "systemctl status mysqld >/dev/null 2>&1"
+else
+  EXPIRED_PW="--connect-expired-password"
+fi
+
+if [ -z "${INITIAL_AUTH}" ] ; then
+  Warn ${EX_SOFTWARE} "INITIAL_AUTH: empty"
+fi
+
+trap 'rm -f "${RESET_ALREADY_FLAG} ${MYSQL_INIT_FILE}"' 0 1 2 3 15
+
+if [ -f "${RESET_ALREADY_FLAG}" ] ; then
+  NEW_PW=$(cat ${RESET_ALREADY_FLAG})
+  INITIAL_AUTH="${NEW_PW}"
+  Verbose "  Re-using INITIAL_AUTH from RESET_ALREADY_FLAG:${RESET_ALREADY_FLAG}"
+else
+  if [ -z "${NEW_PW}" ] ; then
+    authpw=$(echo $(cat authpw))
+    salt=$(date +%Y%m%d%H%M)
+    NEW_PW="${authpw}.${salt}"
+  fi
+  INITIAL_AUTH="${NEW_PW}"
+fi
+
+declare -x VC_NET=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}' | sed 's/\.0$/.%/')
+
+# the following aren't completely re-entrant, as CREATE USER fails if it already exists
+# ideally it should be 'CREATE IF NOT EXISTS USER' similar to mariadb
+mysql --syslog --line-numbers --user=root --password="${INITIAL_AUTH}" ${EXPIRED_PW} << _MYSQL_PW_COMMANDS_
+SET PASSWORD = '${NEW_PW}';
+ALTER USER 'root'@'localhost'		IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${VC_NET}'		IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME}'	IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${ALTDB_HOSTNAME}'	IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+CREATE USER 'root'@'${HOSTNAME_FQDN}'	IDENTIFIED WITH mysql_native_password BY '${NEW_PW}';
+GRANT ALL ON *.* TO 'root'@'localhost';
+GRANT ALL ON *.* TO 'root'@'${VC_NET}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${ALTDB_HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME_FQDN}';
+FLUSH PRIVILEGES;
+_MYSQL_PW_COMMANDS_
+rc=$?
+if [ ${rc} -ne ${EX_OK} ] ; then
+  rm -f ${RESET_ALREADY_FLAG}
+  ErrExit ${EX_CONFIG} "mysql --user=root --password=\"${INITIAL_AUTH}\" ${EXPIRED_PW} failed:rc=${rc}"
+fi
+Rc ErrExit ${EX_OSERR} "echo \"${NEW_PW}\" > ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0400 ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0700 $(dirname ${RESET_ALREADY_FLAG})"
+
+trap '' 0
+exit ${EX_OK}

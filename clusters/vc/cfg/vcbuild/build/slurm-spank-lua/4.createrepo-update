@@ -49,7 +49,7 @@ if [ ! -d "${COMMON_LOCALREPO}" ] ; then
   ErrExit ${EX_OSFILE}  "COMMON_LOCALREPO:${COMMON_LOCALREPO} not directory"
 fi
 
-for d in ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}
+for d in ${COMMON_LOCALREPO}
 do
   if [ ! -d ${d} ] ; then
     Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
@@ -57,7 +57,7 @@ do
 done
 
 Rc ErrExit ${EX_OSFILE} "mkdir -p /run/createrepo/cache"
-Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --revision ${tstamp} --cachedir /run/createrepo/cache --workers 2 --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}"
+Rc ErrExit ${EX_OSERR} "cd ${COMMON_LOCALREPO}; createrepo --update --revision ${tstamp} --cachedir /run/createrepo/cache --workers 2 --basedir ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}"
 Rc ErrExit ${EX_OSERR} "yum clean all"
 for _r in $(cat ${RPMS})
 do
@@ -68,5 +68,7 @@ do
 		;;
   esac
 done
+
+Rc ErrExit ${EX_OSERR} "yum-config-manager --enable local-vcbuild"
 
 exit ${EX_OK}

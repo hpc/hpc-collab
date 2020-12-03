@@ -49,7 +49,7 @@ if [ ! -d "${COMMON_LOCALREPO}" ] ; then
   ErrExit ${EX_OSFILE}  "COMMON_LOCALREPO:${COMMON_LOCALREPO} not directory"
 fi
 
-for d in ${COMMON_LOCALREPO} ${COMMON_LOCALREPO}/${ARCH}
+for d in ${COMMON_LOCALREPO}
 do
   if [ ! -d ${d} ] ; then
     Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
@@ -60,3 +60,5 @@ Rc ErrExit ${EX_OSFILE} "rm -rf ${RPMBUILD}/BUILD"
 Rc ErrExit ${EX_OSFILE} "mkdir -p ${RPMBUILD}/BUILD"
 
 exit ${EX_OK}
+
+# vim: background=dark ts=2 sw=2 syntax

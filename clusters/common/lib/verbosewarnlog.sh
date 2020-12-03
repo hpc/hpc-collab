@@ -19,6 +19,8 @@ declare -x LOG_TO_STDERR=""
 ## \callergraph
 ##
 Log() {
+  set +x
+  set +v
   local pgid=$(($(ps -o pgid= -p "$$")))
   local tag="${IAM}[${pgid}/${BASHPID}]"
   local loggerArgs="-S ${LOG_MSGSIZE}"
@@ -55,6 +57,8 @@ Log() {
 ## @fn Verbose()
 ##
 Verbose() {
+  set +x
+  set +v
   local tty=$(tty 2>&1)
   local columns
   local numeric="^[0-9]+$"
@@ -83,6 +87,8 @@ Verbose() {
 }
 
 Warn() {
+  set +x
+  set +v
   local _ec=${1}
   local _old_log_stderr
   shift

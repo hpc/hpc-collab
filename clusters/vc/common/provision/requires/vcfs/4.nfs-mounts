@@ -31,13 +31,26 @@ if [ -s /etc/exports ] ; then
   Rc ErrExit ${EX_OSFILE}  "timeout ${TIMEOUT} showmount -e ${IPADDR}"
 fi
 
-_nfs_mntpoints=$(findmnt -t nfs -F /etc/fstab -n | awk '{print $1}' | sort -d)
+_nfs_mntpoints=$(findmnt -t nfs -s -n | awk '{print $1}' | sort | uniq)
 
 for _m in ${_nfs_mntpoints}
 do
+  _already=""
   fstyp=$(stat -f "${_m}" --format="%T")
-  Verbose "     ${_m}"
-  Rc ErrExit ${EX_OSFILE} "mount ${_m}"
+
+  nfs_server=$(findmnt --output=source ${_m} -n | sed 's/:/ /' | awk '{print $1}')
+  if [ "${fstyp}" = "nfs" -a "${nfs_server}" = "vcfs" ] ; then
+	  _already=" (already mounted)"
+  fi
+  Verbose "     ${_m}${_already}"
+  if [ -n "${_already}" ] ; then
+	  continue
+  fi
+  mount_out=$(mount ${_m} 2>&1)
+  rc=$?
+  if [[ -n "${mount_out}" && "${mount_out}" != *"already mounted"* && ${rc} != ${EX_OK} ]] ; then
+	  ErrExit ${EX_SOFTWARE} "mount ${_m}: rc != EX_OK: ${rc}"
+  fi
 done
 
 trap '' 0

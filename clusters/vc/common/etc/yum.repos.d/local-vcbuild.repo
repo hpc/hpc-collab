@@ -1,8 +1,6 @@
 [local-vcbuild]
 name=locally-built software (vcbuild)
-#baseurl=file:///home/vagrant/common/repos/centos/$releasever/local/$basearch
-baseurl=file:///home/vagrant/common/repos/centos/$releasever/local
+baseurl=file:///home/vagrant/common/repos/centos/$releasever/local/$basearch
 gpgcheck=0
-#gpgkey=file:///home/vagrant/common/etc/pki/rpm-gpg/RPM-GPG-KEY-Local-Build
-enabled=1
+enabled=0
 

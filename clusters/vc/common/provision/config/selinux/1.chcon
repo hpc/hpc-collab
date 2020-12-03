@@ -24,6 +24,14 @@ fi
 
 SetFlags >/dev/null 2>&1
 
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+
+if [ "${PROD}" != "${WHICH_DB}" -a "${PROD}" != "selinux" ] ; then
+  echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
+  exit ${EX_OK}
+fi
+
 SEBOOL=$(echo $(cat sebool))
 
 for _s in ${SEBOOL}

@@ -22,6 +22,8 @@ declare -x DEFAULT_COLUMNS=${COLUMNS:-100}
 declare -x RSYNC_CENTOS_REPO=${RSYNC_CENTOS_REPO:-""}
 declare -x SKIP_SW=${SKIP_SW:-""}
 declare -x SKIP_UPDATERPMS=${SKIP_UPDATERPMS:-""}
+declare -x DEFAULT_DB="${DEFAULT_DB:-mariadb}"
+declare -x WHICH_DB=${WHICH_DB:-${DEFAULT_DB}}
 
 declare -x IS_LANL_PINGABLE="proxyout.lanl.gov"
 declare -x LANL_PROXY=${IS_LANL_PINGABLE}:8080

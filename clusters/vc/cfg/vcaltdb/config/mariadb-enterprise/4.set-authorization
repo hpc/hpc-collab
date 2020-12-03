@@ -1,0 +1,129 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcaltdb/config/mariadb-enterprise/4.set-authorization
+
+## @brief start mysqld service early, as required by slurm configurator
+
+VCLOAD=../../../provision/loader/shload.sh
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
+declare -x HOSTNAME_FQDN=$(hostname -f)
+declare -x ALTDB_HOSTNAME=${HOSTNAME:0:2}altdb
+declare -x DB_HOSTNAME=${HOSTNAME:0:2}db
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+PWD=$(pwd)
+PROD=$(basename ${PWD})
+
+if [ "${PROD}" != "${WHICH_DB}" ] ; then
+  echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
+  exit ${EX_OK}
+fi
+
+MY_CONF=/etc/my.cnf
+tstamp=`date +%Y.%m.%d.%H:%M`
+
+socket=$(grep socket ${MY_CONF} | sed 's/socket=//')
+
+iam=$(id -n -u)
+if [ ${iam} != "root" ] ; then
+  ErrExit ${EX_NOPERM} "insufficient authority"
+fi
+
+declare -x ETC_NETWORKS=/etc/networks
+declare -x RESET_ALREADY_FLAG_PRIMARY=/home/vagrant/common/root/mysql_pw
+declare -x RESET_ALREADY_FLAG=${RESET_ALREADY_FLAG_PRIMARY}.${HOSTNAME}
+declare -x INITIAL_AUTH=""
+declare -x NEW_PW=""
+declare -x MYSQL_DB_VERSION_ARGS=""
+declare -x SET_PASSWORD_SQL=""
+
+case "${WHICH_DB}" in
+"") ErrExit ${EX_CONFIG} "WHICH_DB empty" ;;
+mariadb-enterprise)
+	# mariadb initially allows root to connect via the socket connection without initial authentication
+	INITIAL_AUTH=""
+	;;
+community-mysql|mysql-community)
+	MYSQL_TMPW=$(journalctl -xe | grep 'mysqld_pre_systemd.*temporary password is generated' | tail -1 | awk '{print $18}')
+	INITIAL_AUTH="--user=${IAM} --password=\"${MYSQL_TMPW}\""
+	MYSQL_DB_VERSION_ARGS="--syslog  --connect-expired-password"
+	;;
+*) ErrExit ${EX_CONFIG} "WHICH_DB:${WHICH_DB} unknown db flavor"	;;
+esac
+
+trap 'rm -f "${RESET_ALREADY_FLAG}"' 0 1 2 3 15
+
+if [ -f "${RESET_ALREADY_FLAG}" ] ; then
+  NEW_PW=$(cat ${RESET_ALREADY_FLAG})
+  if [ -z "${NEW_PW}" ] ; then
+    ErrExit ${EX_CONFIG} "NEW_PW (${RESET_ALREADY_FLAG}) empty"
+  fi
+  INITIAL_AUTH="--user=root --password=\"${NEW_PW}\""
+  Verbose "  Re-using INITIAL_AUTH from RESET_ALREADY_FLAG:${RESET_ALREADY_FLAG}"
+else
+  if [ -f ${RESET_ALREADY_FLAG_PRIMARY} ] ; then
+    NEW_PW=$(cat ${RESET_ALREADY_FLAG_PRIMARY})
+    if [ -z "${NEW_PW}" ] ; then
+      ErrExit ${EX_CONFIG} "NEW_PW (${RESET_ALREADY_FLAG_PRIMARY}) empty"
+    fi
+    INITIAL_AUTH="--user=root \"--password=${NEW_PW}\""
+  else
+      ErrExit ${EX_CONFIG} "NEW_PW (${RESET_ALREADY_FLAG_PRIMARY} not found"
+  fi
+fi
+
+declare -x VC_NET=$(grep virtual-cluster-net ${ETC_NETWORKS} | awk '{print $2}' | sed 's/\.0$/.%/')
+if [ -z "${VC_NET}" ] ; then
+  ErrExit ${EX_CONFIG} "VC_NET empty"
+fi
+
+case "${WHICH_DB}" in
+	"")					ErrExit ${EX_CONFIG} "WHICH_DB empty"				;;
+	mariadb-enterprise)			SET_PASSWORD_SQL="SET PASSWORD = PASSWORD('${NEW_PW}');"	;;
+	community-mysql|mysql-community)	SET_PASSWORD_SQL="SET PASSWORD = '${NEW_PW}';"			;;
+	*) ErrExit ${EX_CONFIG}			"WHICH_DB:${WHICH_DB} unknown db flavor"			;;
+esac
+
+eval mysql --line-numbers ${MYSQL_DB_VERSION_ARGS} "${INITIAL_AUTH}" << _MYSQL_PW_COMMANDS_
+${SET_PASSWORD_SQL}
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${VC_NET}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${DB_HOSTNAME}' IDENTIFIED BY '${NEW_PW}';
+CREATE USER IF NOT EXISTS 'root'@'${HOSTNAME_FQDN}' IDENTIFIED BY '${NEW_PW}';
+GRANT ALL ON *.* TO 'root'@'localhost';
+GRANT ALL ON *.* TO 'root'@'${VC_NET}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${ALTDB_HOSTNAME}';
+GRANT ALL ON *.* TO 'root'@'${HOSTNAME_FQDN}';
+FLUSH PRIVILEGES;
+_MYSQL_PW_COMMANDS_
+rc=$?
+if [ ${rc} -ne ${EX_OK} ] ; then
+  export _msg="[INITIAL_AUTH] mysql ${MYSQL_DB_VERSION_ARGS} ${INITIAL_AUTH} failed:rc=${rc}"
+  ErrExit ${EX_CONFIG} "${_msg}"
+fi
+Rc ErrExit ${EX_OSERR} "echo \"${NEW_PW}\" > ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0400 ${RESET_ALREADY_FLAG}"
+Rc ErrExit ${EX_OSERR} "chmod 0700 $(dirname ${RESET_ALREADY_FLAG})"
+
+trap '' 0
+exit ${EX_OK}
+
+# vim: background=dark syntax

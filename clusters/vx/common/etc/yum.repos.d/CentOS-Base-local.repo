@@ -5,14 +5,9 @@ name=CentOS-$releasever - Base (local)
 baseurl=file:///home/vx/common/repos/centos/$releasever/os/$basearch
 gpgcheck=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
-enabled=1
+enabled=0
 priority=1
-mirrorlist_expire = 0
-metadata_expire = 0
-retries = 128
-skip_if_unavailable = 1
-keepcache = 0
-timeout = 45.0
+skip_if_unavailable=1
 
 #released updates 
 [local-updates]
@@ -22,12 +17,7 @@ name=CentOS-$releasever - Updates (local)
 baseurl=file:///home/vx/common/repos/centos/$releasever/updates/$basearch
 gpgcheck=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
-enabled=1
+enabled=0
 priority=1
-mirrorlist_expire = 0
-metadata_expire = 0
-retries = 128
-skip_if_unavailable = 1
-keepcache = 0
-timeout = 45.0
+skip_if_unavailable=1
 

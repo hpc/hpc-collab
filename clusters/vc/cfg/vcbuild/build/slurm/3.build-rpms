@@ -25,7 +25,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-PRODUCT=$(basename $(pwd))
+PWD=$(pwd)
+PRODUCT=$(basename ${PWD})
 
 BUILDWHERE=$(cd ${build_d}; pwd)
 BUILDWHAT=${CFG}/${HOSTNAME}/build
@@ -37,11 +38,14 @@ RPMBUILD=${BUILDWHERE}/rpmbuild
 ARCH=$(uname -m)
 RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
-need_build="true"
+LAST_BUILT=${PWD}/last.built
+NEED_BUILD_FLAG="/tmp/build.${PRODUCT}.need_build"
 
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
 SetFlags
+
+Rc ErrExit ${EX_SOFTWARE} "date > ${NEED_BUILD_FLAG}"
 
 if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
   ErrExit ${EX_CONFIG}  "BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} not a directory"
@@ -71,7 +75,7 @@ SPECFILE_VERSION=$(grep -i '^Version:' ${SLURM_SPEC} | grep -v '%{version}' | se
 
 rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
 
-# if RPMS do *not* include dist changes (DIST tag), => need_build
+# if RPMS do *not* include dist changes (DIST tag), => NEED_BUILD_FLAG
 
 if [ "${SPECFILE_VERSION}" = "${SLURM_VERSION}" ] ; then
   case "${rpms}" in
@@ -80,31 +84,45 @@ if [ "${SPECFILE_VERSION}" = "${SLURM_VERSION}" ] ; then
     ## XXX also search in localrepo?
     ;;
   *rpm)
-    for r in $(echo $(cat RPMS.Manifest))
+    for r in $(echo $(cat ${RPMS}))
     do
       if [ ! -f "${RPMS_ARCH}/${r}" ] ; then
         break
       fi
     done
 
-    echo " [skipped] ${PRODUCT} ${SLURM_VERSION} rpms already built"
-    need_build=""
+    last_build_db=""
+    if [ -s ${LAST_BUILT} -a -f ${LAST_BUILT} ] ; then
+      last_build_db=$(echo $(cat ${LAST_BUILT}))
+    fi
+    if [[ ${last_build_db} = ${WHICH_DB} ]] ; then
+      echo " [skipped] ${PRODUCT} ${SLURM_VERSION} rpms already built"
+      Rc ErrExit ${EX_OSFILE} "rm -f ${NEED_BUILD_FLAG}"
+    else
+      echo " ${PRODUCT} appears to have been built with a different data base ('${last_build_db}'), needs rebuilding"
+    fi
     ;;
   esac
 fi
 
-rc=${EX_OK}
+rc=0
 
 ## XXX loop through all RPMS in Manifest to construct this, to add/remove --with-* defines and args
 
-if [ -n "${need_build}" ] ; then
+if [ -s "${NEED_BUILD_FLAG}" ] ; then
+  # remove slurm plugin rpms too
+  Rc ErrExit ${EX_SOFTWARE} "rm -f ${RPMS_ARCH}/${PRODUCT}-*"
   rpmbuild -ba ${SLURM_SPEC}						\
 			--define "_topdir ${RPMBUILD}/"			\
 			--define "_enable_debug --with-debug"		\
-			--with slurmrestd
+			--with slurmrestd				\
+			--with mysql
   rc=$?
+  if [ ${rc} -eq 0 ] ; then
+    echo "${WHICH_DB}" > ${LAST_BUILT}
+  fi
 fi
 
 exit ${rc}
 
-# vi: set background=dark
+# vim: background=dark ts=2 sw=2 syntax
