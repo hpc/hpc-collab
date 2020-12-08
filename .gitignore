@@ -25,3 +25,4 @@ clusters/vc/cfg/vcsvc/rootfs/etc/dnsmasq.conf
 clusters/vx/.vagrant
 clusters/vx/common/etc/hosts
 clusters/vx/common/etc/hosts.allow
+.viminfo
