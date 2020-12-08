@@ -26,3 +26,4 @@ clusters/vx/.vagrant
 clusters/vx/common/etc/hosts
 clusters/vx/common/etc/hosts.allow
 .viminfo
+slurm-*.out
