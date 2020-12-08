@@ -1,0 +1,2 @@
+salloc:*:partition = login
+sbatch:*:min_time = 5:00
