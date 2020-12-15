@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vclogin/config/slurm/4.configure-slurm-db
+## @file vclogin/config/slurm/5.licenses
 
 VCLOAD=../../../provision/loader/shload.sh
 
@@ -29,12 +29,21 @@ licenses=$(echo $(ls ${LICENSES_D}))
 cluster=${HOSTNAME:0:2}
 
 nodecnt=$(echo $(sinfo --format="%n %f" | grep compute | awk '{print $1}' | sort | uniq | wc -l))
-n_clusters=$(ls /home | wc -l)
-count=$(( ${nodecnt} * ${n_clusters} ))
+n_clusters=$(sacctmgr show clusters format="cluster%-20" -n|wc -l)
+
+count=$(expr ${nodecnt} \* ${n_clusters})
+numeric='^[0-9]+$'
+if [ -z "${count}" ] ; then
+  ErrExit ${EX_SOFTWARE} "empty count for licenses"
+fi
+if ! [[ ${count} =~ $numeric ]] ; then
+  ErrExit ${EX_SOFTWARE} "count:${count} is non-numeric"
+fi
 
 # see if they match (are in conflict with) those in licenses/
 
-existing_licenses=$(echo $(sacctmgr show resource withcluster cluster=${cluster} format=name%-25 --noheader))
+
+existing_licenses=$(echo $(sacctmgr show resource withcluster cluster=${cluster} format=name%-25cluster-%8 --noheader))
 
 # # sacctmgr show resource withclusters format=name%-25,server,type,count,allocated,cluster,allowed
 #      Name     Server     Type  Count % Allocated ServerType    Cluster  % Allowed 
@@ -50,25 +59,31 @@ do
   sacct_mgr=""
   lic=$(basename ${lic_name})
   action="add"
-  if [[ "${existing_licenses}" != *"${lic}"* ]] ; then
-    acction="update"
+  clause=" type=license cluster=${cluster} "
+  suffix=" count=${count} "
+  if [ -n "${existing_licenses}" ] ; then
+    if [[ "${existing_licenses}" != *"${lic}"*"${cluster}" ]] ; then
+      action="update"
+      clause=" cluster=${cluster} set "
+      suffix="" 
+    fi
   fi
 
   d=${LICENSES_D}/${lic_name}
   attributes=$(echo $(ls ${d}))
 
-  sacct_mgr_cmd="sacctmgr -iQ ${action} resource name=${lic_name} type=license count=${count} cluster=${cluster}"
+  sacct_mgr_cmd="sacctmgr -iQ ${action} resource name=${lic_name} ${clause} ${suffix} "
   any_attr=""
 
   for attr_name in ${attributes}
   do
-    existing=$(echo $(sacctmgr show resource where cluster=${cluster} format="name%-20" -n))
+    existing=$(echo $(sacctmgr show resource withcluster where cluster=${cluster} format="name%-20" -n))
     attr_val=""
     if [ -s ${d}/${attr_name} ] ; then
       attr_val=$(cat ${d}/${attr_name})
     fi
     if [[ "${existing}" == *"${lic_name}"* ]] ; then
-	existing_val=$(sacctmgr show resource where cluster=${cluster} name=${lic_name} -n | awk '{print $5}') 
+	existing_val=$(sacctmgr show resource withcluster where cluster=${cluster} name=${lic_name} -n | awk '{print $5}') 
 	if [ "${existing_val}" = "${attr_val}" ] ; then
 	  if [ "${attr_val}" -ne 0 ] ; then
             Verbose "license=${lic_name}, cluster=${cluster}, existing_val:${existing_val} = attr_val:${attr_val}, skipped"
@@ -77,17 +92,11 @@ do
 	fi
     fi
     if [ -z "${attr_val}" ] ; then
+
       continue
     fi
-
-    needs_set="set "
-    case "${action}" in
-      update)  ;;
-      add) needs_set="" ;;
-      *) ErrExit ${EX_SOFTWARE} "unknown action:${action}" ;;
-    esac
-
-    sacct_mgr="${sacct_mgr_cmd} ${needs_set} ${attr_name}=${attr_val}"
+   
+    sacct_mgr="${sacct_mgr_cmd} ${attr_name}=${attr_val}"
     any_attr="${any_attr} ${attr_name}"
   done #attr_name
   if [ -n "${any_attr}" ] ; then
