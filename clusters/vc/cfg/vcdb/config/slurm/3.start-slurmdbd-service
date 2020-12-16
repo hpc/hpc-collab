@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcdb/install/slurm/5.start-slurmdbd-service-on-early
+## @file vcdb/install/slurm/3.start-slurmdbd-service
 
 ## @brief start slurmdbd service early
 
@@ -22,7 +22,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-Rc ErrExit 2 "systemctl start slurmdbd"
+Rc ErrExit 4 "systemctl start slurmdbd"
+
 isactive=$(systemctl status slurmdbd | grep Active: | awk '{print $2}')
 if [ "${isactive}" != "active" ] ; then
   ErrExit ${EX_CONFIG} "slurmdbd failed to start correctly: ${isactive}"

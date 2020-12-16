@@ -30,8 +30,10 @@ do
   slurmd_state=$(scontrol show node ${n} -o | sed 's/^.* SlurmdStartTime=//' | sed 's/ .*$//')
   if [ "${slurmd_state}" != "none" ] ; then
     state=$(echo $(scontrol show node ${n} -o | sed 's/^.*State=//' | sed 's/ .*//' | sed 's/\*//'))
-    case "${state}" in
-      "IDLE")
+    case "${state^^}" in
+      "IDLE"|"ALLOC")
+	;;
+      *"UNK"*)
 	;;
       *)
 	Rc ErrExit ${EX_SOFTWARE} "scontrol update nodename=${n} state=resume"
