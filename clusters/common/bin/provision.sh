@@ -1735,11 +1735,14 @@ BaselineYumRepos() {
   ## reset all repos to disabled, except for CentOS base and updates, so that early RPMS may be installed
   ## don't use yum-config-manager as yum utilities are susceptible to breakage if repos are inconsistent
   local repolist=$(ls ${YUM_REPOS_D}/*.repo | egrep -v 'CentOS-Base.repo')
+  local msg="   -"
   for repofile in ${repolist}
   do
-    Verbose "  - $(basename ${repofile})"
+    msg="${msg} $(basename ${repofile})"
     Rc ErrExit ${EX_SOFTWARE} "sed -i -e '/^enabled[[:space:]]*=[[:space:]]*1/s/1/0/' ${repofile} ;"
   done
+  Verbose "${msg}"
+  return
 }
 
 ## @fn InstallEarlyRPMS()

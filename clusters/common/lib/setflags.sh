@@ -102,9 +102,12 @@ SetFlags() {
         export HUSH_OUTPUT="true"
         set_flags="${set_flags} HUSH_OUTPUT"
         ;;
-    BUILD_LUSTRE_FLAG)
-        export LUSTRE="true"
-        set_flags="${set_flags} LUSTRE"
+    BUILD_LUSTRE)
+        ## LUSTRE whether or not to enable LUSTRE client
+        export LUSTRE=""
+        ## BUILD_LUSTRE whether or not to build LUSTRE
+        export BUILD_LUSTRE="true"
+        set_flags="${set_flags} LUSTRE BUILD_LUSTRE"
         ;;
     ONLY_REMOTE_REPOS)
         # doesn't make sense to rsync to local repo, if using remote repositories

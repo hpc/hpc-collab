@@ -20,6 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 PRODUCT=$(basename $(pwd))
 
 BUILDWHERE=${VC}/build
@@ -33,8 +35,8 @@ RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
 LOCALREPO=${VAGRANT}/etc/localrepo
 
-if [ -z "${BUILD_LUSTRE_FLAG}" ] ; then
-  Verbose " [BUILD_LUSTRE_FLAG empty: skipped]"
+if [ -z "${BUILD_LUSTRE}" ] ; then
+  Verbose " [BUILD_LUSTRE empty: skipped]"
   exit ${EX_OK}
 fi
 
@@ -50,6 +52,10 @@ ZFSONLINUX_REPO_URL="${ZFSONLINUX_REPO_HOST}/epel/zfs-release.el${ZFSONLINUX_VER
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
 # This has the annoying effect of updating the virtualbox driver, which involves a dkms build
-Rc ErrExit ${EX_SOFTWARE} "yum -y update"
+if [ -z "${SKIP_UPDATERPMS}" ] ; then
+	Rc ErrExit ${EX_SOFTWARE} "yum -y update"
+else
+  Verbose " SKIP_UPDATERPMS"
+fi
 
 exit ${EX_OK}
