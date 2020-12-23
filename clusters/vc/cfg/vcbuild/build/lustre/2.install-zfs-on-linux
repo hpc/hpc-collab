@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcbuild/build/lustre/1.install-zfs-on-linux
+## @file vcbuild/build/lustre/2.install-zfs-on-linux
 
 VCLOAD=/vc/cfg/provision/loader/shload.sh
 

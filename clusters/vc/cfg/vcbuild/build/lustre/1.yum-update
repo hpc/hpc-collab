@@ -51,11 +51,7 @@ ZFSONLINUX_REPO_HOST="http://download.zfsonlinux.org"
 ZFSONLINUX_REPO_URL="${ZFSONLINUX_REPO_HOST}/epel/zfs-release.el${ZFSONLINUX_VERSION}.noarch.rpm"
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
-# This has the annoying effect of updating the virtualbox driver, which involves a dkms build
-if [ -z "${SKIP_UPDATERPMS}" ] ; then
-	Rc ErrExit ${EX_SOFTWARE} "yum -y update"
-else
-  Verbose " SKIP_UPDATERPMS"
-fi
+# This has the annoying effect of updating the virtualbox driver, which involves a dkms build.
+Rc ErrExit ${EX_SOFTWARE} "yum -y update"
 
 exit ${EX_OK}
