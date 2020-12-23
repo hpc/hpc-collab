@@ -21,6 +21,7 @@ policycoreutils-python
 pygobject2
 python-deltarpm
 python-IPy
+python-setuptools
 python-urlgrabber
 quota
 quota-nls

@@ -20,6 +20,7 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
 PRODUCT=$(basename $(pwd))
 
 BUILDWHERE=${VC}/build
@@ -33,8 +34,8 @@ LOCALREPO=${VAGRANT}/etc/localrepo
 LUSTRE_RELEASE="lustre-release"
 LOCALREPO_ARCH=${LOCALREPO}/centos/7/local/${ARCH}/
 
-if [ -z "${BUILD_LUSTRE_FLAG}" ] ; then
-  Verbose " [BUILD_LUSTRE_FLAG empty: skipped]"
+if [ -z "${BUILD_LUSTRE}" ] ; then
+  Verbose " [BUILD_LUSTRE empty: skipped]"
   exit ${EX_OK}
 fi
 
@@ -54,7 +55,6 @@ if [ ! -d "${LUSTRE_RELEASE_D}" ] ; then
   ErrExit ${EX_CONFIG} "${LUSTRE_RELEASE_D} is not a directory"
 fi
 cd ${LUSTRE_RELEASE_D} || ErrExit ${EX_CONFIG} "cd ${LUSTRE_RELEASE_D}"
-
 Rc ErrExit ${EX_SOFTWARE} "make clean"
 
 exit ${EX_OK}
