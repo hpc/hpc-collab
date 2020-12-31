@@ -1,6 +1,8 @@
+<!--
 <HTML>
 <TITLE>hpc-collab (sometimes: hpc-colab)</TITLE>
 <BR>
+-->
 # <H1>hpc-collab (sometimes: hpc-colab)</H1>
 
 <P>This project provides provisioned HPC cluster models using underlying virtualization mechanisms.</P>
@@ -60,11 +62,11 @@ to construct cluster images with security guarantees.
 <EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
 <BR>
 ~~~
-<BR><PRE>
+<!-- <BR><PRE> -->
          cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
-</PRE>
+<!-- </PRE> -->
 ~~~<BR>
 
 <P>
@@ -140,27 +142,27 @@ the appropriate Makefile is set so that one need not be in a cluster directory.<
 </P>
 
 for &lt;<EM>nodename</EM>&gt;:
-<BR>
+<!-- <BR> -->
 ~~~
-<BR><PRE>
+<!-- <BR><PRE> -->
 <nodename>	  = equivalent to 'cd clusters/<CL>; make nodename' - provisions as needed
 <nodename>--	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION' - unprovision node
 <nodename>!	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION ; make nodename' - unprovision and force reprovisioning
-</PRE>
+<!-- </PRE> -->
 ~~~
-<BR>
+<!-- <BR> -->
 
 for all nodes in the cluster, <EM>&lt;CL&gt;</EM>:
 <BR>
 ~~~
-<BR><PRE>
+<!-- <BR><PRE> -->
 <CL>		  = equivalent to 'make up'
 <CL>--		  = equivalent to 'make nodename_UNPROVISION'
 <CL>!		  = equivalent to 'make nodename_UNPROVISION; make nodename'
 		    force unprovision and reprovisioning
-</PRE>
-<BR>~~~
-<BR>
+<!-- </PRE><BR> -->
+~~~
+<!-- <BR> -->
 </P>
 <P>
 Components such as clusters, nodes and filesystems are standalone.
@@ -207,4 +209,4 @@ The author wishes to acknowledge and appreciates the contributions of time, effo
 <A HREF="https://www.lanl.gov/projects/ultrascale-systems-research-center/">researchers</A>
 have made to this project.
 </P>
-</HTML>
+<!-- </HTML> -->
