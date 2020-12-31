@@ -1,26 +1,29 @@
-# hpc-collab (sometimes: hpc-colab)
+<HTML>
+<TITLE>hpc-collab (sometimes: hpc-colab)</TITLE>
+<BR>
+# <H1>hpc-collab (sometimes: hpc-colab)</H1>
 
-This project provides provisioned HPC cluster models using underlying virtualization mechanisms. 
+<P>This project provides provisioned HPC cluster models using underlying virtualization mechanisms.</P>
 
-The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been
+<P>The purpose of this project is to provide a common baseline for repeatable HPC experiments. This has been
 used for education, distributed collaboration, tool development colaboration, failure signature discovery,
 local HPC debugging and cluster configuration comparisons, enabled by construction and use of short-lived
 and common baseline hpc cluster models. In short, extend the "systems as cattle not pets" 
 <A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">[1]</A> 
 <A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into
-the realm of "clusters as cattle, not pets."
+the realm of "clusters as cattle, not pets."</P>
 
-The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified,
+<P>The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified,
 <A HREF="https://libvirt.org/">libvirt</A>, and its accompanying
 <A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">vagrant-libvirt plugin</A>.
 <A HREF="https://graphviz.org/">Graphviz</A>, <A HREF="https://www.doxygen.nl/index.html">doxygen</A>
 and <A HREF="https://github.com/hoytech/vmtouch">vmtouch</A> are recommended, but not required. A
 local copy of the clever <A HREF="https://github.com/Anvil/bash-doxygen">bash-doxygen</A> sed filter
-is included.  Lighterweight and multi-node mechanisms are welcomed and planned.
+is included.  Lighterweight and multi-node mechanisms are welcomed and planned.</P>
 
-Two representative HPC cluster recipes are provided.
+<P>Two representative HPC cluster recipes are provided.
 Cluster recipes are in the <EM>clusters</EM> directory.
-Presently, recipes generate clusters local to the installation host, only.
+Presently, recipes generate clusters local to the installation host, only.</P>
 
  <b><A HREF="https://docs.google.com/drawings/d/1Pmpe4ME46ka51jlhaAQUsjzWNHZaQ2CEzc0_5UDuojI/edit?usp=sharing">vc</A></b> is a virtual machine-based cluster, configured with the service-factored following nodes:
  <UL>
@@ -55,16 +58,19 @@ to construct cluster images with security guarantees.
 <P>
  Set the BASE directory in <EM>bin/setpath.{c}sh</EM>. The default setting is the output of pwd, often
 <EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
-
+<BR>
 ~~~
+<BR><PRE>
          cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
-~~~
+</PRE>
+~~~<BR>
 
 <P>
 Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM>
-reposistory.
+reposistory. Alternatively, reorder the file requires/ingest/repos. The <B>last</B> line in the file
+will be the preferred repository, by default.
 <P>
 Then <EM>make prereq</EM> to sanity check that there is sufficient storage to host this set of
 cluster recipes and to construct the appropriate <EM>Vagrantfile</EM>s for the local environment.
@@ -134,19 +140,27 @@ the appropriate Makefile is set so that one need not be in a cluster directory.<
 </P>
 
 for &lt;<EM>nodename</EM>&gt;:
+<BR>
 ~~~
+<BR><PRE>
 <nodename>	  = equivalent to 'cd clusters/<CL>; make nodename' - provisions as needed
 <nodename>--	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION' - unprovision node
 <nodename>!	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION ; make nodename' - unprovision and force reprovisioning
+</PRE>
 ~~~
+<BR>
 
 for all nodes in the cluster, <EM>&lt;CL&gt;</EM>:
+<BR>
 ~~~
+<BR><PRE>
 <CL>		  = equivalent to 'make up'
 <CL>--		  = equivalent to 'make nodename_UNPROVISION'
 <CL>!		  = equivalent to 'make nodename_UNPROVISION; make nodename'
 		    force unprovision and reprovisioning
-~~~
+</PRE>
+<BR>~~~
+<BR>
 </P>
 <P>
 Components such as clusters, nodes and filesystems are standalone.
@@ -154,6 +168,24 @@ Each includes code and configuration to establish prerequisites, configure, inst
 Common configuration implementations, <A HREF="https://github.com/hpc/hpc-collab/issues/9">such as ansible</A>,
 are planned and encouraged to be contributed.
 </P>
+
+<H4>Configuration</H4>
+<P>
+Configuration of the cluster may be tuned with flag or configuration markers.
+Flags are located in <EM>clusters/common/flag</EM>.
+<UL>
+<LI>WHICH_DB	selects which data base to use: mariadb-community (default), community-mysql, or mariadb-enterprise.</LI>
+<LI>SINC	is a numeric factor, if present, indicating that the timeouts need to be adjusted. Often necessary for WHICH_DB:community-mysql. Timeouts are adjusted by multipling by the value of this <B>S</B>low <B>I</B>nternet <B>C</B>oefficient.</LI>
+</UL>
+Changing the data base version will trigger additional in-cluster software builds and may require adjustment
+of node timeout values, due to the way yum verifies external repositories. Mariadb-enterprise requires a
+<A HREF="https://mariadb.com/docs/deploy/token/">download token</A> from <A HREF="mariadb.com">mariadb.com</A>.
+<BR>
+Alternate virtualization providers may be selected by changing the contents of the file 
+<EM>clusters/common/Vagrantfile.d/cfg.vm.providers.d/default_provider</EM>.
+Changing the virtualization provider will trigger a "recompilation" of the cluster's <EM>Vagrantfile</EM>.
+</P>
+
 
 <H4>Resource Usage</H4>
 <P>
@@ -175,4 +207,4 @@ The author wishes to acknowledge and appreciates the contributions of time, effo
 <A HREF="https://www.lanl.gov/projects/ultrascale-systems-research-center/">researchers</A>
 have made to this project.
 </P>
-
+</HTML>

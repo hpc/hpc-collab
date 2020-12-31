@@ -44,12 +44,12 @@ previous_which_db	= $(shell [ -s $(TARBALL_D)/WHICH_DB/which_db ] && \
 			  		cat $(TARBALL_D)/WHICH_DB/which_db || \
 				echo "")
 
-repo_tgz	 = repos.tgz
-repo_cksum	 = repos.cksum
+repo_tgz		= repos.tgz
+repo_cksum	= repos.cksum
 
 SCHEDMD_SLURM_URL = https://download.schedmd.com/slurm/
-SLURM_VERSION	 := $(shell cat ../../clusters/vc/cfg/vcbuild/build/slurm/version)
-SLURM_TARBALL	  = slurm-$(SLURM_VERSION).tar.bz2
+SLURM_VERSION	 	 := $(shell cat ../../clusters/vc/cfg/vcbuild/build/slurm/version)
+SLURM_TARBALL			= slurm-$(SLURM_VERSION).tar.bz2
 
 TARBALL_D	 = ../../tarballs
 TARBALL_D	:= $(realpath $(TARBALL_D))
@@ -82,15 +82,15 @@ ifeq ($(WHICH_DB),enterprise-mariadb)
 	WHICH_DB = mariadb-enterprise
 endif
 ifeq ($(WHICH_DB),mariadb-enterprise)
-	GPGKEY			:= $(MARIADB_ES_GPGKEY)
-	DOWNLOAD_GPGKEY		 = $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_ES_GPGKEY)
+	GPGKEY					:= $(MARIADB_ES_GPGKEY)
+	DOWNLOAD_GPGKEY	 = $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_ES_GPGKEY)
 	DOWNLOAD_RPMS		 =
-	DOWNLOAD_SETUP		 = $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_ES_REPO_SETUP)
-	DOWNLOAD_TOKEN		 = $(TARBALL_D)/$(WHICH_DB)/download_token
-	GPGKEY_URL		:= $(MARIADB_ES_GPGKEY_URL)/
-	URL			:= $(MARIADB_ES_REPO_SETUP_URL)
-	SETUP			:= $(MARIADB_ES_REPO_SETUP)
-	TARGETS_DOWNLOAD	=  $(DOWNLOAD_TOKEN) $(DOWNLOAD_SETUP)
+	DOWNLOAD_SETUP	 = $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_ES_REPO_SETUP)
+	DOWNLOAD_TOKEN	 = $(TARBALL_D)/$(WHICH_DB)/download_token
+	GPGKEY_URL			:= $(MARIADB_ES_GPGKEY_URL)/
+	URL							:= $(MARIADB_ES_REPO_SETUP_URL)
+	SETUP						:= $(MARIADB_ES_REPO_SETUP)
+	TARGETS_DOWNLOAD =  $(DOWNLOAD_TOKEN) $(DOWNLOAD_SETUP)
 endif
 
 ifeq ($(WHICH_DB),community-mariadb)
@@ -101,13 +101,13 @@ ifeq ($(WHICH_DB),mariadb)
 endif
 ifeq ($(WHICH_DB),mariadb-community)
 	GPGKEY			:= $(MARIADB_GPGKEY)
-	DOWNLOAD_GPGKEY		 = $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_GPGKEY)
-	DOWNLOAD_RPMS 		 =
-	DOWNLOAD_SETUP		 = $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_REPO_SETUP)
-	DOWNLOAD_TOKEN		 =
-	GPGKEY_URL 		 = $(MARIADB_GPGKEY_URL)
-	URL	    	   	:= $(MARIADB_REPO_SETUP_URL)
-	SETUP			:= $(MARIADB_REPO_SETUP)
+	DOWNLOAD_GPGKEY		= $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_GPGKEY)
+	DOWNLOAD_RPMS 		=
+	DOWNLOAD_SETUP		= $(TARBALL_D)/$(WHICH_DB)/$(MARIADB_REPO_SETUP)
+	DOWNLOAD_TOKEN		=
+	GPGKEY_URL 		 		= $(MARIADB_GPGKEY_URL)
+	URL	    	   	 	 := $(MARIADB_REPO_SETUP_URL)
+	SETUP					 	 := $(MARIADB_REPO_SETUP)
 	TARGETS_DOWNLOAD	=  $(DOWNLOAD_SETUP)
 endif
 
@@ -118,38 +118,41 @@ ifeq ($(WHICH_DB),mysql-community)
 	WHICH_DB = community-mysql
 endif
 ifeq ($(WHICH_DB),community-mysql)
-	GPGKEY			:= $(COMMUNITY_MYSQL_GPGKEY)
-	DOWNLOAD_GPGKEY		 = $(TARBALL_D)/$(WHICH_DB)/$(COMMUNITY_MYSQL_GPGKEY)
+	GPGKEY					:= $(COMMUNITY_MYSQL_GPGKEY)
+	DOWNLOAD_GPGKEY	 = $(TARBALL_D)/$(WHICH_DB)/$(COMMUNITY_MYSQL_GPGKEY)
 	DOWNLOAD_RPMS		 = $(foreach f,$(COMMUNITY_MYSQL_RPMS), $(TARBALL_D)/$(WHICH_DB)/RPMS/$(f))
-	DOWNLOAD_SETUP		 =
-	DOWNLOAD_TOKEN		 =
-	GPGKEY_URL 		 = $(COMMUNITY_MYSQL_GPGKEY_URL)
-	URL			:= $(COMMUNITY_MYSQL_URL)
-	SETUP			:= $(COMMUNITY_MYSQL_PRIMER_RPM)
-	TARGETS_DOWNLOAD	 = $(DOWNLOAD_GPGKEY) $(DOWNLOAD_RPMS)
+	DOWNLOAD_SETUP	 =
+	DOWNLOAD_TOKEN	 =
+	GPGKEY_URL 			 = $(COMMUNITY_MYSQL_GPGKEY_URL)
+	URL							:= $(COMMUNITY_MYSQL_URL)
+	SETUP						:= $(COMMUNITY_MYSQL_PRIMER_RPM)
+	TARGETS_DOWNLOAD = $(DOWNLOAD_GPGKEY) $(DOWNLOAD_RPMS)
 endif
 
-TARGETS		:= $(TARGETS_BASE) $(TARGETS_DOWNLOAD) $(TARGETS_FINAL)
+TARGETS	:= $(TARGETS_BASE) $(TARGETS_DOWNLOAD) $(TARGETS_FINAL)
+
+DEFAULT_PREFERRED_REPO_URL = $(shell tail -1 $(CURDIR)/repos)
+PREFERRED_REPO_URL				 = $(shell echo $${PREFERRED_REPO_URL})
+
+ifeq (,$(PREFERRED_REPO_URL),)
+$(error PREFERRED_REPO_URL is unset (""))
+endif
+
+#if the PREFERRED_REPO_URL contains rsync://, use it, otherwise use default
+ifeq (,$(findstring rsync://,$(PREFERRED_REPO_URL)))
+	REPO_URL	 				= $(DEFAULT_PREFERRED_REPO_URL)
+else
+	REPO_URL	 				= $(PREFERRED_REPO_URL)
+endif
 
 
-REPO_PREFIX	 = centos/7
-REPO_WORKSPACE_D = $(TARBALL_D)/repos
-REPO_OS		 = $(REPO_WORKSPACE_D)/centos/7/os/.target
-REPO_UPDATES	 = $(REPO_WORKSPACE_D)/centos/7/updates/.target
-REPO_URL	 = rsync://linux.mirrors.es.net
-REPO_HTTP_URL	 = $(subst rsync,http,$(REPO_URL))
-REPO_HOST	 = $(subst rsync://,,$(REPO_URL))
+REPO_PREFIX	 			= centos/7
+REPO_WORKSPACE_D	= $(TARBALL_D)/repos
+REPO_OS		 				= $(REPO_WORKSPACE_D)/centos/7/os/.target
+REPO_UPDATES	 		= $(REPO_WORKSPACE_D)/centos/7/updates/.target
+REPO_HTTP_URL	 		= $(subst rsync,http,$(REPO_URL))
+REPO_HOST	 				= $(dir $(subst rsync://,,$(REPO_URL)))
 
-# collect from ../../common/inc/ingestfs.h.sh
-#       "rsync://centos.sonn.com/CentOS"
-#       "rsync://mirrors.ocf.berkeley.edu"
-#       "rsync://rsync.gtlib.gatech.edu"
-#       "rsync://mirrors.kernel.org"
-#       "rsync://mirror.math.princeton.edu/pub"
-#       "rsync://mirror.cc.columbia.edu"
-#       "rsync://mirror.es.its.nyu.edu"
-#       "rsync://mirrors.rit.edu"
-#       "rsync://mirrors.cat.pdx.edu"
 
 all: $(TARGETS)
 
@@ -163,11 +166,12 @@ $(REPO_WORKSPACE_D): $(REPO_OS) $(REPO_UPDATES)
 # depending upon where people are located on the network, outbound pings may be blocked.
 # Don't consider this fatal; it merely indicates checklist-security compliance.
 $(REPO_OS) $(REPO_UPDATES):
-	ping -c 1 -n -w 1 $(REPO_HOST) >/dev/null 2>&1                  ; \
+	ping -c 1 -n -w 1 $(REPO_HOST) 			            ; \
 	rc=$$?                                                          ; \
 	if [ "$${rc}" -ne 0 ] ; then                                      \
-		echo Warning: cannot ping repository $(REPO_HOST)       ; \
+		echo Warning: cannot ping repository $(REPO_HOST)       			; \
 	fi
+	rm -f $(TARBALL_D)/REPO_URL
 	declare -x BEHIND_PROXY                                         ; \
 	BEHIND_PROXY=$$(env | grep proxy)                               ; \
 	declare -x RSYNC_PROXY                                          ; \
@@ -186,7 +190,8 @@ $(REPO_OS) $(REPO_UPDATES):
 		echo "  to      $(@D) $(realpath $(@D))"                                                ; \
 		exit 99                                                                                 ; \
 	fi
-	rsync -4 -avz --delete --exclude=\\\*i686\.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
+	rsync -4 -avz --delete --exclude=*i686.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
+	echo $(REPO_URL) > $(TARBALL_D)/REPO_URL
 	touch $@
 
 # use this to pull a repo and roll a tarball
@@ -265,4 +270,4 @@ dist-clean: clean
 	rm -fr $(TARBALL_D)/$(WHICH_DB)
 
 
-# vim: background=dark
+# vim: background=dark ts=2 sw=2 syntax
