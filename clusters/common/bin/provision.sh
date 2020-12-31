@@ -85,7 +85,7 @@ fi
 # debugging note: each of these routines must be able to be called in a state where the node is already
 # provisioned or partially provisioned, allowing for it to be run or rerun manually.
 
-declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeStamp VerifyEnv SetupSecondDisk CopyHomeVagrant                \
+declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeSinc TimeStamp VerifyEnv SetupSecondDisk CopyHomeVagrant       \
                                      CopyCommon OverlayRootFS AppendFilesRootFS CreateNFSMountPoints             \
                                      InstallEarlyRPMS ConfigureCentOSRepos WaitForPrerequisites ConfigureDBRepos \
                                      InstallRPMS InstallFlaggedRPMS BuildSW InstallLocalSW ConfigSW SetServices  \
@@ -852,10 +852,10 @@ ConfigureDBMariaCommunityRepo() {
     Verbose "    ${r}"
     repo_dir=${repo_root}/${r}
     if [ -n "${repo_is_local}" ] ; then
-      Rc ErrExit ${EX_SOFTWARE} "mkdir -p ${repo_dir}"
-      Verbose "     reposync"
-      Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_INSTALL} ${REPOSYNC} --gpgcheck -l --newest-only --repoid=${r} --download_path=${repo_root}"
+     Verbose "     reposync"
+     Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_INSTALL} ${REPOSYNC} --gpgcheck -l --newest-only --repoid=${r} --download_path=${repo_root}"
     fi
+
     Verbose "     createrepo"
     Verbose "   - ${mariadb_repo_conf} ${r}"
     Rc ErrExit ${EX_OSFILE} "sed -i -e '/^enabled = 1/s/= 1/= 0/' ${mariadb_repo_conf_path} ;"
@@ -1056,23 +1056,57 @@ ConfigureDBRepos() {
   Verbose " ${WHICH_DB}"
   repo_is_local=$(egrep "${COMMON}/repos.* xfs" ${ETCFSTAB})
 
+  # yum will attempt to validate and update cache data for all repositories, whether enabled or not
+  # disable or move inactive ones aside
   local _rlist="local-mariadb-main local-mariadb-tools local-mariadb-es-main  \
                   mariadb-es-main mariadb-main mariadb-tools                  \
                   mysql80-community"
+
   for r in ${_rlist}
   do
     Rc ErrExit ${EX_OSERR} "yum-config-manager --${yum_action} ${r}"
   done
+
   case "${WHICH_DB}" in
     mariadb-enterprise)
+      ## @todo XXX subfunction which deselects all but WHICH_DB repositories
+      Verbose " - mariadb-community community-mysql"
+      for o in mariadb-community-local mysql-community mysql-community-source
+      do
+        local f
+        f=${YUM_REPOS_D}/${o}.repo
+        if [ -f ${f} ] ; then
+          Rc ErrExit ${EX_OSERR} "mv ${f} ${f}~"
+        fi
+      done
       Verbose "   ConfigureDBMariaEnterpriseRepo"
       ConfigureDBMariaEnterpriseRepo
       ;;
     mariadb-community)
+      Verbose " - mariadb-enterprise community-mysql"
+      local o
+      for o in mariadb-enterprise-local mysql-community mysql-community-source
+      do
+        local f
+        f=${YUM_REPOS_D}/${o}.repo
+        if [ -f ${f} ] ; then
+          Rc ErrExit ${EX_OSERR} "mv ${f} ${f}~"
+        fi
+      done
       Verbose "   ConfigureDBMariaCommunityRepo"
       ConfigureDBMariaCommunityRepo
       ;;
     community-mysql)
+      Verbose " - mariadb-enterprise mariadb-community"
+      local o
+      for o in mariadb-enterprise-local mariadb-local
+      do
+        local f
+        f=${YUM_REPOS_D}/${o}.repo
+        if [ -f ${f} ] ; then
+          Rc ErrExit ${EX_OSERR} "mv ${f} ${f}~"
+        fi
+      done
       Verbose "   ConfigureDBCommunityMysqlRepo"
       ConfigureDBCommunityMysqlRepo
       ;;
@@ -1663,7 +1697,7 @@ InstallRPMS() {
     fi
 
     Rc Warn ${EX_IOERR} "cd ${_d}; \
-                              timeout ${timeout} ${YUM} ${_disable_repo} --disableplugin=fastestmirror -y localinstall ${localinstall_add}"
+       timeout ${timeout} ${YUM} ${_disable_repo} --disableplugin=fastestmirror -y localinstall ${localinstall_add}"
     rc=$?
 
     if [ "${rc}" -ne ${EX_OK} ] ; then
@@ -2114,6 +2148,26 @@ UpdateRPMS() {
     fi
   fi
 
+  return
+}
+
+## @fn TimeSinc()
+##  Adjust TIMEOUTs based upon SINC
+##
+TimeSinc() {
+  Znumeric="[1-9]"
+
+  if [[ ! ${SINC} = ${Znumeric} ]] ; then
+    ErrExit ${EX_CONFIG} "  SINC is not: ${Znumeric}"
+  fi
+  export DEFAULT_TIMEOUT=${SINC}
+  export YUM_TIMEOUT_BASE=$(expr 20 \* ${SINC})
+  export YUM_TIMEOUT_EARLY=$(expr ${YUM_TIMEOUT_BASE} \* 12)
+  export YUM_TIMEOUT_INSTALL=$(expr ${YUM_TIMEOUT_BASE} \* 24)
+  export YUM_TIMEOUT_UPDATE=$(expr ${YUM_TIMEOUT_BASE}  \* 48)
+  export RSYNC_TIMEOUT_DRYRUN=$(expr ${YUM_TIMEOUT_BASE} / 2)
+  export RSYNC_TIMEOUT=$(expr ${YUM_TIMEOUT_BASE} \* 2)
+  export TIMEOUT=${DEFAULT_TIMEOUT}
   return
 }
 

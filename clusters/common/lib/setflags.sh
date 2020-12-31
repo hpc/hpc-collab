@@ -131,6 +131,18 @@ SetFlags() {
           set_flags="${set_flags} RSYNC_CENTOS_REPO"
         fi
         ;;
+    SINC)
+        Znumeric="[1-9]"
+        if [ -s ${FLAGS}/SINC ] ; then
+          if [ -n "${SINC}" -a "${SINC}" = "1" ] ; then
+            s=$(cat ${FLAGS}/SINC)
+            if [[ "${s}" == ${Znumeric} ]] ; then
+              export SINC=${s}
+              set_flags="${set_flags} SINC:${SINC}"
+            fi
+          fi
+        fi
+        ;;
     SKIP_SW)
         export SKIP_SW=$(cat ${FLAGS}/SKIP_SW)
         set_flags="${set_flags} SKIP_SW:\"${SKIP_SW}\""
