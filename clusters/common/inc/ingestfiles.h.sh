@@ -35,6 +35,7 @@ declare -x YUM_TIMEOUT_BASE=20
 declare -x YUM_TIMEOUT_EARLY=$(expr ${YUM_TIMEOUT_BASE} \* 12)
 declare -x YUM_TIMEOUT_INSTALL=$(expr ${YUM_TIMEOUT_BASE} \* 24)
 declare -x YUM_TIMEOUT_UPDATE=$(expr ${YUM_TIMEOUT_BASE}  \* 48)
+declare -x REPOSYNC_TIMEOUT_COEFFICIENT=4
 declare -x YUM_RETRY_LIMIT=3
 
 ## RSYNC_RETRY_LIMIT How many times to attempt to rsync
