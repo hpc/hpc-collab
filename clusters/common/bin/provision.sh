@@ -872,6 +872,7 @@ ConfigureDBMariaCommunityRepo() {
         local args="--gpgcheck -l --newest-only"
         Rc ErrExit ${EX_SOFTWARE} "timeout ${t} ${REPOSYNC} ${args} --repoid=${r} --download_path=${repo_root}"
       else
+        Rc ErrExit ${EX_OSFILE} "mkdir -p ${repo_dir}"
         Rc ErrExit ${EX_OSFILE} "cp -pr ${xfr_d}/${WHICH_DB}/${r} ${repo_root}"
       fi
     fi
