@@ -733,7 +733,7 @@ ConfigureDBMariaEnterpriseRepo() {
     for r in mariadb-es-main mariadb-tools
     do
       Verbose "   ${r}"
-      Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_INSTALL} ${REPOSYNC} --gpgcheck -l --repoid=${r} --download_path=${repo_root}"
+      Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_UPDATE} ${REPOSYNC} --gpgcheck -l --repoid=${r} --download_path=${repo_root}"
     done
   else
     for r in mariadb-es-main mariadb-tools
@@ -788,6 +788,8 @@ ConfigureDBMariaCommunityRepo() {
   local mariadb_repo_conf_path=${YUM_REPOS_D}/${mariadb_repo_conf}
   local mariadb_local_repo_conf_path=${YUM_REPOS_D}/${mariadb_local_repo_conf}
   local _enabled=""
+  local xfr_d=${XFR}/${WHICH_DB}
+  local repo_root=${repo_d}/${WHICH_DB}
 
   for _f in url repo_setup
   do
@@ -796,6 +798,9 @@ ConfigureDBMariaCommunityRepo() {
     fi
   done
 
+  ## peek into  mariadb local repo configuration stanza rather than use repoinfo because
+  ## yum-utils have the time-consuming habit of reaching out to the repository and waiting
+  ## for a network timeout, whether or not the repository is enabled.
   _enabled=$(egrep '/^enabled[[:space:]]*=[[:space:]]*1/' ${mariadb_local_repo_conf_path})
   #_enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo mariadb-main | \
   #                              grep 'Repo-status' | sed 's/Repo-status.*://'))
@@ -803,12 +808,17 @@ ConfigureDBMariaCommunityRepo() {
     return
   fi
 
+  ## Mariadb provides an initial script ("repo_setup") which sets up the in-node repositories
+
   local URL=$(cat ${XFR}/WHICH_DB/url)
   local SETUP=$(cat ${XFR}/WHICH_DB/repo_setup)
   local setup=$(basename ${SETUP})
-  local target_d=${XFR}/${WHICH_DB}
+  local target_d=${xfr_d}
   local target=${target_d}/${setup}
   local target_repo_file=${YUM_REPOS_D}/${WHICH_DB/-community/}.repo
+
+  ## some queries, ie. repolist, remain host-local
+  ## verify that the remote mariadb repository is disabled
   local disabled_repo_list=$(echo $(${YUM} repolist -v disabled | grep Repo-id | sed -e 's/Repo-id[[:space:]]*: //'))
   if [ "${target_repo_file}" != "${mariadb_repo_conf_path}" ] ; then
     ErrExit ${EX_SOFTWARE} "target_repo_file:${target_repo_file} != mariadb_repo_conf_path:${mariadb_repo_conf_path}"
@@ -832,9 +842,10 @@ ConfigureDBMariaCommunityRepo() {
     Rc ErrExit ${EX_SOFTWARE} "bash ${target}"
   fi
  
+  ## as above:
+  ## _enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo mariadb-main | \
+  ##                          grep 'Repo-status' | sed 's/Repo-status.*://'))
   _enabled=$(egrep '/^enabled[[:space:]]*=[[:space:]]*1/' ${mariadb_local_repo_conf_path})
-  #_enabled=$(echo $(timeout ${YUM_TIMEOUT_EARLY} ${YUM} --disablerepo=epel repoinfo mariadb-main | \
-  #                          grep 'Repo-status' | sed 's/Repo-status.*://'))
   if [[ ${_enabled} =~ *enabled* ]] ; then
     return
   fi
@@ -847,15 +858,28 @@ ConfigureDBMariaCommunityRepo() {
     repo_is_local="${COMMON}/repos ${_repos_fstype} ${_repos_fsid}"
   fi 
 
-  for r in mariadb-main
+  ## external Makefile may remove the ${repo_root}/.copied-to-xfr flag file
+  for r in mariadb-main mariadb-tools
   do
+    ## if local cached RPMs are available, use them, fall back to a full reposync
     Verbose "    ${r}"
     repo_dir=${repo_root}/${r}
     if [ -n "${repo_is_local}" ] ; then
-     Verbose "     reposync"
-     Rc ErrExit ${EX_SOFTWARE} "timeout ${YUM_TIMEOUT_INSTALL} ${REPOSYNC} --gpgcheck -l --newest-only --repoid=${r} --download_path=${repo_root}"
+      Verbose "     reposync"
+      if [ ! -f ${XFR}/WHICH_DB/.copied-to-xfr ] ; then
+        REPOSYNC_TIMEOUT_COEFFICIENT=${REPOSYNC_TIMEOUT_COEFFICIENT:-4}
+        local t=$(expr ${YUM_TIMEOUT_UPDATE} \* ${REPOSYNC_TIMEOUT_COEFFICIENT})
+        local args="--gpgcheck -l --newest-only"
+        Rc ErrExit ${EX_SOFTWARE} "timeout ${t} ${REPOSYNC} ${args} --repoid=${r} --download_path=${repo_root}"
+      else
+        Rc ErrExit ${EX_OSFILE} "cp -pr ${xfr_d}/${WHICH_DB}/${r} ${repo_root}"
+      fi
     fi
 
+    ## once the reposync succeeds, keep a local copy for quicker reprovisioning 
+    Rc ErrExit ${EX_IOERR} "mkdir -p ${xfr_d}/${WHICH_DB}/${r}"
+    Rc ErrExit ${EX_IOERR} "cp -pr ${repo_dir}/rpms ${xfr_d}/${WHICH_DB}/${r}"
+    Rc ErrExit ${EX_IOERR} "date > ${XFR}/WHICH_DB/.copied-to-xfr "
     Verbose "     createrepo"
     Verbose "   - ${mariadb_repo_conf} ${r}"
     Rc ErrExit ${EX_OSFILE} "sed -i -e '/^enabled = 1/s/= 1/= 0/' ${mariadb_repo_conf_path} ;"
@@ -2164,7 +2188,7 @@ TimeSinc() {
   export YUM_TIMEOUT_BASE=$(expr 20 \* ${SINC})
   export YUM_TIMEOUT_EARLY=$(expr ${YUM_TIMEOUT_BASE} \* 12)
   export YUM_TIMEOUT_INSTALL=$(expr ${YUM_TIMEOUT_BASE} \* 24)
-  export YUM_TIMEOUT_UPDATE=$(expr ${YUM_TIMEOUT_BASE}  \* 48)
+  export YUM_TIMEOUT_UPDATE=$(expr ${YUM_TIMEOUT_BASE}  \* 56)
   export RSYNC_TIMEOUT_DRYRUN=$(expr ${YUM_TIMEOUT_BASE} / 2)
   export RSYNC_TIMEOUT=$(expr ${YUM_TIMEOUT_BASE} \* 2)
   export TIMEOUT=${DEFAULT_TIMEOUT}
