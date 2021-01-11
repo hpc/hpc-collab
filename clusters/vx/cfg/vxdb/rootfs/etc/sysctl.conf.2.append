@@ -1,0 +1,2 @@
+appendwhere: net.ipv6.conf.all.disable_ipv6
+appendwhat: vm.swappiness = 1

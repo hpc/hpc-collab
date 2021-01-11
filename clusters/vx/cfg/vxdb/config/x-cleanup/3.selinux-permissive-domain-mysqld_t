@@ -1,0 +1,46 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/slurm/2.stop-configuration-mariadb-service
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+svc_pid=$(ps ax | grep -v grep | grep mysqld | awk '{print $1}')
+if [ -n "${svc_pid}" ] ; then
+  kill -1 ${svc_pid} 2>&1 >/dev/null
+  sleep ${TIMEOUT}
+fi
+
+for sig in 15 9
+do
+  sleep 1
+  svc_pid=$(ps ax | grep -v grep | grep mariadb | awk '{print $1}')
+  if [ -n "${svc_pid}" ] ; then
+    if [[ ${svc_pid} =~ "^[0-9]+$" ]] ; then
+      kill -s 0 ${svc_pid} && \ 
+        kill -${sig} ${svc_pid}
+	sleep ${TIMEOUT}
+    fi
+    pkill --signal ${sig} mysqld
+  fi
+done
+
+Rc ErrExit ${EX_SOFTWARE} "semanage permissive -a mysqld_t"
+
+trap '' 0
+exit ${EX_OK}

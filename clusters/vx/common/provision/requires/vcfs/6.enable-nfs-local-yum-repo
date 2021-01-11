@@ -38,7 +38,6 @@ declare -x LOCAL_REPO_NAME=local-vcbuild
 declare -x ARCH=$(uname -m)
 
 SetFlags >/dev/null 2>&1
-
 Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
 
 if [ -n "${ONLY_REMOTE_REPOS}" ] ; then
@@ -60,20 +59,18 @@ is_mnt=""
 if [ "${common_repos_mntpnt}" = "${COMMON_REPOS_D}" ] ; then
   is_mnt=true
 fi
-
 if [ -z "${is_mnt}" ] ; then
-
 	if [ ! -L ${COMMON_REPOS_D} ] ; then
 		if [ -f "${COMMON_REPOS_D}" ] ; then
 			Rc ErrExit ${EX_OSFILE} "rm -f ${COMMON_REPOS_D}"
 		fi
+
 		if [ -d "${COMMON_REPOS_D}" ] ; then
 			Rc ErrExit ${EX_OSFILE} "rmdir ${COMMON_REPOS_D}"
 		fi
 		Rc ErrExit ${EX_OSFILE} "ln -s ${REPOS_D} ${COMMON_REPOS_D}"
-
-		repos_link_target=$(readlink ${COMMON_REPOS_D})
 	fi
+	repos_link_target=$(readlink ${COMMON_REPOS_D})
 	if [ ! -d "${repos_link_target}" ] ; then
 		ErrExit ${EX_CONFIG} "${COMMON_REPOS_D} !-> ${repos_link_target} "
 	fi
@@ -111,7 +108,6 @@ case "${WHICH_DB}" in
     Rc ErrExit ${EX_OSERR} "yum-config-manager --setopt=mariadb-tools.enabled=0 --save"
 		;;
 esac
-
 if [ -L "${local_repo}" ] ; then
   target=$(readlink ${local_repo})
   local_repo=${target}

@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcsched/config/slurm/2.start-slurmctld-early
+## @file vcsched/config/slurm/2.copyin-∕etc∕slurm
 
 ## @brief start slurmctld service early
 
@@ -31,24 +31,33 @@ declare -x VX_ETCSLURM_SRC=${VX_COMMON}/etc/slurm.vx
 
 declare -x ETCSLURM=/etc/slurm
 
+declare -x SLURM_CONF=${ETCSLURM}/slurm.conf
+declare -x SLURMDBD_CONF=${ETCSLURM}/slurmdbd.conf
+
 declare -x TSTAMP=$(date +%Y.%m.%d.%H.%M)
 declare -x PROD=$(basename $(pwd))
 declare -x IAM=$(basename $0)
 
-# this little dance is to ingest the slurm configuration from the /vx cfg short-lived mount
-# into the NFS-common area for the VX cluster
-if [ -d ${ETCSLURM} -o -L ${ETCSLURM} ] ; then
-  Rc ErrExit ${EX_OSFILE} "mv ${ETCSLURM} ${ETCSLURM}~"
+RSYNC=$(which rsync)
+
+if [ -d "${ETCSLURM}" ] ; then
+	Rc ErrExit ${EX_OSFILE} "mv ${ETCSLURM} ${ETCSLURM}~"
 fi
 
-Rc ErrExit ${EX_OSFILE} "mkdir -p ${VX_ETCSLURM}"
-Rc ErrExit ${EX_OSFILE} "rsync -a ${VX_ETCSLURM_SRC}/ ${VX_ETCSLURM}"
-Rc ErrExit ${EX_OSFILE} "ln -s -f ${VX_ETCSLURM} ${ETCSLURM}"
-Rc ErrExit ${EX_OSFILE} "rsync -a ${ETCSLURM}~/ ${ETCSLURM}"
+Rc ErrExit ${EX_OSFILE} "ln -s ${VX_ETCSLURM} ${ETCSLURM}"
 
-for f in ${ETCSLURM}/slurm.conf.template ${ETCSLURM}/cgroup.conf
+if [ ! -x "${RSYNC}" ] ; then
+	ErrExit ${EX_CONFIG} "RSYNC:${RSYNC} not executable"
+fi
+
+Rc ErrExit ${EX_OSFILE} "${RSYNC} -au ${VX_ETCSLURM_SRC}/ ${VX_ETCSLURM}"
+if [ -d "${ETCSLURM}~" ] ; then
+	Rc ErrExit ${EX_OSFILE} "${RSYNC} -au ${ETCSLURM}~/ ${ETCSLURM}"
+fi
+
+for f in ${ETCSLURM}/cgroup.conf ${SLURMDBD_CONF}
 do
-  if [ ! -f ${f} ] ; then
+  if [ ! -f "${f}" ] ; then
     ErrExit ${EX_CONFIG} "didn't construct the vx cluster common /etc/slurm area correctly, f:${f}"
   fi
 done

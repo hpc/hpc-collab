@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vcsched/config/slurm/2.start-slurmctld-early
+## @file vcsched/config/slurm/3.create-slurm.conf-resize-node-memory-from-attr
 
 ## @brief start slurmctld service early
 

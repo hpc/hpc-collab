@@ -119,7 +119,8 @@ PriorityWeightQOS=64800
 #
 # LOGGING AND ACCOUNTING
 AccountingStorageEnforce=associations,limits,qos,safe
-AccountingStorageHost=vcdb
+AccountingStorageHost=vxdb
+AccountingStorageExternalHost=vcdb
 AccountingStorageLoc=slurm_acct_db
 #AccountingStoragePass=
 #AccountingStoragePort=
@@ -165,7 +166,8 @@ NodeName=vx2     Feature=compute,allocatable,even               State=UNKNOWN Re
 
 # enable all (of these) nodes to be reported by tools such as 'sinfo' and 'scontrol show node'
 NodeName=vxlogin Feature=login,allocatable                      State=UNKNOWN RealMemory=%NODE_MEM%
-NodeName=vxsched Feature=controller,scheduler,slurmctld		State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vxsched Feature=controller,scheduler,slurmctld					State=UNKNOWN RealMemory=%NODE_MEM%
+NodeName=vxdb		 Feature=databasedaemon,slurmdbd								State=UNKNOWN RealMemory=%NODE_MEM%
 
 #
 # Two separate partitions which map to the same nodes:
@@ -174,6 +176,6 @@ NodeName=vxsched Feature=controller,scheduler,slurmctld		State=UNKNOWN RealMemor
 PartitionName=login     Nodes=vxlogin				  Default=NO   State=UP                        MaxTime=90-00:00:00	PriorityTier=1
 PartitionName=exclusive Nodes=vx[1-2] Oversubscribe=EXCLUSIVE	  Default=NO   State=UP	  DefaultTime=1:00:00  MaxTime=10-00:00:00	PriorityTier=100
 PartitionName=shared    Nodes=vx[1-2] Oversubscribe=FORCE	  Default=YES  State=UP	  DefaultTime=1:00:00  MaxTime=90-00:00:00	PriorityTier=1000
-PartitionName=infrastructure Nodes=vxsched			  Default=NO   State=Down DefaultTime=0:00:01  MaxTime=00:00:30         PriorityTier=0
+PartitionName=infrastructure Nodes=vxsched,vxdb			  Default=NO   State=Down DefaultTime=0:00:01  MaxTime=00:00:30         PriorityTier=0
 
 

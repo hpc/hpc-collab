@@ -46,8 +46,9 @@ if [[ "${conf_changes}" = *"SallocDefaultCommand has been removed"* ]] ; then
  # may need to install InteractiveStepOptions from previous value of SallocDefaultCommand
 fi
 
-if [[ "${conf_changes}" = *"setting LaunchParameters=use_interactive_step instead" ]] ; then
-  Rc ErrExit 13 "sed -i /^SchedulerParameters=/s/$/,use_interactive_step/ ${SLURM_CONF}"
+if [[ "${conf_changes}" = *"LaunchParameters=use_interactive_step instead" ]] ; then
+  Rc ErrExit 13 "sed -i /^SchedulerParameters=/a\
+LaunchParameters=use_interactive_step ${SLURM_CONF}"
 fi
 
 # slurm version 20.11 demands the exact mode and ownership of slurmdbd.conf (schedmd#10446)
