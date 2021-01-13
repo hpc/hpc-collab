@@ -33,6 +33,7 @@ function _set_default_license_cnt (job_desc)
 		if bad_license_count > 0 then
 			slurm.log_info("slurm_job_submit: for user %d, invalid licenses count: %s",
 								job_desc.user_id, job_desc.licenses)
+			slurm.log_info(" job_submit.lua: _set_default_license_cnt(slurm.ESLURM_INVALID_LICENSES)]")
 			return slurm.ESLURM_INVALID_LICENSES
 		end
 	else
@@ -40,7 +41,7 @@ function _set_default_license_cnt (job_desc)
 		slurm.log_verbose("Set default filesys license to all licenses for job from user:%d", job_desc.user_id)
 	end
 
-	slurm.log_info(" job_submit.lua: _set_default_license_cnt()/slurm.SUCCESS]")
+	slurm.log_info(" job_submit.lua: _set_default_license_cnt(slurm.SUCCESS)]")
 	return slurm.SUCCESS
 end
 
@@ -54,22 +55,21 @@ function _slurm_job_setlic ( job_desc )
 			jobid = job_desc.job_id
 		end
 	end
-	if jobid ~= 0 then
-		slurm.log_info("  jobid:%s", jobid)
-	end
 
 	rc = _set_default_license_cnt ( job_desc )
-	slurm.log_info(" job_submit.lua: _slurm_job_setlic()]")
+	slurm.log_info(" job_submit.lua: _slurm_job_setlic(%d)]", rc)
 	return rc
 end
 
 function _hostname()
+	slurm.log_info("[job_submit.lua: _hostname()")
 	local hp
 	local hostname
 	hp = io.popen ("hostname -s")
 	hostname = hp:read("*a") or ""
 	hp:close()
 	hostname = string.gsub(hostname, "\n$", "")
+	slurm.log_info(" job_submit.lua: _hostname(%s)]", hostname)
 	return hostname
 end
 
@@ -88,17 +88,16 @@ function _set_hostqos ( job_desc )
 	local cluster_abbrev
 	slurm.log_info("[job_submit.lua: _set_hostqos()")
 
+	hostname = os.getenv("HOSTNAME")
 	if hostname == nil then
 		hostname = _hostname()
 	end
 	qos = job_desc.qos
-	slurm.log_info("  qos:%s", _str(qos))	-- @todo: replase _str() with lua ternary operator idiom
 	if hostname == nil then
 		slurm.log_user("  job_submit.lua:_set_hostqos(): internal error: unable to determine hostname:<nil>")
 		return slurm.ERROR
 	end
 	cluster_abbrev = string.sub(hostname,1,2)
-	slurm.log_info("  cluster_abbrev:%s", cluster_abbrev)
 
 	-- if user specified QOS, and it does not include the host-specific suffix "__<cluster-abbreviation>"
 	-- then append the host abbreviation suffix.
@@ -110,12 +109,11 @@ function _set_hostqos ( job_desc )
 		if sufx_end ~= string.len(qos) then
 			new_qos = qos .. qos_suffix
 			job_desc.qos = new_qos
-			slurm.log_info(">  new_qos:%s", new_qos)
 		end
 		
 	end
 
-	slurm.log_info(" job_submit.lua: _set_hostqos()]")
+	slurm.log_info(" job_submit.lua: _set_hostqos(%s)]", _str(job_desc.qos))
 	return slurm.SUCCESS
 end
 
