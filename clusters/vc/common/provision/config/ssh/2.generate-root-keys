@@ -70,7 +70,7 @@ Rc ErrExit ${EX_OSFILE} 	"cp -b vagrant_rsa.pub ${COMMONSLASHROOT_DOTSSH}"
 Rc ErrExit ${EX_OSFILE} 	"cp -b ${SLASHROOT_DOTSSH}/* ${COMMONSLASHROOT_DOTSSH}"
 Rc ErrExit ${EX_OSFILE} 	"cat ${SLASHROOT_DOTSSH}/*.pub >> ${SLASHROOT_DOTSSH}/authorized_keys"
 
-Rc ErrExit ${EX_OSFILE}		"cp -b ${SLASHROOT_DOTSSSH}/* ${HOMEVAGRANT_DOTSSH}"
+Rc ErrExit ${EX_OSFILE}		"cp -b ${SLASHROOT_DOTSSH}/* ${HOMEVAGRANT_DOTSSH}"
 Rc ErrExit ${EX_OSFILE} 	"cat ${SLASHROOT_DOTSSH}/*.pub >> ${HOMEVAGRANT_DOTSSH}/authorized_keys"
 
 Rc ErrExit ${EX_OSFILE} 	"cp -b ${SLASHROOT_DOTSSH}/authorized_keys ${COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS}"
