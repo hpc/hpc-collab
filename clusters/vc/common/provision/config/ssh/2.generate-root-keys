@@ -42,8 +42,9 @@ declare -x COMMONSLASHROOT_DOTSSH=${COMMONSLASHROOT}/.ssh
 declare -x COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS=${COMMONSLASHROOT_DOTSSH}/authorized_keys
 declare -x COMMONSLASHROOT_DOTSSH_PRIVKEYRSA=${COMMONSLASHROOT_DOTSSH}/id_rsa
 declare -x COMMONSLASHROOT_DOTSSH_PUBKEYRSA=${COMMONSLASHROOT_DOTSSH}/id_rsa.pub
+declare -x HOMEVAGRANT_DOTSSH=${HOMEVAGRANT}/.ssh
 
-for d in ${COMMONETCSSH} ${COMMONSLASHROOT} ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH}
+for d in ${COMMONETCSSH} ${COMMONSLASHROOT} ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH} ${HOMEVAGRANT_DOTSSH}
 do
   Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
 done
@@ -54,6 +55,7 @@ do
 done
 
 # create root key pair, authorized keys, known_hosts => common intracluster storage (COMMONSLASHROOT)
+# including Vagrant's default standard *insecure* key pair
 if [ -f ${SLASHROOT_DOTSSH}/id_rsa ] ; then
   Rc ErrExit ${EX_OSFILE}		"mv ${SLASHROOT_DOTSSH}/id_rsa ${SLASHROOT_DOTSSH}/id_rsa_orig"
 fi
@@ -67,6 +69,9 @@ Rc ErrExit ${EX_OSFILE} 	"cp -b vagrant_rsa.pub ${COMMONSLASHROOT_DOTSSH}"
 
 Rc ErrExit ${EX_OSFILE} 	"cp -b ${SLASHROOT_DOTSSH}/* ${COMMONSLASHROOT_DOTSSH}"
 Rc ErrExit ${EX_OSFILE} 	"cat ${SLASHROOT_DOTSSH}/*.pub >> ${SLASHROOT_DOTSSH}/authorized_keys"
+
+Rc ErrExit ${EX_OSFILE}		"cp -b ${SLASHROOT_DOTSSSH}/* ${HOMEVAGRANT_DOTSSH}"
+Rc ErrExit ${EX_OSFILE} 	"cat ${SLASHROOT_DOTSSH}/*.pub >> ${HOMEVAGRANT_DOTSSH}/authorized_keys"
 
 Rc ErrExit ${EX_OSFILE} 	"cp -b ${SLASHROOT_DOTSSH}/authorized_keys ${COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS}"
 

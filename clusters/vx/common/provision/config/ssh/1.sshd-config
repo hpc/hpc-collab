@@ -81,8 +81,11 @@ UsersPWAuth() {
     printf "\nMatch user ${u}\nPasswordAuthentication yes\nPermitEmptyPasswords yes\n" >> ${SSHDCONFIG}
     echo -n " ${u}"
   done
+
+	# so 'vagrant ssh' commands continue to work
+  printf "\nMatch user vagrant\nPasswordAuthentication yes\nPermitEmptyPasswords yes\n" >> ${SSHDCONFIG}
   if [ -n "${users}" ] ; then
-    echo ''
+    echo ' vagrant'
   fi
   return
 }
