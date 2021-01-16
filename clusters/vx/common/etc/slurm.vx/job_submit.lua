@@ -4,6 +4,8 @@
 --! todo: licenses(): create a table of licenses, possibly from an external source of state
 --! such as a config file or earlier, one-time priming sacctmgr
 
+noisy = nil
+
 function _limit_license_cnt(orig_string, license_name, max_count)
 	local i = 0
  	local j = 0
@@ -14,7 +16,7 @@ function _limit_license_cnt(orig_string, license_name, max_count)
 	end
 
  	i, j, val = string.find(orig_string, license_name .. "%:(%d)")
-	if val ~= nil then
+	if val ~= nil and noisy ~= nil then
 		slurm.log_info("name:%s count:%s", license_name, val)
 	end
 	if val ~= nil and val + 0 > max_count then
@@ -26,7 +28,7 @@ end
 function _set_default_license_cnt (job_desc)
 	local bad_license_count = 0
 
-	slurm.log_info("[job_submit.lua: _set_default_license_cnt()")
+	if noisy ~= nil then slurm.log_info("[job_submit.lua: _set_default_license_cnt()") end
 	if job_desc.licenses ~= nil then
 		bad_license_count = _limit_license_cnt(job_desc.licenses, "none@slurmdb", 1)
 		bad_license_count = _limit_license_cnt(job_desc.licenses, "homevagrant@slurmdb", 1) + bad_license_count
@@ -38,10 +40,10 @@ function _set_default_license_cnt (job_desc)
 		end
 	else
 		job_desc.licenses="homevagrant@slurmdb"
-		slurm.log_verbose("Set default filesys license to all licenses for job from user:%d", job_desc.user_id)
+		if noisy ~= nil then slurm.log_info("Set default filesys license to all licenses for job from user:%d", job_desc.user_id) end
 	end
 
-	slurm.log_info(" job_submit.lua: _set_default_license_cnt(slurm.SUCCESS)]")
+	if noisy ~= nil then slurm.log_info(" job_submit.lua: _set_default_license_cnt(slurm.SUCCESS)]") end
 	return slurm.SUCCESS
 end
 
@@ -49,7 +51,7 @@ function _slurm_job_setlic ( job_desc )
 	local rc = 0
 	local jobid = 0
 
-	slurm.log_info("[job_submit.lua: _slurm_job_setlic()")
+	if noisy ~= nil then slurm.log_info("[job_submit.lua: _slurm_job_setlic()") end
 	if job_desc ~= nil then
 		if job_desc.job_id ~= nil then
 			jobid = job_desc.job_id
@@ -57,28 +59,20 @@ function _slurm_job_setlic ( job_desc )
 	end
 
 	rc = _set_default_license_cnt ( job_desc )
-	slurm.log_info(" job_submit.lua: _slurm_job_setlic(%d)]", rc)
+	if noisy ~= nil then slurm.log_info(" job_submit.lua: _slurm_job_setlic(%d)]", rc) end
 	return rc
 end
 
 function _hostname()
-	slurm.log_info("[job_submit.lua: _hostname()")
+	if noisy ~= nil then slurm.log_info("[job_submit.lua: _hostname()") end
 	local hp
 	local hostname
 	hp = io.popen ("hostname -s")
 	hostname = hp:read("*a") or ""
 	hp:close()
 	hostname = string.gsub(hostname, "\n$", "")
-	slurm.log_info(" job_submit.lua: _hostname(%s)]", hostname)
+	if noisy ~= nil then slurm.log_info(" job_submit.lua: _hostname(%s)]", hostname) end
 	return hostname
-end
-
-function _str (str)
-	if str == NIL then
-		return "<nil>"
-	else
-		return str
-	end
 end
 
 function _set_hostqos ( job_desc )
@@ -86,7 +80,7 @@ function _set_hostqos ( job_desc )
 	local qos
 	local hostname
 	local cluster_abbrev
-	slurm.log_info("[job_submit.lua: _set_hostqos()")
+	if noisy ~= nil then slurm.log_info("[job_submit.lua: _set_hostqos()") end
 
 	hostname = os.getenv("HOSTNAME")
 	if hostname == nil then
@@ -106,14 +100,15 @@ function _set_hostqos ( job_desc )
 	if qos ~= nil then
 		sufx_start, sufx_end = string.find(qos, qos_suffix)
 		-- not a suffix match? => must append
-		if sufx_end ~= string.len(qos) then
-			new_qos = qos .. qos_suffix
-			job_desc.qos = new_qos
+		if sufx_start == nil or sufx_start == 0 then
+			if sufx_end ~= string.len(qos) then
+				new_qos = qos .. qos_suffix
+				job_desc.qos = new_qos
+			end
 		end
-		
 	end
 
-	slurm.log_info(" job_submit.lua: _set_hostqos(%s)]", _str(job_desc.qos))
+	if noisy ~= nil then slurm.log_info(" job_submit.lua: _set_hostqos(%s)]", tostring(job_desc.qos)) end
 	return slurm.SUCCESS
 end
 
@@ -124,27 +119,29 @@ end
 --########################################################################--
 
 function slurm_job_submit ( job_desc, part_list, submit_uid )
-	local rc
+	local rc = slurm.SUCCESS
+  fn = { _slurm_job_setlic, _set_hostqos }
 
-	slurm.log_info("[slurm_job_submit()")
-	rc = _slurm_job_setlic(job_desc)
-	if rc == slurm.SUCCESS then
-		rc = _set_hostqos(job_desc)
+	if noisy ~= nil then slurm.log_info("[slurm_job_submit()") end
+	for _,f in pairs(fn)
+	do
+		if rc == slurm.SUCCESS then
+			rc = f(job_desc)
+		end
 	end
-
-	slurm.log_info(" slurm_job_submit()]")
+	if noisy ~= nil then slurm.log_info(" slurm_job_submit()]") end
 	return rc
 end
 
 function slurm_job_modify ( job_desc, job_rec, part_list, modify_uid )
 	local rc
 
-	slurm.log_info("[slurm_job_modify()")
+	if noisy ~= nil then slurm.log_info("[slurm_job_modify()") end
 	rc = _slurm_job_setlic(job_desc)
-	slurm.log_info(" slurm_job_modify()]")
+	if noisy ~= nil then slurm.log_info(" slurm_job_modify()]") end
 
 	return rc
 end
 
-slurm.log_info("job_submit.lua: initialized/slurm.SUCCESS")
+if noisy ~= nil then slurm.log_info("job_submit.lua: initialized/slurm.SUCCESS") end
 return slurm.SUCCESS

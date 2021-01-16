@@ -2,7 +2,7 @@
 
 ## $Header: $
 ## Source:
-## @file vclogin/config/slurm/3.socket-SLURMDBD
+## @file vxlogin/config/slurm/3.socket-SLURMDBD
 
 VCLOAD=../../../provision/loader/shload.sh
 
@@ -20,7 +20,15 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 declare -x IPADDR=$(cat ipaddr-slurmdbd)
+
+declare -x HOMEVX=/home/vx
+declare -x HOMEVXCOMMON=${HOMEVX}/common
+declare -x ETCSLURMVX=${HOMEVXCOMMON}/etc/slurm.vx
+declare -x SLURMCONF=${ETCSLURMVX}/slurm.conf
+declare -x SLURMDBDCONF=${ETCSLURMVX}/slurmdbd.conf
 
 dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//' | tr -d '\n')
 if [ -z "${dbdport}" ] ; then

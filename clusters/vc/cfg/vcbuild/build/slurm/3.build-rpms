@@ -112,11 +112,12 @@ rc=0
 if [ -s "${NEED_BUILD_FLAG}" ] ; then
   # remove slurm plugin rpms too
   Rc ErrExit ${EX_SOFTWARE} "rm -f ${RPMS_ARCH}/${PRODUCT}-*"
-  rpmbuild -ba ${SLURM_SPEC}						\
-			--define "_topdir ${RPMBUILD}/"			\
+  rpmbuild -ba ${SLURM_SPEC}                  \
+			--define "_topdir ${RPMBUILD}/"         \
 			--define "_enable_debug --with-debug"		\
-			--with slurmrestd				\
-			--with mysql
+			--with slurmrestd                       \
+			--with mysql                            \
+			--with lua
   rc=$?
   if [ ${rc} -eq 0 ] ; then
     echo "${WHICH_DB}" > ${LAST_BUILT}

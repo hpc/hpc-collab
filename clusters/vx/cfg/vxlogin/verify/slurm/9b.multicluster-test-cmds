@@ -1,0 +1,51 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vclogin/verify/slurm/5.run-test-jobs
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+SetFlags >/dev/null 2>&1
+
+users=$(echo $(ls ${USERADD} | grep -v root))
+
+clustername=${HOSTNAME:0:2}
+if [ -z "${clustername}" ] ; then
+	ErrExit ${EX_SOFTWARE} "empty clustername?"
+fi
+
+clusters=""
+for _u in ${users}
+do
+  if [ ! -d ${USERADD}/${_u} ] ; then
+    continue
+  fi 
+	if [ -n "${clusters}" ] ; then
+		break
+	fi
+	clusters=$(echo $(sacctmgr show user ${_u} withass format=cluster -n | sort | uniq))
+done
+
+for _c in ${clusters}
+do
+	Rc ErrExit ${EX_SOFTWARE} "squeue -M ${_c} -h"
+	Rc ErrExit ${EX_SOFTWARE} "sacct -M ${_c} -a"
+done
+
+trap '' 0
+exit ${EX_OK}
