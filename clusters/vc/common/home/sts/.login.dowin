@@ -14,7 +14,7 @@ endif
 if ( -r $home/.nowindows ) set no_win=true
 
 #if ( ! -o `tty` ) set no_win=true
-if ( ! -o $tty ) set no_win=true
+if ( ! -o "$tty" ) set no_win=true
 
 set xinit=()
 if ( ! $?no_win ) then
