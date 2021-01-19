@@ -47,3 +47,4 @@ clusters/vx/cfg/vx1/rpm/early/.RPMS.Manifest
 clusters/vx/cfg/vx2/rpm/early/.RPMS.Manifest
 clusters/vx/cfg/vxlogin/rpm/early/.RPMS.Manifest
 clusters/vx/cfg/vxsched/rpm/early/.RPMS.Manifest
+clusters/vx/common/provision/requires/vxdb/ipaddr

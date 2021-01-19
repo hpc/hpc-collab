@@ -71,7 +71,7 @@ Rc ErrExit ${EX_OSFILE} "chmod 0400 ${ETCMUNGEKEY}"
 
 # reset permissions (to munge:munge) so that systemd-initiated service starts correctly 
 
-for f in / /home ${HOMEVAGRANT} ${COMMON} ${COMMONETC} /var /var/log
+for f in / /home ${HOMEVAGRANT} ${COMMON} ${COMMONETC} /var /var/log /etc
 do
   ch_args=""
   if [ -L ${f} ] ; then

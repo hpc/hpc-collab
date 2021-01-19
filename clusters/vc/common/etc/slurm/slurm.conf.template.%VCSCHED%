@@ -120,6 +120,7 @@ PriorityWeightQOS=64800
 # LOGGING AND ACCOUNTING
 AccountingStorageEnforce=associations,limits,qos,safe
 AccountingStorageHost=vcdb
+AccountingStorageExternalHost=vxdb
 AccountingStorageLoc=slurm_acct_db
 #AccountingStoragePass=
 #AccountingStoragePort=

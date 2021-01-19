@@ -56,7 +56,11 @@ tstamp=$(date +%Y.%m.%d.%H:%M)
 
 SetFlags >/dev/null 2>&1
 
-Rc ErrExit ${EX_OSFILE} "rm -f ${BUILDWHERE_PRODUCT}"
-Rc ErrExit ${EX_OSFILE} "rm -rf ${BUILDWHERE}/${PRODUCT}-${SLURM_VERSION}"
+if [ -n "${TIDYUP}" ] ; then
+	Rc ErrExit ${EX_OSFILE} "rm -f ${BUILDWHERE_PRODUCT}"
+	Rc ErrExit ${EX_OSFILE} "rm -rf ${BUILDWHERE}/${PRODUCT}-${SLURM_VERSION}"
+else
+	Verbose "  [~TIDYUP]"
+fi
 
 exit ${EX_OK}

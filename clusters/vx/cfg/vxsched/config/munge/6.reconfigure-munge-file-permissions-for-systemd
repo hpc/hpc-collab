@@ -44,7 +44,8 @@ do
   fi
 done
 
-Rc ErrExit ${EX_OSFILE} "chown root:root /var /var/log"
+# needed in case ownership is set to vagrant:vagrant
+Rc ErrExit ${EX_OSFILE} "chown root:root /var /var/log /etc"
 
 # reset permissions (to munge:munge) so that systemd-initiated service starts correctly 
 for f in /var/log/munge /var/log/munge/munged.log \

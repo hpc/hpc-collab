@@ -1,1 +1,2 @@
-ipaddr-*
+ipaddr-slurmctld
+ipaddr-slurmdbd

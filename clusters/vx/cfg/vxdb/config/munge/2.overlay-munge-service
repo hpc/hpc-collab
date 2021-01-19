@@ -1,0 +1,36 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcbuild/config/munge/2.overlay-munge-service
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x USRLIB_SYSTEMDSYSTEM=/usr/lib/systemd/system
+declare -x MUNGE_SERVICE=${USRLIB_SYSTEMDSYSTEM}/munge.service
+declare -x ROOTFS_MUNGE_SERVICE=${ROOTFS}/${MUNGE_SERVICE}
+declare -x COMMON_MUNGE_SERVICE=${COMMON}/${MUNGE_SERVICE}
+
+Rc ErrExit ${EX_OSFILE} "mv ${MUNGE_SERVICE} ${MUNGE_SERVICE}~"	
+Rc ErrExit ${EX_OSFILE} "ln -s ${COMMON_MUNGE_SERVICE} ${MUNGE_SERVICE}"
+if [ ! -f ${MUNGE_SERVICE} -o ! -s ${MUNGE_SERVICE} ] ; then
+  ErrExit ${EX_OSERR} "MUNGE_SERVICE: ${MUNGE_SERVICE} empty"
+fi
+Rc ErrExit 10 "systemctl daemon-reload"
+
+trap '' 0
+exit ${EX_OK}

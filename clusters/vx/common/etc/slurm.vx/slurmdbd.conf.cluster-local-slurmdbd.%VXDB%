@@ -1,0 +1,13 @@
+DbdAddr=%VXDB%
+DbdHost=vxdb
+SlurmUser=root
+DebugFlags=DB_ASSOC,DB_EVENT,DB_QUERY
+DebugLevel=debug3
+LogFile=/var/log/slurm/slurmdbd.vxdb.log
+PidFile=/var/run/slurm/slurmdbd.pid
+TrackWCKey=yes
+StorageHost=vcdb
+StorageType=accounting_storage/mysql
+StorageUser=root
+StorageLoc=slurm_acct_db
+CommitDelay=1

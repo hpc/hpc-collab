@@ -22,6 +22,7 @@
 5C:A1:AB:1E:00:F5	vcfs.tc
 
 00:10:AD:ED:00:00	vxsched.tc
+00:10:AD:ED:00:DB	vxdb.tc
 00:10:AD:ED:00:01	vx1.tc
 00:10:AD:ED:00:02	vx2.tc
 00:10:AD:ED:01:06	vxlogin.tc

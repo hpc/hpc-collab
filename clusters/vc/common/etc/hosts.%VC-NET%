@@ -23,10 +23,11 @@
 ##
 
 ### vx - conjoined virtual minicluster
-%VX-NET%.49 vxsched.tc vxsched vxsched.test-cluster vxsched.testcluster
-%VX-NET%.50 vx1.tc vx1 vx1.test-cluster vx1.testcluster
-%VX-NET%.51 vx2.tc vx2 vx2.test-cluster vx2.testcluster
-%VX-NET%.52 vxlogin.tc vxlogin vxlogin.test-cluster vxlogin.testcluster
+%VX-NET%.49 vxdb.tc vxdb vxdb.test-cluster vxdb.testcluster
+%VX-NET%.50 vxsched.tc vxsched vxsched.test-cluster vxsched.testcluster
+%VX-NET%.51 vx1.tc vx1 vx1.test-cluster vx1.testcluster
+%VX-NET%.52 vx2.tc vx2 vx2.test-cluster vx2.testcluster
+%VX-NET%.53 vxlogin.tc vxlogin vxlogin.test-cluster vxlogin.testcluster
 ### vx
 
 ### vc - virtual cluster, fully populated

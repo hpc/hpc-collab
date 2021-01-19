@@ -206,7 +206,7 @@ NODES_NONEXISTENT	= $(foreach n,$(NODES),$(NONEXISTENT_D)/$(n))
 NODES_UNPROVISION	= $(foreach n,$(NODES),$(n)_UNPROVISION)
 
 SRC_PROVIDER_FILES	= $(shell find $(VC_D) -name \*%\*% -type f)
-TARGET_PROVIDER_FILES	= $(foreach f,$(SRC_PROVIDER_FILES),$(basename $(f)))
+TARGET_PROVIDER_FILES	= $(foreach f,$(SRC_PROVIDER_FILES),$(basename $(f))) $(foreach .%[a-zA-Z0-9\-]+%,,$(f))
 
 QUICK_HUMANFRIENDLY_FLAG_NAMES    = quick quick-flag flag-quick flags-quick flag-quicker \
 					flags-quicker flags-faster flag-faster provision-flags-quick
@@ -278,13 +278,15 @@ todo:
 # mostly for debugging
 show-vars:
 	$(HUSH)$(info )
-	$(HUSH)$(info CURDIR:$(CURDIR))
-	$(HUSH)$(info IAM:$(IAM) WHERE_INVOKED:$(WHERE_INVOKED))
+#	$(HUSH)$(info CURDIR:$(CURDIR))
+#	$(HUSH)$(info IAM:$(IAM) WHERE_INVOKED:$(WHERE_INVOKED))
 	$(HUSH)$(info VC:$(VC))
-	$(HUSH)$(info COMMON_D:$(COMMON_D))
-	$(HUSH)$(info PROVISION_FLAG_D:$(PROVISION_FLAG_D))
-	$(HUSH)$(info SINC:$(PROVISION_FLAG_D)/SINC $(shell cat $(PROVISION_FLAG_D)/SINC))
-	$(HUSH)$(info VAGRANTFILE:$(VAGRANTFILE))
+#	$(HUSH)$(info COMMON_D:$(COMMON_D))
+#	$(HUSH)$(info PROVISION_FLAG_D:$(PROVISION_FLAG_D))
+#	$(HUSH)$(info SINC:$(PROVISION_FLAG_D)/SINC $(shell cat $(PROVISION_FLAG_D)/SINC))
+#	$(HUSH)$(info VAGRANTFILE:$(VAGRANTFILE))
+	$(HUSH)$(info SRC_PROVIDER_FILES:$(SRC_PROVIDER_FILES))
+	$(HUSH)$(info TARGET_PROVIDER_FILES:$(TARGET_PROVIDER_FILES)) 
 	$(HUSH)$(info )
 #	$(HUSH)$(info NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS: $(NODES_WITH_REQUIRED_PROVISIONED_NODE_TARGETS))
 #	$(HUSH)$(info PATH:		$(PATH))

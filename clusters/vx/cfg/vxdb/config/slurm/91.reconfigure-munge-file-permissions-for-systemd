@@ -1,0 +1,73 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcdb/config/slurm/3.reconfigure-munge-for-normal-operation
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x ETC=/etc
+declare -x ETCMUNGE=${ETC}/munge
+declare -x COMMONETC=${COMMON}${ETC}
+declare -x COMMONETCMUNGE=${COMMON}${ETCMUNGE}
+
+set -e
+svc_pid=$(ps ax | grep -v grep | grep munged|awk '{print $1}')
+if [ -n "${svc_pid}" ] ; then
+  kill -1 ${svc_pid} 2>&1 >/dev/null
+fi
+
+for sig in 15 9
+do
+  sleep 1
+  svc_pid=$(ps ax | grep -v grep | grep munged | awk '{print $1}')
+  if [ -n "${svc_pid}" ] ; then
+    if [[ ${svc_pid} =~ "^[0-9]+$" ]] ; then
+      kill -s 0 ${svc_pid} && \ 
+        kill -${sig} ${svc_pid}
+    fi
+  pkill --signal ${sig} munged
+  fi
+done
+
+Rc ErrExit ${EX_OSFILE} "chown root:root /var /var/log"
+
+# reset permissions (to munge:munge) so that systemd-initiated service starts correctly 
+for f in /var/log/munge /var/log/munge/munged.log \
+         /var/run/munge/munged.pid /var/run/munge \
+         /var/lib/munge /var/lib/munge/munge.seed \
+         /etc/munge /etc/munge/munge.key
+do
+  target=""
+  if [ -L "${f}" ] ; then
+    target=$(readlink ${f})
+  fi
+  for x in ${f} ${target}
+  do
+    ch_arg=""
+    if [ -d "${x}" -o -f "${x}" -o -L "${x}" ] ; then
+      if [ -L ${x} ] ; then
+        ch_arg="-h"
+      fi
+      Rc ErrExit ${EX_OSFILE} "chown ${ch_arg} munge:munge ${x}"
+      Rc ErrExit ${EX_OSFILE} "chmod g-w ${x}"
+    fi
+  done
+done
+
+trap '' 0
+exit ${EX_OK}

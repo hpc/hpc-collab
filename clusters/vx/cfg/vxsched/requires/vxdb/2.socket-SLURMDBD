@@ -1,0 +1,60 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vxsched/requires/vxdb/2.socket-SLURMDBD
+
+## @brief verifies connectivity to slurmdbd service port
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x IPADDR=$(cat ipaddr)
+declare -x ETCSLURM=/etc/slurm
+declare -x COMMON_ETCSLURM=${COMMON}${ETCSLURM}
+declare -x SLURMCONF=${COMMON_ETCSLURM}/slurm.conf
+declare -x SLURMDBDCONF=${COMMON_ETCSLURM}/slurmdbd.conf
+
+Rc ErrExit ${EX_OSFILE} "test -f ${SLURMDBDCONF}"
+#Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
+
+if [ -f ${SLURMDBDCONF} ] ; then
+  dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//')
+  if [ -z "${dbdport}" ] ; then
+    if [[ ${_dbdport} != "#" ]] ; then
+      dbdport=${_dbdport}
+    fi
+  fi
+fi
+
+if [ -z "${dbdport}" ] ; then
+  dbdport=${DEFAULT_DBDPORT}
+fi
+numeric='^[0-9]+$'
+if ! [[ ${dbdport} =~ $numeric ]] ; then
+  Warn EX_OK "  Warning: dbdport (\"${dbdport}\") is not numeric, using DEFAULT_DBDPORT:${DEFAULT_DBDPORT}"
+  dbdport=${DEFAULT_DBDPORT}
+fi
+if [ -z "${dbdport}" -o '#' = "${dbdport}" ] ; then
+  echo "  Warning: dbdport may be incorrectly defined in slurmdbd.conf and/or slurm.conf. dbdport:${dbdport}, using DEFAULT_DBDPORT:${DEFAULT_DBDPORT}"
+  dbdport=${DEFAULT_DBDPORT}
+fi
+
+Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
+Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1 -v -z ${IPADDR} ${dbdport} </dev/null"
+
+trap '' 0
+exit ${EX_OK}
