@@ -1,9 +1,9 @@
-DbdAddr=%VXDB%
-DbdHost=vxdb
+DbdAddr=%VCDB%
+DbdHost=vcdb
 SlurmUser=root
 DebugFlags=DB_ASSOC,DB_EVENT,DB_QUERY
 DebugLevel=debug3
-LogFile=/var/log/slurm/slurmdbd.vxdb.log
+LogFile=/var/log/slurm/slurmdbd.vcdb.log
 PidFile=/var/run/slurm/slurmdbd.pid
 TrackWCKey=yes
 StorageHost=vcdb

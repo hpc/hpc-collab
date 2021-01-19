@@ -27,7 +27,6 @@ SLURMDBD_CONF=${ETCSLURM}/slurmdbd.conf
 SLURM_CONF=${ETCSLURM}/slurm.conf
 VARLOGSLURM=/var/log/slurm
 VARLOGSLURM_LINK=$(readlink ${VARLOGSLURM})
-SLURMDBD_LOG=${VARLOGSLURM_LINK}/slurmdbd.${HOSTNAME}.log
 
 for _v in SLURM_CONF SLURMDBD_CONF
 do
@@ -40,6 +39,8 @@ do
 	fi
 done
 
+SLURMDBD_LOG=$(grep LogFile=${VARLOGSLURM} ${SLURMDBD_CONF} | sed 's:LogFile=::')
+
 if [ ! -L ${VARLOGSLURM} ] ; then
   ErrExit ${EX_CONFIG} "VARLOGSLURM:${VARLOGSLURM} is not a symlink"
 fi
@@ -48,8 +49,7 @@ if [ ! -d ${VARLOGSLURM_LINK} ] ; then
   ErrExit ${EX_CONFIG} "VARLOGSLURM_LINK:${VARLOGSLURM_LINK} is not a directory"
 fi
 
-Rc ErrExit ${EX_OSFILE} "touch ${SLURMDBD_LOG}"
-Rc ErrExit ${EX_CONFIG} "grep LogFile=${VARLOGSLURM}/$(basename ${SLURMDBD_LOG}) ${SLURMDBD_CONF}"
+Rc ErrExit ${EX_OSFILE} "printf '\n--- %s %s ---\n' ${HOSTNAME} $(basename $0) >> ${SLURMDBD_LOG}"
 
 SlurmUser=$(grep SlurmUser ${SLURMDBD_CONF} | sed 's/SlurmUser=//')
 Rc ErrExit ${EX_OSFILE} "chmod 0600 ${SLURMDBD_CONF}"

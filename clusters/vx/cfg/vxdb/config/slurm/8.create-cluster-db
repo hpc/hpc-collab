@@ -20,6 +20,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+SetFlags >/dev/null 2>&1
+
 declare -x ETCSLURM=/etc/slurm
 declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 declare -x REQUIRED_PROC_FILE=${PWD}/required.service
