@@ -10,6 +10,11 @@ and common baseline hpc cluster models. In short, extend the "systems as cattle 
 <A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into
 the realm of "clusters as cattle, not pets."</P>
 
+In effect, this project automates, replaces and enables customized recipes for 
+manually-executed  
+ <A HREF="http://openhpc.community/wp-content/uploads/Install_guide-CentOS7.1-1.0.pdf">cluster component construction, installation, configuration and verification processes</A>.
+</P>
+
 <P>The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified,
 <A HREF="https://libvirt.org/">libvirt</A>, and its accompanying
 <A HREF="https://github.com/vagrant-libvirt/vagrant-libvirt">vagrant-libvirt plugin</A>.
