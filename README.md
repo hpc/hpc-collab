@@ -1,7 +1,4 @@
-<HTML>
-<TITLE>hpc-collab (sometimes: hpc-colab)</TITLE>
-<BR>
-# <H1>hpc-collab (sometimes: hpc-colab)</H1>
+# hpc-collab (sometimes: hpc-colab)
 
 <P>This project provides provisioned HPC cluster models using underlying virtualization mechanisms.</P>
 
@@ -12,6 +9,11 @@ and common baseline hpc cluster models. In short, extend the "systems as cattle 
 <A HREF="http://www.pass.org/eventdownload.aspx?suid=1902">[1]</A> 
 <A HREF="http://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/">[2]</A> analogy into
 the realm of "clusters as cattle, not pets."</P>
+
+In effect, this project automates, replaces and enables customized recipes for 
+manually-executed  
+ <A HREF="http://openhpc.community/wp-content/uploads/Install_guide-CentOS7.1-1.0.pdf">cluster component construction, installation, configuration and verification processes</A>.
+</P>
 
 <P>The initial release requires local enablers: gmake, vagrant and virtualbox and, if specified,
 <A HREF="https://libvirt.org/">libvirt</A>, and its accompanying
@@ -57,16 +59,15 @@ to construct cluster images with security guarantees.
 <H5>To start</H5>
 <P>
  Set the BASE directory in <EM>bin/setpath.{c}sh</EM>. The default setting is the output of pwd, often
-<EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.
-<BR>
+<EM>$HOME/hpc-collab</EM> or <EM>$HOME/hpc-collab-&lt;branch-name&gt</EM>.<BR>
+
 ~~~
-<BR><PRE>
          cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
-</PRE>
-~~~<BR>
+~~~
 
+<BR>
 <P>
 Consider setting the value <EM>clusters/common/flag/PREFERRED_REPO</EM> to your nearest <EM>rsync</EM>
 reposistory. Alternatively, reorder the file requires/ingest/repos. The <B>last</B> line in the file
@@ -140,28 +141,23 @@ the appropriate Makefile is set so that one need not be in a cluster directory.<
 </P>
 
 for &lt;<EM>nodename</EM>&gt;:
-<BR>
+
 ~~~
-<BR><PRE>
 <nodename>	  = equivalent to 'cd clusters/<CL>; make nodename' - provisions as needed
 <nodename>--	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION' - unprovision node
 <nodename>!	  = equivalent to 'cd clusters/<CL>; make nodename_UNPROVISION ; make nodename' - unprovision and force reprovisioning
-</PRE>
 ~~~
-<BR>
 
 for all nodes in the cluster, <EM>&lt;CL&gt;</EM>:
-<BR>
+
 ~~~
-<BR><PRE>
 <CL>		  = equivalent to 'make up'
 <CL>--		  = equivalent to 'make nodename_UNPROVISION'
 <CL>!		  = equivalent to 'make nodename_UNPROVISION; make nodename'
 		    force unprovision and reprovisioning
-</PRE>
-<BR>~~~
+~~~
+
 <BR>
-</P>
 <P>
 Components such as clusters, nodes and filesystems are standalone.
 Each includes code and configuration to establish prerequisites, configure, install, and verify.
@@ -186,7 +182,6 @@ Alternate virtualization providers may be selected by changing the contents of t
 Changing the virtualization provider will trigger a "recompilation" of the cluster's <EM>Vagrantfile</EM>.
 </P>
 
-
 <H4>Resource Usage</H4>
 <P>
 Virtualbox, in particular, requires substantial RAM (>32Gb) and storage (~36Gb) for the default cluster recipe's
@@ -207,4 +202,4 @@ The author wishes to acknowledge and appreciates the contributions of time, effo
 <A HREF="https://www.lanl.gov/projects/ultrascale-systems-research-center/">researchers</A>
 have made to this project.
 </P>
-</HTML>
+
