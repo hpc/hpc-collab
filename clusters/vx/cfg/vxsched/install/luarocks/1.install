@@ -1,0 +1,44 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file common/provision/install/luarocks/1.install-rocks
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+fi
+
+exec > >(tee -a "${OUT}") 2>&1
+
+declare -x PWD=$(pwd)
+declare -x REQUIRED_SW=$(basename ${PWD})
+declare -x ROCKS_MANIFEST=${PWD}/rocks.Manifest
+
+if [ ! -r "${ROCKS_MANIFEST}" ] ; then
+  ErrExit ${EX_OSFILE} "ROCKS_MANIFEST: ${ROCKS_MANIFEST} is not readable"
+fi
+_rocks=$(echo $(cat ${ROCKS_MANIFEST}))
+
+luarocks=$(which luarocks)
+if [ ! -x "${luarocks}" ] ; then
+	ErrExit ${EX_CONFIG} "luarocks:${luarocks} is not executable"
+fi
+
+for _r in ${_rocks}
+do
+	${luarocks} install ${_r}
+done
+
+trap '' 0
+exit ${rc}

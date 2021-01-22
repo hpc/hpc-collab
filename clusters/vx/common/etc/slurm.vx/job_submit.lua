@@ -1,10 +1,31 @@
+#! /usr/bin/env lua
 
 --! slurm job_submit.lua
 --!  todo: vectorize with a driver table of licenses(), _set_hostqos(), etc
 --! todo: licenses(): create a table of licenses, possibly from an external source of state
 --! such as a config file or earlier, one-time priming sacctmgr
 
-noisy = nil
+--! need a lightweight mechanism to set this, preferably at RPM installation time, not job runtime
+--! lightweight = not grep or scontrol show config
+local slurm_prefix_dir = "/etc/slurm"
+
+--! lua code is cached in slurmctld, so restart slurmctld when the noisy flag file is created or removed
+--! this file must exist on the node hosting the slurmctld
+local noisy_flag		= slurm_prefix_dir .. "/.job_submit.noisy"
+local conf_file			=	slurm_prefix_dir .. "/job_submit.conf"
+local jobsubmit_dir	=	slurm_prefix_dir .. "/job_submit.d"
+
+local luarocks	= require "luarocks.loader"
+local unistd		= require "posix.unistd"
+
+function file_exists(path)
+  local file = io.open(path, "rb")
+  if file then
+		file:close()
+		return true	-- readable
+	end
+	return nil		-- not readable
+end
 
 function _limit_license_cnt(orig_string, license_name, max_count)
 	local i = 0
@@ -71,8 +92,24 @@ function _hostname()
 	hostname = hp:read("*a") or ""
 	hp:close()
 	hostname = string.gsub(hostname, "\n$", "")
-	if noisy ~= nil then slurm.log_info(" job_submit.lua: _hostname(%s)]", hostname) end
+	if noisy ~= nil then slurm.log_info(" job_submit.lua: _hostname(%s)]", tostring(hostname)) end
 	return hostname
+end
+
+function _valid_qos ( new_qos )
+	if noisy ~= nil then slurm.log_info("[job_submit.lua: _valid_qos(%s)", tostring(new_qos)) end
+	local test_qos
+	local sp
+	local cmd_prefix = "sacctmgr show qos -n format=name%-30s where qos="
+	if new_qos == nil or 0 == string.len(new_qos) then
+		return nil
+	end
+	local cmd = cmd_prefix .. new_qos
+	sp = io.popen(cmd)
+	test_qos = sp:read("*a") or ""
+	sp:close()
+	if noisy ~= nil then slurm.log_info(" job_submit.lua:_valid_qos(%s) => %s]", tostring(new_qos), tostring(test_qos)) end
+	return tostring(new_qos)
 end
 
 function _set_hostqos ( job_desc )
@@ -91,11 +128,11 @@ function _set_hostqos ( job_desc )
 		slurm.log_user("  job_submit.lua:_set_hostqos(): internal error: unable to determine hostname:<nil>")
 		return slurm.ERROR
 	end
-	cluster_abbrev = string.sub(hostname,1,2)
 
 	-- if user specified QOS, and it does not include the host-specific suffix "__<cluster-abbreviation>"
 	-- then append the host abbreviation suffix.
 	-- if the user does not specify a QOS, then normal Default QOS settings apply, no adjustment is done
+	cluster_abbrev = string.sub(hostname,1,2)
 	qos_suffix = "__" .. cluster_abbrev
 	if qos ~= nil then
 		sufx_start, sufx_end = string.find(qos, qos_suffix)
@@ -103,7 +140,9 @@ function _set_hostqos ( job_desc )
 		if sufx_start == nil or sufx_start == 0 then
 			if sufx_end ~= string.len(qos) then
 				new_qos = qos .. qos_suffix
-				job_desc.qos = new_qos
+				if _valid_qos(new_qos) ~= nil then
+					job_desc.qos = new_qos
+				end
 			end
 		end
 	end
@@ -143,5 +182,10 @@ function slurm_job_modify ( job_desc, job_rec, part_list, modify_uid )
 	return rc
 end
 
-if noisy ~= nil then slurm.log_info("job_submit.lua: initialized/slurm.SUCCESS") end
+--! noisy = file_exists(noisy_flag)
+noisy = unistd.access(noisy_flag,"r") == 0
+slurm.log_info("job_submit.lua: initialized: noisy=%s, slurm.SUCCESS", tostring(noisy))
+
 return slurm.SUCCESS
+
+-- vim: background=dark sw=2 ts=2 bs=2 syntax=lua
