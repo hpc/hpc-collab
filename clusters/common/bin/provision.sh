@@ -2226,6 +2226,7 @@ SW() {
   local where=""
   local manifest=""
   local ARCH=${ARCH:-$(uname -m)}
+  local stop_flag=".stop"
 
   case "${dowhat}" in
   build)   what=${CFG}/${HOSTNAME}/${BUILDWHAT}                    ;;
@@ -2299,6 +2300,9 @@ SW() {
     else
       _msg=" ${_s}:  "
       sw=$(basename $_s)
+      if [ -f ${what}/${_s}/${stop_flag} ] ; then
+        ErrExit ${EX_SOFTWARE} "${what}/${_s}/${stop_flag} present"
+      fi
       cmds=$(echo $(ls ${what}/${_s}))
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${where}"
       Rc ErrExit ${EX_OSFILE} "chmod 0755 ${where}"
