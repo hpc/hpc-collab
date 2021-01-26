@@ -48,3 +48,6 @@ clusters/vx/cfg/vx2/rpm/early/.RPMS.Manifest
 clusters/vx/cfg/vxlogin/rpm/early/.RPMS.Manifest
 clusters/vx/cfg/vxsched/rpm/early/.RPMS.Manifest
 clusters/vx/common/provision/requires/vxdb/ipaddr
+clusters/vc/build/slurm*
+../../../../vx/cfg/vxlogin/config/slurm/ipaddr-slurmdbd.cluster-local-slurmdbd
+../../../../vx/common/etc/slurm.vx/slurmdbd.conf.cluster-local-slurmdbd
