@@ -28,8 +28,14 @@ declare -x COMMON_ETCSLURM=${COMMON}${ETCSLURM}
 declare -x SLURMCONF=${COMMON_ETCSLURM}/slurm.conf
 declare -x SLURMDBDCONF=${COMMON_ETCSLURM}/slurmdbd.conf
 
-Rc ErrExit ${EX_OSFILE} "test -f ${SLURMDBDCONF}"
-#Rc ErrExit ${EX_OSFILE} "test -f ${SLURMCONF}"
+## @note these are warnings because this prerequisite test is done as part of node validation,
+## @note which may not be complete yet for this host
+for _c in  SLURMDBDCONF SLURMCONF
+do
+	if [ ! -f "${!_c}" ] ; then
+		Rc Warn ${EX_OSFILE} "test -f ${!_c}"
+	fi
+done
 
 if [ -f ${SLURMDBDCONF} ] ; then
   dbdport=$(grep -i dbdport ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdport=//')

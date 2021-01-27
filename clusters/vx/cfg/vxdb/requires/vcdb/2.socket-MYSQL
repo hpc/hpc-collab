@@ -29,7 +29,11 @@ declare -x SLURMDBDCONF=${ETCSLURM}/slurmdbd.conf
 declare -x ETC_SERVICES=/etc/services
 declare -x MYSQL_PORT=$(awk '/tcp.*# MySQL$/ {print $2}' ${ETC_SERVICES} | sed 's/\/tcp//')
 
-Rc ErrExit ${EX_OSFILE} "test -f ${SLURMDBDCONF}"
+## @note warning because the recommended practice is a single slurmdbd for multicluster configurations
+## @note this node exists to test alternate but less common scenarios
+if [ ! -f "${SLURMDBDCONF}" ] ; then
+	Warn ${EX_SOFTWARE} " SLURMDBDCONF:${SLURMDBDCONF} does not exist"
+fi
 
 Rc ErrExit 2  "[ -n \"${IPADDR}\" ] || false"
 Rc ErrExit 3  "timeout ${TIMEOUT} ncat -4 -w1 -v -z ${IPADDR} ${MYSQL_PORT} </dev/null"

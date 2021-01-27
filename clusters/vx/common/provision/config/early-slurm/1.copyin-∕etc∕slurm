@@ -44,7 +44,7 @@ if [ -d "${ETCSLURM}" ] ; then
 	Rc ErrExit ${EX_OSFILE} "mv ${ETCSLURM} ${ETCSLURM}~"
 fi
 
-Rc ErrExit ${EX_OSFILE} "ln -s ${VX_ETCSLURM} ${ETCSLURM}"
+Rc ErrExit ${EX_OSFILE} "ln -f -s ${VX_ETCSLURM} ${ETCSLURM}"
 
 if [ ! -x "${RSYNC}" ] ; then
 	ErrExit ${EX_CONFIG} "RSYNC:${RSYNC} not executable"
