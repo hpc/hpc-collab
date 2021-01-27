@@ -42,8 +42,15 @@ fi
 STORAGEHOST=$(grep StorageHost ${SLURMDBDCONF} | sed 's/StorageHost=//')
 STORAGEUSER=$(grep StorageUser ${SLURMDBDCONF} | sed 's/StorageUser=//')
 STORAGEPASS=$(grep StoragePass ${SLURMDBDCONF} | sed 's/StoragePass=//')
+DBDHOST=$(grep DbdHost ${SLURMDBDCONF} | sed 's/DbdHost=//')
 
-MYSQL_AUTH="--user=${STORAGEUSER} --password=${STORAGEPASS}"
+MYSQL_AUTH="--user=${STORAGEUSER}"
+if [ -z "${STORAGEPASS}" ] ; then
+
+	Warn ${EX_CONFIG} "STORAGEPASS empty"
+else
+	MYSQL_AUTH="--user=${MYSQL_AUTH} --password=${STORAGEPASS}"
+fi
 
 export dbdhost=$(grep -i dbdhost ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdhost=//')
 export dbdaddr=$(grep -i dbdaddr ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdaddr=//')
@@ -60,26 +67,28 @@ Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 0.1 -w 0.1 -n ${STOR
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 0.1 -w 0.1 -n ${dbdhost}"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 0.1 -w 0.1 -n ${dbdaddr}"
 
-MYSQL_CMD="mysql ${MYSQL_AUTH} --host=${STORAGEHOST} --batch"
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --execute 'show databases;'"
-clusternames=$(timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute "select name from cluster_table;" )
+if [ "${DBDHOST}" = "${HOSTNAME}" -o "${STORAGEHOST}" = "${HOSTNAME}" ] ; then
+	MYSQL_CMD="mysql ${MYSQL_AUTH} --host=${STORAGEHOST} --batch"
+	Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --execute 'show databases;'"
+	clusternames=$(timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute "select name from cluster_table;" )
 
-if [ -z "${clusternames}" ] ; then
-  ErrExit ${EX_SOFTWARE} "slurm_acct_db.cluster_table has no entries"
-fi
-found=""
-for _c in ${clusternames}
-do
-	if [ "${_c}" = "${CLUSTERNAME}" ] ; then
-		found="${_c}"
-		break;
+	if [ -z "${clusternames}" ] ; then
+		ErrExit ${EX_SOFTWARE} "slurm_acct_db.cluster_table has no entries"
 	fi
-done
-if [ -z "${found}" ] ; then
-	ErrExit ${EX_SOFTWARE} "Cluster name \'${CLUSTERNAME}\' not found in slurm_acct_db.cluster_table"
-fi
+	found=""
+	for _c in ${clusternames}
+	do
+		if [ "${_c}" = "${CLUSTERNAME}" ] ; then
+			found="${_c}"
+			break;
+		fi
+	done
+	if [ -z "${found}" ] ; then
+		ErrExit ${EX_SOFTWARE} "Cluster name \'${CLUSTERNAME}\' not found in slurm_acct_db.cluster_table"
+	fi
 
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran"
+	Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran"
+fi
 
 trap '' 0
 exit ${EX_OK}

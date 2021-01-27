@@ -25,6 +25,7 @@ declare -x ETCSLURM=/etc/slurm
 declare -x SLURMDBDCONF=${ETCSLURM}/slurmdbd.conf
 declare -x COMMON_ROOT=/home/vx/common/root
 declare -x MYSQL_PW_F=${COMMON_ROOT}/mysql_pw
+declare -x SLURMDBDCONF=/home/vx/common/${ETCSLURM}/slurmdbd.conf
 
 declare -x MYSQL=$(which mysql)
 MYSQL=$(which mysql)
@@ -32,6 +33,8 @@ MYSQL=$(which mysql)
 if [ ! -x "${MYSQL}" ] ; then
 	ErrExit ${EX_SOFTWARE} "mysql client is not executable: ${mysql}"
 fi
+
+Rc ErrExit ${EX_SOFTWARE} "test -f ${SLURMDBDCONF}"
 
 STORAGEHOST=$(grep StorageHost ${SLURMDBDCONF} | sed 's/StorageHost=//')
 STORAGEUSER=$(grep StorageUser ${SLURMDBDCONF} | sed 's/StorageUser=//')
@@ -56,8 +59,26 @@ if [ ${rc} -eq ${GREP_NOTFOUND} ] ; then
 StoragePass=${STORAGEPASS} ${SLURMDBDCONF}"
 fi
 
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 0.1 -w 0.1 -n ${STORAGEHOST}"
+DBDHOST=$(grep DbdHost ${SLURMDBDCONF} | sed 's/DbdHost=//')
+HOSTNAME=${HOSTNAME:-$(hostname -s)}
+CL=${HOSTNAME:0:2}
+_S=""
+for _s in STORAGEHOST DBDHOST
+do
+	if [ -n "${_S}" ] ; then
+		break
+	fi
 
+	if [ "${!_s}" != "localhost" ] ; then
+		_S=${!_s}
+	fi
+done
+if [ -z "${_S}" ] ; then
+	ErrExit ${EX_CONFIG} "STORAGEHOST:${STORAGEHOST} is unusable for a conjoined cluster:${CL}"
+fi
+STORAGEHOST="${_S}"
+
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 0.1 -w 0.1 -n ${STORAGEHOST}"
 MYSQL_AUTH="--user=${STORAGEUSER} --password=${STORAGEPASS}"
 MYSQL_CMD="${MYSQL} ${MYSQL_AUTH} --host=${STORAGEHOST} --batch"
 
@@ -65,4 +86,4 @@ Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --execute 'show data
 
 exit ${EX_OK}
 
-# vim: background=dark ts=2 sw=2
+# vim: background=dark ts=2 sw=2 syntax=sh
