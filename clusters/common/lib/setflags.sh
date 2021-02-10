@@ -146,18 +146,18 @@ SetFlags() {
     SKIP_SW)
         export SKIP_SW=$(cat ${FLAGS}/SKIP_SW)
         set_flags="${set_flags} SKIP_SW:\"${SKIP_SW}\""
-	if [ -n "${NO_NFS}" ] ; then
-    		if [[ vboxadd != *${SKIP_SW}* ]] ; then
-			Warn ${EX_CONFIG} "  Virtualbox guest additions are marked to be upgraded, not skipped."
-			Warn ${EX_CONFIG} "  NO_NFS is set, also."
-			Warn ${EX_CONFIG} "  Provisioning may halt with no source while upgrading the"
-			Warn ${EX_CONFIG} "  virtualbox guest additions."
-			Warn ${EX_CONFIG} "  "
-			Warn ${EX_CONFIG} "  To remediate: set clusters/common/flag/SKIP_SW to include 'vboxadd'"
-			Warn ${EX_CONFIG} "  To remediate:     or remove clusters/common/flag/NO_NFS"
-			Warn ${EX_CONFIG} "  "
-		fi
-	fi
+	      if [ -n "${NO_NFS}" ] ; then
+    	      	if [[ vboxadd != *${SKIP_SW}* ]] ; then
+			          Warn ${EX_CONFIG} "  Virtualbox guest additions are marked to be upgraded, not skipped."
+			          Warn ${EX_CONFIG} "  NO_NFS is set, also."
+			          Warn ${EX_CONFIG} "  Provisioning may halt with no source while upgrading the"
+			          Warn ${EX_CONFIG} "  virtualbox guest additions."
+			          Warn ${EX_CONFIG} "  "
+			          Warn ${EX_CONFIG} "  To remediate: set clusters/common/flag/SKIP_SW to include 'vboxadd'"
+			          Warn ${EX_CONFIG} "  To remediate:     or remove clusters/common/flag/NO_NFS"
+			          Warn ${EX_CONFIG} "  "
+		      fi
+	      fi
         ;;
     SKIP_UPDATERPMS)
         export SKIP_UPDATERPMS="true"
@@ -166,6 +166,13 @@ SetFlags() {
     SKIP_YUMDOWNLOAD|SKIP_YUMDOWNLOADS)
         export SKIP_YUMDOWNLOAD="true"
         set_flags="${set_flags} SKIP_YUMDOWNLOAD"
+        ;;
+    TIDYUP)
+        if [ -s ${FLAGS}/TIDYUP ] ; then
+          export TIDYUP=$(cat ${FLAGS}/TIDYUP)
+        else
+          export TIDYUP="true"
+        fi
         ;;
     TIMESTAMPS)
         # if the TIMESTAMPS flag exists & is non-zero length, it may be a format for timestamps

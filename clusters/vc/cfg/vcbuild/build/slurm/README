@@ -3,3 +3,7 @@ To update slurm:
  If needed, update the prerequisite RPM list.
 To do:
  Populate local-vcbuild with copies of required RPMs, such as MariaDB-shared, for WHICH_DB=mariadb-*
+
+---
+Note: the buildwhere link is only valid before 7.cleanup-workdir removes that target area
+---

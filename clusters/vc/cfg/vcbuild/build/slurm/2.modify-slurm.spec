@@ -153,7 +153,7 @@ do
   done
 done
 
-# for now, assume that we always start with the stock slurm .1 release
+# # for now, assume that we always start with the stock slurm .1 release
 ed - ${tmpfile1} << __SED_BUMP_RELEASE_EOF__
 /^%define rel	1/d
 /^Release:/i
@@ -162,6 +162,13 @@ ed - ${tmpfile1} << __SED_BUMP_RELEASE_EOF__
 w
 q
 __SED_BUMP_RELEASE_EOF__
+# Since ${MARKER_TAG} is now part of %{rel}, be sure that the tar unrolling can accommodate it
+slurm_vershost=slurm-${SLURM_VERSION}-1.${MARKER_TAG}
+SLURM_TARBALL=${slurm_vershost}.tar.bz2
+Rc ErrExit ${EX_OSFILE} "sed -i /==\ \"1\"/s//==\ \"1.${MARKER_TAG}\"/ ${tmpfile1} ;"
+Rc ErrExit ${EX_OSFILE} "ln -s ${BUILDWHERE}/slurm-${SLURM_VERSION} ${BUILDWHERE}/${slurm_vershost}"
+Rc ErrExit ${EX_OSFILE} "tar --exclude=\*${TAR_SUFFIX} -h -cjvf ${RPMBUILD}/SOURCES/${SLURM_TARBALL} -C ${BUILDWHERE} ${slurm_vershost}"
+
 #if not NFS:
 #Rc ErrExit ${EX_OSFILE} "cp -b --preserve=all ${tmpfile1} ${SLURM_SPEC}"
 #else:

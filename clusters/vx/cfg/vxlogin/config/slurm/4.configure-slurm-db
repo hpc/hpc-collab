@@ -127,7 +127,7 @@ do
       _p=$(basename $(echo $(readlink ${slurm_assoc}/${a}/partition)))
       _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
       _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
-set -xv
+
 			q="qos=${qos}${qsufx}"
 			namepartacctcluster="name=${U} partition=${_p} account=${_a} cluster=${clustername}"
 			exists=$(sacctmgr show user withassoc -n ${namepartacctcluster} ${q} | egrep "${clustername}.*${_a}.*${_p}.*${qos}")
@@ -135,12 +135,9 @@ set -xv
 				def_arg="defaultaccount=${DefaultAccount}"
 			fi
 	    if [ -z "${exists}" ] ; then
-set -xv
 				Rc ErrExit 9 "sacctmgr -iQ add user ${namepartacctcluster} ${q} ${def_arg}"
 			else
-set -xv
 				Rc ErrExit 10 "sacctmgr -iQ modify user ${namepartacctcluster} ${q} set ${def_arg}"
-set -xv
 				Rc ErrExit 11 "sacctmgr -iQ modify user ${namepartacctcluster} set default${q}"
 			fi
     done
