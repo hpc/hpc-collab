@@ -94,7 +94,7 @@ declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeSinc TimeStamp VerifyEnv Setup
 declare -x DEBUG_DEFAULT_ORDER_OF_OPERATIONS="DebugNote VerbosePWD ClearSELinuxEnforce ${CORE_ORDER_OF_OPERATIONS}"
 
 
-declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} FlagSlashVagrant TimeStamp"
+declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} UnmountProvisioningFS TidyDetritus TimeStamp"
 
 declare -a REPO_DISK_LIST=( '/dev/vdb' '/dev/sdb' )
 declare -x REPO_DISK
@@ -1334,10 +1334,23 @@ LinkSlashVagrant() {
   return
 }
 
-
-## @fn FlagSlashVagrant()
+## @fn TidyDetritus()
+## @brief remove installation artifacts
 ##
-FlagSlashVagrant() {
+TidyDetritus() {
+  for d in bin env flag inc lib loader
+  do
+    if [ -d /common/provision/${d} ] ; then
+      Rc ErrExit ${EX_OSFILE} "rmdir /common/provision/${d}"
+    fi
+  done
+  return
+}
+
+
+## @fn UnmountProvisioningFS()
+##
+UnmountProvisioningFS() {
   nfs_server=$(awk '/virtual-cluster-net/ {print $2}' /etc/networks | sed 's/0$/1/')
 
   if [ -n "${PREVENT_SLASHVAGRANT_MOUNT}" ] ; then
@@ -1346,7 +1359,7 @@ FlagSlashVagrant() {
     cd /
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
-    # XXX findmnt
+    # XXX findmnt, provided its dependencies aren't a twisty little maze
     awk '{print $5}' < ${MOUNTINFO} | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
     rc=$?
 
@@ -1408,6 +1421,8 @@ FlagSlashVagrant() {
   if [ ! -L /common ] ; then
     Rc ErrExit ${EX_OSFILE} "ln -s ${COMMON} /common"
   fi
+  Rc ErrExit ${EX_OSFILE} "rmdir /vagrant"
+  Rc ErrExit ${EX_OSFILE} "ln -s ${HOMEVAGRANT} /vagrant"
 
   # some mounts are not needed post configuration
   # XXX @todo add a per-node cfg file list of umounts, as needed
