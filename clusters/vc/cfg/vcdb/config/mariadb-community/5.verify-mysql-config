@@ -29,6 +29,7 @@ if [ "${PROD}" != "${WHICH_DB}" ] ; then
   exit ${EX_OK}
 fi
 
+numeric="^-?[0-9]+$"
 
 MY_CONF=/etc/my.cnf
 MY_CONF_D=/etc/my.cnf.d
@@ -79,7 +80,7 @@ mysql_version_minor=$(echo ${mysql_version_numeric} | sed 's/\./ /g' | awk '{pri
 
 for _v in mysql_version_major mysql_version_minor
 do
-  if ! [[  ${!_v} =~ ${numeric} ]] ; then
+  if ! [[ ${!_v} =~ ${numeric} ]] ; then
     ErrExit ${EX_CONFIG} "mysql misconfiguration: ${_v}:${!_v} is non-numeric"
   fi
 done
@@ -99,7 +100,6 @@ fi
 declare -x MB=1024
 
 innodb_buffer_pool_size_mycnf_numeric=0
-numeric="^-?[0-9]+$"
 
 innodb_buffer_pool_size_running_raw=$(echo $(mysql ${AUTH} -e "SELECT @@innodb_buffer_pool_size ;" -s))
 innodb_buffer_pool_size_running_integral=$(echo ${innodb_buffer_pool_size_running_raw} | sed 's/.0000//')

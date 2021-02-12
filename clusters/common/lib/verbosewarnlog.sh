@@ -7,6 +7,7 @@
 ## @brief This library file contains routines that emit messages.
 
 declare -x LOG_TO_STDERR=""
+declare -x LOG_MSGSIZE=${LOG_MSGSIZE:-4096}
 
 ## @fn Log()
 ## emit a message to to stderr & syslog
@@ -60,7 +61,7 @@ Verbose() {
   set +x
   set +v
   local tty=$(tty 2>&1)
-  local columns
+  local columns="${DEFAULT_COLUMNS}"
   local numeric="^[0-9]+$"
   local tstamp
 

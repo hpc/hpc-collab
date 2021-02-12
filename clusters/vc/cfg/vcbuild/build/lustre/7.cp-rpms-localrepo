@@ -22,7 +22,7 @@ fi
 
 SetFlags >/dev/null 2>&1
 PRODUCT=$(basename $(pwd))
-
+HOSTNAME=${HOSTNAME:-$(uname -s)}
 BUILDWHERE=${VC}/build
 BUILDWHAT=${CFG}/${HOSTNAME}/build
 BUILDLUSTRE=${BUILDWHAT}/${PRODUCT}
@@ -30,7 +30,7 @@ RPMS=${BUILDLUSTRE}/RPMS.Manifest
 VERSION=${BUILDLUSTRE}/version
 BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
 ARCH=$(uname -m)
-LOCALREPO=${VAGRANT}/etc/localrepo
+LOCALREPO=${COMMON}/repos
 LUSTRE_RELEASE="lustre-release"
 LOCALREPO_ARCH=${LOCALREPO}/centos/7/local/${ARCH}/
 
@@ -59,7 +59,12 @@ cd ${LUSTRE_RELEASE_D} || ErrExit ${EX_CONFIG} "cd ${LUSTRE_RELEASE_D}"
 Rc ErrExit ${EX_SOFTWARE} "cp -bpuv ${LUSTRE_RELEASE_D}/*.${ARCH}.rpm ${LOCALREPO_ARCH}"
 Rc ErrExit ${EX_SOFTWARE} "yum --disableplugin=fastestmirror makecache"
 Rc ErrExit ${EX_SOFTWARE} "mkdir -p /run/createrepo/cache"
-Rc ErrExit ${EX_SOFTWARE} "createrepo --update --workers 2 --cachedir /run/createrepo/cache ${LOCALREPO}"
+for _r in ${LOCALREPO}/*
+do
+	if [ -d ${_r} ] ; then
+		Rc ErrExit ${EX_SOFTWARE} "createrepo --update --workers 2 --cachedir /run/createrepo/cache ${_r}"
+	fi
+done
 Rc ErrExit ${EX_SOFTWARE} "yum -y update"
 
 exit ${EX_OK}

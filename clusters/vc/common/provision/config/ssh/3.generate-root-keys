@@ -1,0 +1,79 @@
+#!/bin/bash
+
+## $Header: $
+## Source:
+## @file vcfs/config/ssh/2.generate-root-keys
+
+## @brief This file generates the shared root keys for the cluster and puts them in the common area (COMMONSLASHROOT_DOTSSH)
+
+VCLOAD=../../../provision/loader/shload.sh
+
+if [ ! -f "${VCLOAD}" ] ; then
+  echo "${0}: missing: ${VCLOAD}"
+  exit 99
+fi
+source ${VCLOAD}
+
+# if we're given an argument, append test output to it
+declare -x OUT=${1:-""}
+
+if [ -n "${OUT}" ] ; then
+  touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
+fi
+
+declare -x ETC=/etc
+declare -x COMMON=${HOMEVAGRANT}/common
+declare -x COMMONETC=${COMMON}${ETC}
+
+declare -x COMMONETC_SSH=${COMMONETC}/ssh
+declare -x COMMONETC_SSH_SSHDCONFIG=${COMMONETC_SSH}/sshd_config
+declare -x COMMONETC_SSH_SSHCONFIG=${COMMONETC_SSH}/ssh_config
+declare -x COMMONETC_SSH_HOSTPUBKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key.pub
+declare -x COMMONETC_SSH_HOSTPRIVKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key
+
+declare -x COMMONETC_SHOSTSEQUIV=${COMMONETC_SSH}/shosts.equiv
+declare -x COMMONETC_SSHKNOWNHOSTS=${COMMONETC_SSH}/ssh_known_hosts
+
+declare -x SLASHROOT=/root
+declare -x SLASHROOT_DOTSSH=${SLASHROOT}/.ssh
+declare -x COMMONSLASHROOT=${COMMON}/root
+declare -x COMMONSLASHROOT_DOTSSH=${COMMONSLASHROOT}/.ssh
+declare -x COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS=${COMMONSLASHROOT_DOTSSH}/authorized_keys
+declare -x COMMONSLASHROOT_DOTSSH_PRIVKEYRSA=${COMMONSLASHROOT_DOTSSH}/id_rsa
+declare -x COMMONSLASHROOT_DOTSSH_PUBKEYRSA=${COMMONSLASHROOT_DOTSSH}/id_rsa.pub
+declare -x HOMEVAGRANT_DOTSSH=${HOMEVAGRANT}/.ssh
+
+for d in ${COMMONETC_SSH} ${COMMONSLASHROOT} ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH} ${HOMEVAGRANT_DOTSSH}
+do
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
+done
+
+for d in ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH}
+do
+  Rc ErrExit ${EX_OSERR} "chmod 0700 ${d}"
+done
+
+# create root key pair, authorized keys, known_hosts => common intracluster storage (COMMONSLASHROOT)
+# including Vagrant's default standard *insecure* key pair
+if [ -f ${SLASHROOT_DOTSSH}/id_rsa ] ; then
+  Rc ErrExit ${EX_OSFILE}		"mv ${SLASHROOT_DOTSSH}/id_rsa ${SLASHROOT_DOTSSH}/id_rsa_orig"
+fi
+if [ -f ${SLASHROOT_DOTSSH}/id_rsa.pub ] ; then
+  Rc ErrExit ${EX_OSFILE}		"mv ${SLASHROOT_DOTSSH}/id_rsa.pub ${SLASHROOT_DOTSSH}/id_rsa_orig.pub"
+fi
+Rc ErrExit ${EX_SOFTWARE}	"ssh-keygen -q -t rsa -f ${SLASHROOT_DOTSSH}/id_rsa -N '' ; "
+
+Rc ErrExit ${EX_OSFILE} 	"cp -b vagrant_rsa ${COMMONSLASHROOT_DOTSSH}"
+Rc ErrExit ${EX_OSFILE} 	"cp -b vagrant_rsa.pub ${COMMONSLASHROOT_DOTSSH}"
+
+Rc ErrExit ${EX_OSFILE} 	"cp -b ${SLASHROOT_DOTSSH}/* ${COMMONSLASHROOT_DOTSSH}"
+Rc ErrExit ${EX_OSFILE} 	"cat ${SLASHROOT_DOTSSH}/*.pub >> ${SLASHROOT_DOTSSH}/authorized_keys"
+
+Rc ErrExit ${EX_OSFILE}		"cp -b ${SLASHROOT_DOTSSH}/* ${HOMEVAGRANT_DOTSSH}"
+Rc ErrExit ${EX_OSFILE} 	"cat ${SLASHROOT_DOTSSH}/*.pub >> ${HOMEVAGRANT_DOTSSH}/authorized_keys"
+
+Rc ErrExit ${EX_OSFILE} 	"cp -b ${SLASHROOT_DOTSSH}/authorized_keys ${COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS}"
+
+trap '' 0
+exit ${EX_OK}

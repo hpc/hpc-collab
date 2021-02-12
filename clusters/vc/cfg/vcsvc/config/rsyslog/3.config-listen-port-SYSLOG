@@ -24,7 +24,7 @@ fi
 
 declare -x ETC=/etc
 declare -x ETC_RSYSLOG_CONF=${ETC}/rsyslog.conf
-declare -x VAR_LOG_RSYSLOG_=/var/log/rsyslog
+declare -x VAR_LOG_RSYSLOG=/var/log/rsyslog
 declare -x COMMON_VAR_LOG_RSYSLOG=${COMMON}${VAR_LOG_RSYSLOG}
 
 if [ ! -f "${ETC_RSYSLOG_CONF}" ] ; then

@@ -4,6 +4,8 @@
 ## Source:
 ## @file cfg/provision/bin/nodup.sh
 
+set -o nounset
+
 ## This ANCHOR is used because the shell loader may be called from the primary host ("dom0") or from the guest host ("/vagrant/...")
 declare -x VC=${VC:-_VC_UNSET_}
 

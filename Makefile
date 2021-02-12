@@ -25,6 +25,7 @@ PREREQ_INGEST				= $(wildcard $(PREREQ_INGEST_D)/*)
 PREREQ_STORAGE			= $(wildcard $(PREREQ_STORAGE_D)/*)
 PREREQ_LIST					= $(notdir $(PREREQ_SW))
 PREREQ							= $(PREREQ_LIST)
+
 PREREQ_VAGRANTFILES	= clusters/vc/Vagrantfile clusters/vx/Vagrantfile
 
 PREREQ_ERROR_EXIT		= 99
@@ -47,7 +48,6 @@ $(TARGETS): $(PREREQ) $(SUBDIRS)
 all:	$(HUMAN_FRIENDLY) $(TARGETS) $(SUBDIRS) pkg
 
 $(PREREQ):	$(PREREQ_VAGRANTFILES)
-
 
 $(PREREQ_VAGRANTFILES):
 	$(MAKE) -C clusters/vx Vagrantfile

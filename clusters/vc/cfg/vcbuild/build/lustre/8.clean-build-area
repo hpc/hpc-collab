@@ -22,7 +22,7 @@ fi
 
 SetFlags >/dev/null 2>&1
 PRODUCT=$(basename $(pwd))
-
+HOSTNAME=${HOSTNAME:-$(uname -s)}
 BUILDWHERE=${VC}/build
 BUILDWHAT=${CFG}/${HOSTNAME}/build
 BUILDLUSTRE=${BUILDWHAT}/${PRODUCT}
@@ -30,7 +30,7 @@ RPMS=${BUILDLUSTRE}/RPMS.Manifest
 VERSION=${BUILDLUSTRE}/version
 BUILDWHERE_PRODUCT=${BUILDWHERE}/${PRODUCT}
 ARCH=$(uname -m)
-LOCALREPO=${VAGRANT}/etc/localrepo
+LOCALREPO=${COMMON}/repos
 LUSTRE_RELEASE="lustre-release"
 LOCALREPO_ARCH=${LOCALREPO}/centos/7/local/${ARCH}/
 

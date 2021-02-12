@@ -22,7 +22,7 @@ fi
 
 SetFlags >/dev/null 2>&1
 PRODUCT=$(basename $(pwd))
-
+HOSTNAME=${HOSTNAME:-$(uname -s)}
 BUILDWHERE=${VC}/build
 BUILDWHAT=${CFG}/${HOSTNAME}/build
 BUILDLUSTRE=${BUILDWHAT}/${PRODUCT}
@@ -32,7 +32,6 @@ RPMBUILD=${BUILDWHERE}/rpmbuild
 ARCH=$(uname -m)
 RPMS_ARCH=${RPMBUILD}/RPMS/${ARCH}
 SOURCES=${RPMBUILD}/SOURCES
-LOCALREPO=${VAGRANT}/etc/localrepo
 
 if [ -z "${BUILD_LUSTRE}" ] ; then
   Verbose " [BUILD_LUSTRE empty: skipped]"

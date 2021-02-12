@@ -212,8 +212,8 @@ SetFlags() {
   	;;
     JUMBOFRAMES)
       # Warning: may not be supported properly for libvirt/kvm networking unless defaults tuned
-	    JUMBOFRAMES="true"
-      set_flags="${set_flags} JUMBO_FRAMES"
+	    export JUMBOFRAMES="true"
+      set_flags="${set_flags} JUMBOFRAMES"
   	;;
     REMOTE_RSYSLOG)
     # if the contents exist and start with an '@'

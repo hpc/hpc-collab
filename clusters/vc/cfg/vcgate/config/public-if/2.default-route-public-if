@@ -48,6 +48,7 @@ fi
 # to set IS_LANL
 SetFlags >/dev/null 2>&1
 
+ip_gw=""
 if_ip="DHCP"
 if [ -n "${IS_LANL}" ] ; then
   for _f in ${LANL_public_ip_file} ${LANL_public_gw_file}
@@ -74,8 +75,8 @@ else
   if [ -n "${if_metric}}" ] ; then
       numeric="[0-9]+"
 
-    if [[ ${metric} =~ ${numeric} ]] ; then
-      ErrExit ${EX_CONFIG} "default route metric for public interface ${PUB_IF}: not numeric: ${metric}"
+    if [[ ${if_metric} =~ ${numeric} ]] ; then
+      ErrExit ${EX_CONFIG} "default route metric for public interface ${PUB_IF}: not numeric: ${if_metric}"
     fi 
 
     route_exists=$(ip route show | egrep "default.*${PUB_IF}")

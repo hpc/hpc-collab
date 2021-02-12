@@ -33,7 +33,7 @@ declare -x FIREWALL_ZONES=${FIREWALL_ROOT}/zones
 ## @fn ConfigFW()
 ##
 ConfigFW() {
-  local zones
+  local zones=""
   local all_zones=""
   local unused_zones=""
 
@@ -166,7 +166,8 @@ ConfigFW() {
     Verbose " delete: $(echo ${unused_zones})"
     for _z in ${unused_zones}
     do
-      Rc ErrExit ${OS_ERR} "firewall-cmd --permanent --delete-zone=${_z}"
+      #Rc ErrExit ${EX_OSERR} "firewall-cmd --permanent --delete-zone=${_z}"
+      firewall-cmd --permanent --delete-zone=${_z} |& egrep -v 'Error: BUILTIN_ZONE: .* is built-in zone'
     done
   fi
 
@@ -174,11 +175,13 @@ ConfigFW() {
 }
 
 ConfigFW ${OUT}
-Rc ErrExit ${OS_ERR} "firewall-cmd --get-active-zones"
+Rc ErrExit ${EX_OSERR} "firewall-cmd --get-active-zones"
+
+[ -z "${zones+x}" ] && declare zones=""
 for _z in ${zones}
 do
   Verbose " ${_z} --"
-  Rc ErrExit ${OS_ERR} "firewall-cmd --info-zone=${_z}"
+  Rc ErrExit ${EX_OSERR} "firewall-cmd --info-zone=${_z}"
   Verbose " --"
 done
 
