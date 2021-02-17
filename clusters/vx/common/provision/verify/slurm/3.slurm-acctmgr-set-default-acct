@@ -50,7 +50,7 @@ do
   if [ -d ${d} ] ; then
     defacct=$(ls ${USERADD}/${u}/slurm/acct/DefaultAccount)
     if [ -n "${defacct}" ] ; then
-      Rc ErrExit "sacctmgr -iQ update user ${u} set DefaultAccount=${defacct}"
+      Rc ErrExit ${EX_SOFTWARE} "sacctmgr -iQ update user ${u} set DefaultAccount=${defacct}"
     fi
   fi
 done

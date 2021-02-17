@@ -7,46 +7,51 @@ endif
 ## @todo if CentOS vs Ubuntu, etc:
 
 SUBDIRS_WITH_MAKEFILE_RAW	= $(wildcard */Makefile)
-SUBDIRS				= $(dir $(SUBDIRS_WITH_MAKEFILE_RAW))
+SUBDIRS										= $(dir $(SUBDIRS_WITH_MAKEFILE_RAW))
 
 IAM				= $(notdir ${CURDIR})
-TSTAMP	       		       := $(shell date +%y%m%d.%H%M)
+TSTAMP	 := $(shell date +%y%m%d.%H%M)
 
 HUMAN_FRIENDLY			= prereq prerequisites requires
-TARGETS				= all clean clean-state show up down unprovision provision savelogs
+TARGETS							= all clean clean-state show up down unprovision provision savelogs
 
-REQUIRES_D			= requires
-PREREQ_SW_D			= $(REQUIRES_D)/sw
+REQUIRES_D					= requires
+PREREQ_SW_D					= $(REQUIRES_D)/sw
 PREREQ_INGEST_D			= $(REQUIRES_D)/ingest
 PREREQ_STORAGE_D		= $(REQUIRES_D)/storage
 
-PREREQ_SW			= $(wildcard $(PREREQ_SW_D)/*)
-PREREQ_INGEST			= $(wildcard $(PREREQ_INGEST_D)/*)
+PREREQ_SW						= $(wildcard $(PREREQ_SW_D)/*)
+PREREQ_INGEST				= $(wildcard $(PREREQ_INGEST_D)/*)
 PREREQ_STORAGE			= $(wildcard $(PREREQ_STORAGE_D)/*)
-PREREQ_LIST			= $(notdir $(PREREQ_SW))
-PREREQ				= $(PREREQ_LIST)
+PREREQ_LIST					= $(notdir $(PREREQ_SW))
+PREREQ							= $(PREREQ_LIST)
+
+PREREQ_VAGRANTFILES	= clusters/vc/Vagrantfile clusters/vx/Vagrantfile
 
 PREREQ_ERROR_EXIT		= 99
 
-.PHONY: $(PREREQ) $(SUBDIRS) $(HUMAN_FRIENDLY) $(TARGETS)
+TAR_ADDITIONAL_FILES	= Makefile README INSTALL.tarball requires bin
+TAR_ARGS							= --ignore-failed-read --one-file-system --checkpoint-action=dot --checkpoint=16384 -czf
+TAR_EXCLUDE						= --exclude=\*repos.tgz\* --exclude=\*.iso --exclude=tarballs
+TAR_D									= tarballs
+TAR_PKG								= $(IAM).$(TSTAMP).tgz
+TAR_GET								= $(TAR_D)/$(TAR_PKG)
+TAR_CKSUM							= $(IAM).$(TSTAMP).cksum
+TAR_GET_CKSUM					= $(TAR_D)/$(TAR_CKSUM)
 
+.DELETE_ON_ERROR			= $(TAR_GET) $(TAR_D)/$(IAM).$(TSTAMP).cksum
+
+.PHONY: $(PREREQ) $(SUBDIRS) $(HUMAN_FRIENDLY) $(TARGETS)
 
 $(TARGETS): $(PREREQ) $(SUBDIRS)
 
 all:	$(HUMAN_FRIENDLY) $(TARGETS) $(SUBDIRS) pkg
 
-$(PREREQ):
+$(PREREQ):	$(PREREQ_VAGRANTFILES)
 
-TAR_ADDITIONAL_FILES = Makefile README INSTALL.tarball requires bin
-TAR_ARGS = --ignore-failed-read --one-file-system --checkpoint-action=dot --checkpoint=16384 -czf
-TAR_EXCLUDE = --exclude=\*repos.tgz\* --exclude=\*.iso --exclude=tarballs
-TAR_D = tarballs
-TAR_PKG = $(IAM).$(TSTAMP).tgz
-TAR_GET = $(TAR_D)/$(TAR_PKG)
-TAR_CKSUM = $(IAM).$(TSTAMP).cksum
-TAR_GET_CKSUM = $(TAR_D)/$(TAR_CKSUM)
-
-.DELETE_ON_ERROR = $(TAR_GET) $(TAR_D)/$(IAM).$(TSTAMP).cksum
+$(PREREQ_VAGRANTFILES):
+	$(MAKE) -C clusters/vx Vagrantfile
+	$(MAKE) -C clusters/vc Vagrantfile
 
 pkg:
 	$(MAKE) -C clusters pkg
@@ -54,14 +59,12 @@ pkg:
 	$(info )
 	cksum $(TAR_GET) > $(TAR_GET_CKSUM)
 	ls -l $(TAR_GET) $(TAR_GET_CKSUM)
-	
+
 $(PREREQ_INGEST): $(PREREQ_STORAGE)
 
 # @todo => gmake function, also fuzzier match
 # @todo move to subsidiary Makefile
 $(HUMAN_FRIENDLY): $(PREREQ) $(PREREQ_LIST) $(basename $(PREREQ_LIST))
-	$(MAKE) -C clusters/vx Vagrantfile
-	$(MAKE) -C clusters/vc Vagrantfile
 	$(MAKE) -C requires/storage
 	$(MAKE) -C requires/memory
 	$(MAKE) -C requires/ingest
@@ -105,4 +108,4 @@ $(SUBDIRS): $(PREREQ)
 help:
 	make -s -C clusters/vc $@
 
-# vim: background=dark
+# vim: ts=2 sw=2 syntax background=dark

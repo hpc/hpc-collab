@@ -34,17 +34,23 @@ declare -x COMMON_USRSBIN=${COMMON}${USRSBIN}
 declare -x CROND=${ETC}/cron.d
 declare -x CROND_MON_NFS_ESTALE=${CROND}/mon_nfs_estale
 declare -x MON_NFS_ESTALE=${USRSBIN}/mon_nfs_estale
+declare -x ESTALE_FALLBACK=116
+declare -x ESTALE=${ESTALE_FALLBACK}
 
+# attempt to pull from authoritative source
 numeric="[0-9]+$"
 local_estale=$(echo $(find / -name errno.h  -exec grep ESTALE \{\} \; | sort | uniq | awk '{print $3}'))
 if [ -z "${local_estale}" ] ; then
-  declare -x ESTALE=116
+  Warn ${EX_OSERR} "ESTALE not found in errno.h, using local declaration (${ESTALE_FALLBACK})"
 fi
 if ! [[ ${local_estale} =~ ${numeric} ]] ; then
-  declare -x ESTALE=116
+  Warn ${EX_OSERR} "local ESTALE is not numeric, using local declaration (${ESTALE_FALLBACK})"
+else
+	export ESTALE=${local_estale}
 fi
 if ! [[ ${ESTALE} =~ ${numeric} ]] ; then
-  declare -x ESTALE=116
+  Warn ${EX_OSERR} "errno ESTALE is not numeric, using local declaration (${ESTALE_FALLBACK})"
+	export ESTALE=${ESTALE_FALLBACK}
 fi
 
 Rc ErrExit ${EX_OSFILE} "test -f ${ETCFSTAB}"

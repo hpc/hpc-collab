@@ -11,12 +11,18 @@ CLUSTERNAME=${HOSTNAME:0:2}
 VC=${VC:-${CLUSTERNAME}}
 BASEDIR=${VC:-vagrant}
 
+set -o nounset
+
+declare -x DEBUG=${DEBUG:-""}
+
 ## The following cannot be in a sub-function in order for source <___> to have global scope, ex. EX_OK, etc.
 declare -x PROVISION_SRC_D=/${BASEDIR}/cfg/provision
 
 declare -x PROVISION_SRC_LIB_D=${PROVISION_SRC_D}/lib
 declare -x PROVISION_SRC_INC_D=${PROVISION_SRC_D}/inc
 declare -x PROVISION_SRC_ENV_D=${PROVISION_SRC_D}/env
+declare -x PROVISION_SRC_FLAG_D=${PROVISION_SRC_D}/flag
+declare -x ANCHOR=${ANCHOR:-""}
 
 if [ -d ${PROVISION_SRC_INC_D} ] ; then
   declare -x SH_HEADERS=$(ls ${PROVISION_SRC_INC_D})
@@ -94,11 +100,11 @@ declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeSinc TimeStamp VerifyEnv Setup
 declare -x DEBUG_DEFAULT_ORDER_OF_OPERATIONS="DebugNote VerbosePWD ClearSELinuxEnforce ${CORE_ORDER_OF_OPERATIONS}"
 
 
-declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} FlagSlashVagrant TimeStamp"
+declare -x NORMAL_ORDER_OF_OPERATIONS="${CORE_ORDER_OF_OPERATIONS} UnmountProvisioningFS TidyDetritus TimeStamp"
 
 declare -a REPO_DISK_LIST=( '/dev/vdb' '/dev/sdb' )
-declare -x REPO_DISK
-declare -x REPO_PART
+declare -x REPO_DISK=""
+declare -x REPO_PART=""
 declare -x REPO_PART_NO=1
 
 ## yes, there's a bash one-liner to do this, but no, this may be more readable
@@ -113,7 +119,7 @@ fi
 OrderNodeList() {
   local n
   local i
-  local ordered
+  local ordered=""
   local numeric="[0-9]+"
   local n_nodes
   local nodelist=($@)
@@ -151,7 +157,7 @@ OrderNodeList() {
 WaitForPrerequisites() {
   local nodes
   local retries
-  local nodesOrdered
+  local nodesOrdered=""
 
   if [ ! -d "${REQUIREMENTS}" ] ; then
     return
@@ -230,22 +236,23 @@ VerbosePWD() {
 ##
 GetOSVersion() {
   local f
+  local os_version=${OS_VERSION:-""}
 
   for f in /etc/os-release-upstream /etc/os-release  /etc/system-release
   do
     if [ ! -r ${f} ] ; then
       continue
     fi
-    if [ -n "${OS_VERSION}" ] ; then
-      echo "${OS_VERSION}"
+    if [ -n "${os_version}" ] ; then
+      echo "${os_version}"
       return
     fi
 
     local v
     v=$(grep -E '^ID=' ${f} | sed 's/ID=//' | sed 's/"//g')
     case "${v}" in
-      rhel|"Red Hat Enterprise Linux"*|RHEL|centos|CentOS) echo "rhel" ; return  ;;
-      sles|"SUSE Linux Enterprise Server"*|SLES)           echo "sles" ; return  ;;
+      rhel|"Red Hat Enterprise Linux"*|RHEL|centos|CentOS) echo "rhel" ; export OS_VERSION="${v}"; return  ;;
+      sles|"SUSE Linux Enterprise Server"*|SLES)           echo "sles" ; export OS_VERSION="${v}"; return  ;;
       *) continue ;;
     esac
   done
@@ -282,6 +289,7 @@ declare -x ETCEXPORTS=/etc/exports
 declare -x MOUNTINFO=/proc/self/mountinfo
 declare -x MEMINFO=/proc/meminfo
 declare -x CPUINFO=/proc/cpuinfo
+declare -x JUMBOFRAMES=${JUMBOFRAMES:-""}
 
 ## @fn VerifyEnv()
 ## verifies that the command environment appears sane (path, etc)
@@ -609,9 +617,11 @@ ConfigureCentOSRepos() {
           repo_url=${PREFERRED_REPO}
           ;;
       *)
+          set +o nounset
           local how_many_repo=${#CENTOS_RSYNC_REPO_URL[@]}
           local rand_repo=$(( ( $RANDOM % ${how_many_repo} ) + 1 ))
           repo_url=${CENTOS_RSYNC_REPO_URL[${rand_repo}]}
+          set -o nounset
       ;;
     esac
 
@@ -763,7 +773,7 @@ ConfigureDBMariaEnterpriseRepo() {
       ErrExit ${EX_CONFIG} "mariadb_local_repo_conf_path:${mariadb_local_repo_conf_path} missing from this node's configuration"
     fi
 
-    local rdir=${rbase}/${r/local-/}
+    local rdir="/${r/local-/}"
     local localrepo=local-$(basename ${rdir})
     local repo=${localrepo//[[a-zA-Z_]]* /local-/}
     if [[ ${disabled_repo_list} == *${repo}* ]] ; then 
@@ -888,7 +898,7 @@ ConfigureDBMariaCommunityRepo() {
       ErrExit ${EX_CONFIG} "mariadb_local_repo_conf_path:${mariadb_local_repo_conf_path} missing from this node's configuration"
     fi
 
-    local rdir=${rbase}/${r/local-/}
+    local rdir="/${r/local-/}"
     local localrepo=local-$(basename ${rdir})
     local repo=${localrepo//[[a-zA-Z_]]* /local-/}
     if [[ ${disabled_repo_list} == *${repo}* ]] ; then 
@@ -1157,6 +1167,7 @@ CopyCommon() {
   local from=/${CLUSTERNAME}/common
   local to=/home${from}
   local skip=""
+  local to_fstype=""
 
   if [ -L "${VC}" ] ; then
     ErrExit ${EX_OSFILE} "${VC}: symlink"
@@ -1334,10 +1345,23 @@ LinkSlashVagrant() {
   return
 }
 
-
-## @fn FlagSlashVagrant()
+## @fn TidyDetritus()
+## @brief remove installation artifacts
 ##
-FlagSlashVagrant() {
+TidyDetritus() {
+  for d in bin env flag inc lib loader
+  do
+    if [ -d /common/provision/${d} ] ; then
+      Rc ErrExit ${EX_OSFILE} "rmdir /common/provision/${d}"
+    fi
+  done
+  return
+}
+
+
+## @fn UnmountProvisioningFS()
+##
+UnmountProvisioningFS() {
   nfs_server=$(awk '/virtual-cluster-net/ {print $2}' /etc/networks | sed 's/0$/1/')
 
   if [ -n "${PREVENT_SLASHVAGRANT_MOUNT}" ] ; then
@@ -1346,7 +1370,7 @@ FlagSlashVagrant() {
     cd /
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
-    # XXX findmnt
+    # XXX findmnt, provided its dependencies aren't a twisty little maze
     awk '{print $5}' < ${MOUNTINFO} | egrep -s "${VC}|${BASEDIR}" >/dev/null 2>&1
     rc=$?
 
@@ -1408,6 +1432,7 @@ FlagSlashVagrant() {
   if [ ! -L /common ] ; then
     Rc ErrExit ${EX_OSFILE} "ln -s ${COMMON} /common"
   fi
+  Rc ErrExit ${EX_OSFILE} "ln -s -f ${HOMEVAGRANT} /vagrant"
 
   # some mounts are not needed post configuration
   # XXX @todo add a per-node cfg file list of umounts, as needed
@@ -1546,14 +1571,14 @@ CreateNFSMountPoints() {
 ##
 InstallRPMS() {
   local early=${1:-"_not_early_rpms_"}
-  local which="${1}"
+  local which=${1:-""}
   local timeout
   local rpms_add=""
   local rpms_rm=""
   local _rpms_add
   local _r
-  local _disable_repo
-  local _need_clean
+  local _disable_repo=""
+  local _need_clean=""
   local rpms_manifest="${RPM}/${which}/RPMS.Manifest"
   local manifest_src_d=${XFR}/repos/centos/7/os/${ARCH}/Packages
   local manifest_list=""
@@ -1582,7 +1607,7 @@ InstallRPMS() {
 
   early)
     	    timeout=${YUM_TIMEOUT_EARLY}
-          if [ -n "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" -a -f "${YUM_LOCAL_REPO_DEF}" ] ; then
+          if [ -n "${YUM_LOCALREPO_DEF}" -a -n "${LOCAL_REPO_ID}" -a -f "${YUM_LOCALREPO_DEF}" ] ; then
             ## if all of the early RPMS have no dependencies, this could be:
             ## _disable_repo=" --disablerepo=\* "
             ## but that may change based on however the upstream-supplied RPMs are built
@@ -1893,7 +1918,7 @@ HOME=${HOME_BASEDIR}" ${ETC_DEFAULT_USERADD}
       local U=${u}
       local _uid
       local _gid
-      local msg
+      local msg=""
 
       _uid=$(expr ${uid} + ${m} - 1)
       _gid=$(expr ${gid} + ${m} - 1)
@@ -2006,7 +2031,7 @@ HOME=${HOME_BASEDIR}" ${ETC_DEFAULT_USERADD}
       fi
 
       if [ -d ${dir} ] ; then
-        if [ ! -L ${home}/${U} ] ; then
+        if [ ! -L /home/${U} ] ; then
           Rc ErrExit ${EX_OSFILE} "ln -f -s ${dir} /home/${U}"
         fi
         Rc ErrExit ${EX_OSFILE} "chown -h ${U} /home/${U} >/dev/null 2>&1"
@@ -2125,7 +2150,7 @@ SetServices() {
         continue
       fi
       if [ "${_s}" = "vboxadd" ] ; then
-        if [[ "${virt}" != *virtualbox* ]] ; then
+        if [[ "${virt_type}" != *virtualbox* ]] ; then
           Verbose "  ${_s} [skipped]"
           continue
         fi
@@ -2326,7 +2351,7 @@ SW() {
           local _rc
           _msg="${_msg} ${c}"
 
-          Rc Warn ${EX_SOFTWARE} "cd ${workdir}; bash ${exe} ${out}"
+          Rc Warn ${EX_SOFTWARE} "cd ${workdir}; bash -u ${exe} ${out}"
           _rc=$?
           if [ -s ${out} -a -z "${HUSH_OUTPUT}" ] ; then
               echo ' '
@@ -2445,7 +2470,7 @@ UserVerificationJobs() {
 
     # if we ever need per-multiple-acount test jobs
     local numeric="^[0-9]+$"
-    local multiple
+    local multiple=""
     if [ -d ${USERADD}/${u}/multiple ] ; then
       multiple=$(echo $(basename $(ls ${USERADD}/${u}/multiple)))
     fi
@@ -2523,10 +2548,10 @@ UserVerificationJobs() {
         _msg="${_msg} ${_x}"
 
         if [ "${u}" = "root" ] ; then
-          Rc Warn ${EX_SOFTWARE} "cd ${workdir}; bash ${_x} ${out} "
+          Rc Warn ${EX_SOFTWARE} "cd ${workdir}; bash -u ${_x} ${out} "
           _rc=$?
         else
-          Rc Warn ${EX_SOFTWARE} "cd ${workdir}; runuser -u ${u} -- bash -c \"${script_thisdir}${_x} > ${out}\" "
+          Rc Warn ${EX_SOFTWARE} "cd ${workdir}; runuser -u ${u} -- bash -u -c \"${script_thisdir}${_x} > ${out}\" "
           _rc=$?
         fi
 
@@ -2604,9 +2629,7 @@ main() {
     ${_m}
     Verbose "${separator}"
   done
-  if [ -z "${TIMESTAMP}" ] ; then
-    Verbose "  "
-  fi
+  Verbose "  "
   exit ${EX_OK}
 }
 

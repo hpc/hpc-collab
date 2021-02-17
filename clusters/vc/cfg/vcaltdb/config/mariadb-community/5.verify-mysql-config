@@ -23,6 +23,7 @@ fi
 SetFlags >/dev/null 2>&1
 PWD=$(pwd)
 PROD=$(basename ${PWD})
+numeric="^-?[0-9]+$"
 
 if [ "${PROD}" != "${WHICH_DB}" ] ; then
   echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
@@ -97,7 +98,6 @@ fi
 
 MB=1024
 innodb_buffer_pool_size_mycnf_numeric=0
-numeric="^-?[0-9]+$"
 
 innodb_buffer_pool_size_running_raw=$(echo $(mysql ${AUTH} -e "SELECT @@innodb_buffer_pool_size / ${MB} ;" -s))
 innodb_buffer_pool_size_running_integral=$(echo ${innodb_buffer_pool_size_running_raw} | sed 's/.0000//')

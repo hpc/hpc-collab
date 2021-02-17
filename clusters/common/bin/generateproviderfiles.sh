@@ -6,6 +6,8 @@
 
 ## @brief create the various configuration files that may vary dependent upon the active virtualization provider
 
+#set -o nounset
+
 ## This ANCHOR is used because the shell loader may be called from the primary host ("dom0") or from the guest host ("/vagrant/...")
 declare -x VC=${VC:-_VC_UNSET_}
 
@@ -62,6 +64,7 @@ declare -x SRCS
 if [ "${VC_D}" != "${ALT_VC_D}" ] ; then
   SRCS_ALT=($(find ${ALT_VC_D} -type f -name *%*%))
 fi
+
 SRCS=$(echo ${SRCS_ENV[@]} ${SRCS_ALT[@]})
 
 getSRCS() {
@@ -75,10 +78,15 @@ getSRCS() {
     fi
   done
 
-  if [ ${#SRCS[@]} -eq 0 ] ; then
-    echo "EX_CONFIG: SRCS list empty"
+  if [ -z ${SRCS+x} ]; then
+    echo "EX_CONFIG: SRCS is unset"
     exit ${EX_CONFIG}
   fi
+
+#  if [ ${#SRCS[@]} -eq 0 ] ; then
+#    echo "EX_CONFIG: SRCS list empty"
+#    exit ${EX_CONFIG}
+#  fi
 
   for f in ${SRCS[@]}
   do

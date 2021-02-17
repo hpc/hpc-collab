@@ -51,13 +51,26 @@ SLURM_VERSION=$(cat ${VERSION_FILE})
 TAR_SUFFIX=".tar.bz2"
 SLURM_TARBALL=slurm-${SLURM_VERSION}${TAR_SUFFIX}
 SLURM_SPEC=${BUILDWHERE_PRODUCT}/${PRODUCT}.spec
+NO_EXISTING_VERSION="_no_existing_version_"
 
 tstamp=$(date +%Y.%m.%d.%H:%M)
 
 SetFlags >/dev/null 2>&1
 
+existing_version="${NO_EXISTING_VERSION}"
+if [ -L "${BUILDWHERE_PRODUCT}" -a -d "${BUILDWHERE_PRODUCT}" ] ; then
+	existing_version_tokenized=$(realpath ${BUILDWHERE_PRODUCT} | sed 's/\// /g')
+	set ${existing_version_tokenized}
+	existing_version=${3/${PRODUCT}-/}
+fi
+
+if [ "${existing_version}" != "${SLURM_VERSION}" -a "${existing_version}" != "${NO_EXISTING_VERSION}" ] ; then
+	Verbose "  build required: SLURM_VERSION:${SLURM_VERSION} != existing version:${existing_version}"
+	Rc ErrExit ${EX_OSFILE} "rm -f ${BUILDWHERE_PRODUCT}"
+fi
+
 if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
-  Verbose " recreating BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT}"
+  Verbose " creating BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT} (${SLURM_VERSION})"
   if [ ! -r ${XFR}/${SLURM_TARBALL} ] ; then
     ErrExit ${EX_CONFIG} "BUILDWHERE_PRODUCT/SLURM_TARBALL:${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} missing"
   fi
@@ -88,6 +101,9 @@ if [ ! -r "${SLURM_SPEC}" ] ; then
 fi
 
 SPECFILE_VERSION=$(grep -i '^Version:' ${SLURM_SPEC} | grep -v '%{version}' | sed 's/Version:\t//')
+if [ "${SLURM_VERSION}" != "${SPECFILE_VERSION}" ] ; then
+	ErrExit ${EX_SOFTWARE} "SLURM_VERSION:${SLURM_VERSION} != SPECFILE_VERSION:${SPECFILE_VERSION}"
+fi
 rpms=$(ls ${RPMS_ARCH}/${PRODUCT}*-${SPECFILE_VERSION}*.${ARCH}.rpm 2>&1)
 
 if [ -n "${PREREQ_RPMS}" ] ; then
@@ -99,7 +115,7 @@ if [ ! -r ${SOURCES}/${SLURM_TARBALL} ] ; then
   Rc ErrExit ${EX_OSFILE} "cp -buv ${BUILDWHERE_PRODUCT}/${SLURM_TARBALL} ${SOURCES}/${SLURM_TARBALL}"
 fi
 
-# this little dance is necessary so that the tarball internal structure contains the HOSTNAME
+# this little dance is necessary so that the tarball internal structure contains the HOSTNAME, the MARKER_TAG
 slurm_vers=slurm-${SLURM_VERSION}
 slurm_vershost=${slurm_vers}-1.${HOSTNAME}
 

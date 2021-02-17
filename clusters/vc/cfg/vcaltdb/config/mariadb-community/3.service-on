@@ -2,9 +2,9 @@
 
 ## $Header: $
 ## Source:
-## @file vcdb/install/slurm/4.mysqld-service-on-early
+## @file vcdb/config/mariadb-enterprise/3.service-on
 
-## @brief start mysqld service early, as required by slurm configurator
+## @brief start mariadb service early, as required by slurm configurator
 
 VCLOAD=../../../provision/loader/shload.sh
 HOSTNAME=${HOSTNAME:-$(hostname -s)}
@@ -24,35 +24,49 @@ if [ -n "${OUT}" ] ; then
 fi
 
 SetFlags >/dev/null 2>&1
+
 PWD=$(pwd)
-PROD=$(basename ${PWD}) 
-  
+PROD=$(basename ${PWD})
 if [ "${PROD}" != "${WHICH_DB}" ] ; then
-  echo "WHICH_DB:${WHICH_DB} != PROD:${PROD}"
+  echo "PROD:${PROD} != WHICH_DB:${WHICH_DB}"
   exit ${EX_OK}
 fi
 
 MY_CONF=/etc/my.cnf
+MY_CONF_D=${MY_CONF}.d
 tstamp=`date +%Y.%m.%d.%H:%M`
 
-socket=$(grep socket ${MY_CONF} | sed 's/socket=//')
+CONF_FILES="${MY_CONF}.d/*"
+if [ -s ${MY_CONF} ] ; then
+ CONF_FILES="${CONF_FILES} ${MY_CONF}"
+fi
+
+MYSQL_SOCKET=$(grep -h socket ${MY_CONF_D}/* | sed 's/socket=//')
+if [ -z "${MYSQL_SOCKET}" ] ; then
+  ErrExit ${EX_CONFIG} "socket empty"
+fi
 
 iam=$(id -n -u)
 if [ ${iam} != "root" ] ; then
   ErrExit ${EX_NOPERM} "insufficient authority"
 fi
+MYSQL_PIDFILE=""
+MYSQL_PIDFILE=$(grep -h pid-file ${CONF_FILES} | sed 's/pid-file=//')
+if [ -z "${MYSQL_PIDFILE}" ] ; then
+  ErrExit ${EX_CONFIG} "MYSQL_PIDFILE empty"
+fi
 
-if [ -S "${socket}" -a -f "${pidfile}" ] ; then
-  Verbose "  already running? pid:"$(cat ${pidfile})
+if [ -S "${MYSQL_SOCKET}" -a -f "${MYSQL_PIDFILE}" ] ; then
+  Verbose "  already running? pid:"$(cat ${MYSQL_PIDFILE})
   exit ${EX_OK}
-  ### ErrExit ${EX_OSERR} "socket: ${socket} exists, another instance running?"
+  ### ErrExit ${EX_OSERR} "socket: ${MYSQL_SOCKET} exists, another instance running?"
 fi
 
 status=$(systemctl status mysqld| grep Active: | awk '{print $2}')
 
 if [ ${status} != active ] ; then
-  Rc ErrExit ${EX_OSERR} "systemctl start mysqld"
-  Rc ErrExit ${EX_OSERR} "systemctl status mysqld -l"
+  Rc ErrExit ${EX_OSERR} "systemctl start mariadb"
+  Rc ErrExit ${EX_OSERR} "systemctl status mariadb -l"
 fi
 
 Rc ErrExit ${EX_OSERR} "mysql --version"

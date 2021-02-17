@@ -147,7 +147,7 @@ ConfigFW() {
     Verbose " delete: $(echo ${unused_zones})"
     for _z in ${unused_zones}
     do
-      Rc ErrExit ${OS_ERR} "firewall-cmd --permanent --delete-zone=${_z}"
+      firewall-cmd --permanent --delete-zone=${_z} |& egrep -v 'Error: BUILTIN_ZONE: .* is built-in zone'
     done
   fi
 

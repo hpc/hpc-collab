@@ -30,9 +30,9 @@ Rc ErrExit ${EX_OSERR}  "[ -n \"${IPADDR}\" ] || false"
 
 Rc ErrExit ${EX_OSFILE} "timeout ${TIMEOUT} host ${IPADDR} ${IPADDR} | grep -v 'NXDOMAIN'"
 host=$(host ${IPADDR} ${IPADDR} | awk '{print $5}')
-Rc ErrExit ${EX_OSERR}  "timeout ${TIMEOUT} host ${IPADDR} ${IPADDR} | awk '{print $5}'"
+Rc ErrExit ${EX_OSERR}  "timeout ${TIMEOUT} host ${IPADDR} ${IPADDR} | awk '{print \$5}'"
 answer=$(host ${host} ${IPADDR} | awk '{print $4}')
-Rc ErrExit ${EX_OSERR}  "timeout ${TIMEOUT} host ${host} ${IPADDR} | awk '{print $4}'"
+Rc ErrExit ${EX_OSERR}  "timeout ${TIMEOUT} host ${host} ${IPADDR} | awk '{print \$4}'"
 if [ ${answer} != ${IPADDR} ] ; then
   ErrExit ${EX_OSERR} "host: $host   answer:${answer} != IPADDR:${IPADDR}"
 fi

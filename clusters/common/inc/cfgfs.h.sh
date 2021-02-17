@@ -6,6 +6,9 @@
 
 ## @brief This header file defines common names and hierarchy of the configuration file system layout
 
+#set -o nounset
+# don't set pipefail or error as we want to do error-processing inline  
+
 HOSTNAME=${HOSTNAME:-$(hostname -s)}
 isvirt=""
 detect_virt=$(which systemd-detect-virt)
@@ -66,7 +69,7 @@ declare -x PROVISION_HOMEVAGRANT=${CFG_HOMEVAGRANT}/provision
 declare -x COMMON_REPOS=${COMMON}/repos
 
 # node-internal local repository
-declare -x LOCALREPO=${VAGRANT}/etc/localrepo
+declare -x LOCALREPO=${COMMON}/etc/localrepo
 
 # node-internal local repository definition
 declare -x YUM_REPO_D=/etc/yum.repos.d
@@ -151,6 +154,7 @@ declare -x CONFIGWHAT=${CFG}/${HOSTNAME}/config
 declare -x VERIFYWHAT=${CFG}/${HOSTNAME}/verify
 
 declare -x BUILDWHERE=${HOMEVAGRANT}/build
+declare -x ARCH=${ARCH:-$(uname -m)}
 declare -x RPMS_ARCH=rpmbuild/RPMS/${ARCH}
 declare -x RPMS_MANIFEST=RPMS.Manifest
 

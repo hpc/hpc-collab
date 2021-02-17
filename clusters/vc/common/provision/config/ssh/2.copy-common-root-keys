@@ -17,19 +17,18 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+	exec > >(tee -a "${OUT}") 2>&1
 fi
-
-exec > >(tee -a "${OUT}") 2>&1
 
 declare -x ETC=/etc
 declare -x ETCMUNGE=${ETC}/munge
 declare -x COMMONETC=${COMMON}${ETC}
 
-declare -x COMMONETCSSH=${COMMONETC}/ssh
-declare -x COMMONETCSSH_SSHDCONFIG=${COMMONETCSSH}/sshd_config
-declare -x COMMONETCSSH_SSHCONFIG=${COMMONETCSSH}/ssh_config
-declare -x COMMONETCSSH_HOSTPUBKEYRSA=${COMMONETCSSH}/ssh_host_rsa_key.pub
-declare -x COMMONETCSSH_HOSTPRIVKEYRSA=${COMMONETCSSH}/ssh_host_rsa_key
+declare -x COMMONETC_SSH=${COMMONETC}/ssh
+declare -x COMMONETC_SSH_SSHDCONFIG=${COMMONETC_SSH}/sshd_config
+declare -x COMMONETC_SSH_SSHCONFIG=${COMMONETC_SSH}/ssh_config
+declare -x COMMONETC_SSH_HOSTPUBKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key.pub
+declare -x COMMONETC_SSH_HOSTPRIVKEYRSA=${COMMONETC_SSH}/ssh_host_rsa_key
 
 declare -x COMMONETC_SHOSTSEQUIV=${COMMONETC_SSH}/shosts.equiv
 declare -x COMMONETC_SSHKNOWNHOSTS=${COMMONETC_SSH}/ssh_known_hosts
@@ -42,7 +41,7 @@ declare -x COMMONSLASHROOT_DOTSSH_AUTHORIZEDKEYS=${COMMONSLASHROOT_DOTSSH}/autho
 declare -x COMMONSLASHROOT_DOTSSH_PRIVKEYRSA=${COMMONSLASHROOT_DOTSSH}/id_rsa
 declare -x COMMONSLASHROOT_DOTSSH_PUBKEYRSA=${COMMONSLASHROOT_DOTSSH}/id_rsa.pub
 
-for d in ${COMMONETCSSH} ${COMMONSLASHROOT} ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH}
+for d in ${COMMONETC_SSH} ${COMMONSLASHROOT} ${COMMONSLASHROOT_DOTSSH} ${SLASHROOT_DOTSSH}
 do
   Rc ErrExit ${EX_OSFILE} "mkdir -p ${d}"
 done

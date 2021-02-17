@@ -25,6 +25,8 @@ declare -x PWD=$(pwd)
 declare -x REQUIRED_SW=$(basename ${PWD})
 declare -x ROCKS_MANIFEST=${PWD}/rocks.Manifest
 
+rc=${EX_OK}
+
 if [ ! -r "${ROCKS_MANIFEST}" ] ; then
   ErrExit ${EX_OSFILE} "ROCKS_MANIFEST: ${ROCKS_MANIFEST} is not readable"
 fi

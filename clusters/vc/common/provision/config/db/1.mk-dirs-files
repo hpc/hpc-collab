@@ -39,9 +39,9 @@ MY_CONF=my.cnf
 ETC_MY_CONF=${ETC}/${MY_CONF}
 MY_CONF_APPEND=my.cnf.append
 MY_CONF_D=${MY_CONF}.d
-CONF_FILES="${MY_CONF}.d/*"
 DEFAULT_MYSQLD_LOG=/var/log/mysqld.log
 
+CONF_FILES="${MY_CONF}.d/*"
 if [ -s ${MY_CONF} ] ; then
  CONF_FILES="${CONF_FILES} ${MY_CONF}"
 fi
