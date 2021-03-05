@@ -19,16 +19,18 @@ fi
 declare -x IN_CLUSTER=""
 
 case "${isvirt}" in
-  *"no virt-what in"*|*"not found"*|"")
+  *"no virt-what in"*|*"not found"*|""|"none")
       ## @todo clustername is derived from the file system hierarchy
       if [ -z "${CLUSTERNAME}" ] ; then
         echo "ANCHOR:${ANCHOR} set, but CLUSTERNAME is empty"
         exit 99
       fi
+			declare -x VC=${ANCHOR}/../$(basename ${PWD})
     ;;
   "virtualbox"|"vbox"|"kvm")
      declare -x CLUSTERNAME=${HOSTNAME:0:2}
      declare -x IN_CLUSTER="${isvirt}"
+		 declare -x VC=${ANCHOR}/$(basename ${PWD})
     ;;
   *)
     ;;
@@ -36,17 +38,29 @@ esac
 
 # inside the base host ("dom0"), ANCHOR is used.
 # It should be set by the invoker and should be the root of this cluster's definition,
-declare -x VC=${ANCHOR}/../$(basename ${PWD})
 
 # inside the guest, the virtual cluster driver directory (ex. "vc") is mapped to /vagrant and/or /vc
 # a two-character cluster abbreviation
 # This location is unmounted once the node is fully provisioned.
 if [ -n "${IN_CLUSTER}" ] ; then
-  declare -x VC=/${CLUSTERNAME}
+	if [ -n "${CLUSTERNAME}" -a -d "/${CLUSTERNAME}" ] ; then
+		declare -x VC=/${CLUSTERNAME}
+	fi
 fi
 
-declare -x CFG=${VC}/cfg
-declare -x PROVISION_GENERIC=${CFG}/provision
+if [ -d ${VC}/cfg ] ; then
+	declare -x CFG=${VC}/cfg
+else
+	# if this is sourced post-provisioning, no cfg directory will exist
+	declare -x CFG="_unset_${VC}_cfg_"
+fi
+
+if [ ! -d "${CFG}/provision" ] ; then
+	declare -x PROVISION_GENERIC=/home/${VC}/common/provision
+else
+	declare -x PROVISION_GENERIC=${CFG}/provision
+fi
+
 declare -x VC_PROVISION_GENERIC=${PROVISION_GENERIC}
 declare -x XFR=${VC}/xfr
 
@@ -97,7 +111,13 @@ elif [ ! -d "${VC}" ] ; then
   exit 99
 fi
 
-declare -x NODES=$(echo $(ls ${CFG} | grep -v provision))
+if [ ! -d "${CFG}" ] ; then
+	if [ -d "${CFG_HOMEVAGRANT}" ] ; then
+		declare -x CFG=${CFG_HOMEVAGRANT}
+	fi
+fi
+
+declare -x NODES=$(echo $(ls ${CFG} | grep -v provision | grep -v slurm_version))
 
 declare -x ISOS="${XFR}"
 

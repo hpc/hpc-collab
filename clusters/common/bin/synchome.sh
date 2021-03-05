@@ -44,17 +44,11 @@ declare -x SSH="ssh -q ${SSH_OPTARGS}"
 declare -x PROVISIONED_D=common/._state/provisioned
 declare -x SESSIONID=${IAM}.${ID}.${TSTAMP}
 declare -x SYNCHOME_D=${SESSIONID}.d
-declare -x TMPDIR
+declare -x TMPDIR=${TMPDIR:-/tmp}
 declare -x LOGROTATE_CONF=/etc/logrotate.conf
-
-if [ -n "${TMPDIR}" ] ; then
-  if [ -d ${TMPDIR} ] ; then
-    TMPDIR=${PWD}/${SYNCHOME_D}
-  fi
-else
-  TMPDIR=/tmp/${SYNCHOME_D}
-fi
-declare -x TARBALL=${TMPDIR}/${SESSIONID}.tgz
+declare -x WORK_D=${TMPDIR}/${SYNCHOME_D}
+declare -x TARFILE=${SESSIONID}.tgz
+declare -x TARBALL=${WORK_D}/${TARFILE}
 
 # ssh to cluster's storage host, create tarball of homedir, pull it out of the cluster 
 CollectHome() {
@@ -67,13 +61,13 @@ CollectHome() {
 
   Rc ErrExit ${EX_CONFIG}   "ping -n -q -w 1 ${fshost}"
   Rc ErrExit ${EX_SOFTWARE} "${SSH} ${fshost} /bin/true"
-  Rc ErrExit ${EX_SOFTWARE} "${SSH} ${fshost} mkdir -p ${TMPDIR}"
+  Rc ErrExit ${EX_SOFTWARE} "${SSH} ${fshost} mkdir -p ${WORK_D}"
 
-  # check capacity of in-cluster TMPDIR, size of $HOME/../${ID} 
+  # XXX check capacity of in-cluster TMPDIR, size of $HOME/../${ID} 
   Rc ErrExit ${EX_SOFTWARE} "${SSH} ${fshost} tar -czvf ${TARBALL} -C \$HOME/.. ${ID}"
 
   # check sizes
-  Rc ErrExit ${EX_SOFTWARE} "scp ${fshost}:${TARBALL} ${TMPDIR}"
+  Rc ErrExit ${EX_SOFTWARE} "scp ${fshost}:${TARBALL} ${WORK_D}/"
   return
 }
 
@@ -93,16 +87,18 @@ RsyncCollectedHome() {
   if [ ! -s ${TARBALL} ] ; then
     ErrExit ${EX_SOFTWARE} "TARBALL:${TARBALL} empty "
   fi
-  Rc ErrExit ${EX_SOFTWARE} "tar -xzvf ${TARBALL} -C ${TMPDIR}"
+  Rc ErrExit ${EX_SOFTWARE} "tar -xzvf ${TARBALL} -C ${WORK_D}"
+  Rc ErrExit ${EX_OSFILE} "sudo chown -R ${ID}:${ID} ${WORK_D}/${ID}"
 
-  for d in ${target_home} ${TMPDIR}/${ID}
+  for d in ${target_home} ${WORK_D}/${ID}
   do
     if [ ! -d ${d} ] ; then
       ErrExit ${EX_CONFIG} "d:${d} not a directory"
     fi
   done
 
-  Rc ErrExit ${EX_SOFTWARE} "rsync -4Wacuv ${TMPDIR}/${ID}/ ${target_home}"
+  # skips all gzip-compressed tarballs
+  Rc ErrExit ${EX_SOFTWARE} "rsync -4Wacuv --exclude \*.tgz ${WORK_D}/${ID}/ ${target_home}"
   Verbose " ${SESSIONID} => ${target_home}"
   return
 }
@@ -112,11 +108,12 @@ main() {
   SetFlags >/dev/null 2>&1
   local _vc=$(echo $(basename $(cd ${VC}; pwd)))
 
-  Rc ErrExit ${EX_OSFILE} "mkdir -p ${TMPDIR}"
-  trap "rmdir ${TMPDIR}" 0 1 2 3 15
+  Rc ErrExit ${EX_NOPERM} "sudo true"
+  Rc ErrExit ${EX_OSFILE} "mkdir -p ${WORK_D}"
+  trap "rmdir ${WORK_D}" 0 1 2 3 15
   CollectHome
   RsyncCollectedHome
-  Rc ErrExit ${EX_OSFILE} "rm -fr ${TMPDIR}"
+  Rc ErrExit ${EX_OSFILE} "sudo rm -fr ${WORK_D}"
   trap '' 0
   exit ${EX_OK}
 }

@@ -47,7 +47,9 @@ SetFlags() {
   local set_flags=""
 
   if [ -L ${VC} ] ; then
-    Warn ${EX_OSFILE} "VC: ${VC} symlink? -- ensure that \", disabled: true\" is removed from the synced_folder entry in Vagrantfile for ${HOSTNAME}"
+    if [ -n "${VERBOSE}" -a -n "${isvirt}" -a "${isvirt}" = "none" ] ; then
+      Warn ${EX_OSFILE} "VC: ${VC} symlink? -- ensure that \", disabled: true\" is removed from the synced_folder entry in Vagrantfile for ${HOSTNAME}"
+    fi
     return
   fi
 

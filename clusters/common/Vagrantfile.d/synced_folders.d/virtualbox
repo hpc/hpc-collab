@@ -1,4 +1,5 @@
 
+
 # configuration recipe
   config.vm.synced_folder ".",               "/vagrant", create: true, type: "virtualbox"
 
@@ -13,6 +14,7 @@
 
 # tools
   config.vm.synced_folder "../common/bin",    "/vagrant/cfg/provision/bin",          create: true, type: "virtualbox"
+  config.vm.synced_folder "../common/bin",    "/%CLUSTERNAME%/cfg/provision/bin",    create: true, type: "virtualbox"
   config.vm.synced_folder "../common/env",    "/%CLUSTERNAME%/cfg/provision/env",    create: true, type: "virtualbox"
   config.vm.synced_folder "../common/flag",   "/%CLUSTERNAME%/cfg/provision/flag",   create: true, type: "virtualbox"
   config.vm.synced_folder "../common/inc",    "/%CLUSTERNAME%/cfg/provision/inc",    create: true, type: "virtualbox"

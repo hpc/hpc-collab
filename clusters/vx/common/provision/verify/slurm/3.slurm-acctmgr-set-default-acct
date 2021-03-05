@@ -50,7 +50,8 @@ do
   if [ -d ${d} ] ; then
     defacct=$(ls ${USERADD}/${u}/slurm/acct/DefaultAccount)
     if [ -n "${defacct}" ] ; then
-      Rc ErrExit ${EX_SOFTWARE} "sacctmgr -iQ update user ${u} set DefaultAccount=${defacct}"
+      echo sacctmgr -iQ update user ${u} where cluster=${CLUSTERNAME} set DefaultAccount=${defacct}
+      Rc ErrExit ${EX_SOFTWARE} "sacctmgr -iQ update user ${u} where cluster=${CLUSTERNAME} set DefaultAccount=${defacct}"
     fi
   fi
 done
