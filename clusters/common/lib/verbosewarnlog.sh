@@ -8,6 +8,7 @@
 
 declare -x LOG_TO_STDERR=""
 declare -x LOG_MSGSIZE=${LOG_MSGSIZE:-4096}
+declare -x COLUMNS=${COLUMNS:-80}
 
 ## @fn Log()
 ## emit a message to to stderr & syslog
@@ -63,7 +64,8 @@ Verbose() {
   local tty=$(tty 2>&1)
   local columns="${DEFAULT_COLUMNS}"
   local numeric="^[0-9]+$"
-  local tstamp
+  local tstamp=""
+	declare -x TIMESTAMPS=${TIMESTAMPS:-""}
 
   if [[ ${tty} =~ /dev/* ]] ; then
     columns="${COLUMNS}:-$(stty size < ${tty} | awk '{print $2}')"

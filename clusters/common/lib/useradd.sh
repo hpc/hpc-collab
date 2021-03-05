@@ -7,7 +7,6 @@
 ## @brief This library file contains a routine add a user to this node and a set of slurm account associations
 ## @brief It may be called as the node is provisioned, or after provisioning from an in-cluster driver
 
-
 ## @fn AddUserAccount()
 ## remove state that was created or is stale
 ## @param USERADD configuration skeleton directory
@@ -17,6 +16,7 @@
 ##
 AddUserAccount() {
 	local USERADD_u=${1:-"_no_useradd_u_"}
+	local	USERADD_d=$(dirname ${USERADD_u})
 
   local uid=""
   local gid=""
@@ -29,6 +29,14 @@ AddUserAccount() {
   local exists
   local multiple=""
   local numeric="^[0-9]+$"
+	local _d
+
+	for _d in USERADD_u USERADD_d
+	do
+		if [ ! -d "${!_d}" ] ; then
+		ErrExit ${EX_SOFTWARE} "${_d}:${!_d} is not a directory"
+		fi
+	done
 
   cd ${USERADD_u} || ErrExit ${EX_OSERR} "cd ${USERADD_u}"
 
@@ -146,10 +154,14 @@ AddUserAccount() {
       local u_secontext=$(echo $(ls ${USERADD_u}/secontext))
       if [ -n "${u_secontext}" ] ; then
         if [ -d ${dir} ] ; then
-          local fstyp=$(stat -f --format="%T" .)
+          local fstyp=$(stat -f --format="%T" ${dir})
+					local existing_secontext=""
           case "${fstyp}" in
           xfs|ext*|jfs|ffs|ufs|zfs)
-            Rc ErrExit ${EX_OSERR} "chcon -R ${u_secontext} ${dir}"
+						existing_secontext=$(ls -Ld --scontext | awk '{print $1}')
+						if [ "${existing_secontext}" != "${u_secontext}" ] ; then
+							Rc ErrExit ${EX_OSERR} "chcon -R ${u_secontext} ${dir}"
+						fi
             local u_setype=$(echo "${u_secontext}" | sed 's/:/ /g' | awk '{print $3}')
             if [ -z "${u_setype}" ] ; then
               ErrExit ${EX_CONFIG} "${u}:empty u_setype, u_secontext:${u_secontext}" 
@@ -194,10 +206,10 @@ AddUserAccount() {
     msg=""
 
 		# convenient symlink glue
-    if [ -d "${USERADD}/${U}" ] ; then
+    if [ -d "${USERADD_d}/${U}" ] ; then
       local _home=${HOME_BASEDIR}/${U}
       local home_useradd=${_home}/useradd
-      local useradd_d=${USERADD}/${U}
+      local useradd_d=${USERADD_d}/${U}
 
       Rc ErrExit ${EX_OSFILE} "chown -R -h ${U}:${U} ${useradd_d}"
       if [ -d "${useradd_d}/useradd" ] ; then
@@ -207,6 +219,144 @@ AddUserAccount() {
     fi
 
   done # m in $(echo $(seq 1 ${multiple}))
+	return
+}
+
+## @fn AddSlurmAccountUserAssociations()
+## @brief Add user assocations in slurm for this account
+## @param USERADD configuration skeleton directory
+## @return void
+## \callgraph
+## \callergraph
+##
+AddSlurmAccountUserAssociations() {
+	local USERADD_u=${1:-"_no_useradd_u_"}
+	local	USERADD_d=$(dirname ${USERADD_u})
+
+  local slurm_attr=${USERADD_u}/slurm
+  local multiple_attr="${USERADD_u}/multiple"
+  local slurm_acct=${slurm_attr}/acct
+  local slurm_qos=${slurm_attr}/qos
+  local slurm_assoc=${slurm_attr}/assoc
+  local slurm_adminlevel=${slurm_attr}/AdminLevel
+  local DefaultAccount=""
+  local accounts=""
+  local associations=""
+  local multiple=""
+  local qos_exists=""
+	local clustername
+	local _d
+	local _u=$(basename ${USERADD_u})
+	local qsufx=""
+
+	for _d in USERADD_u USERADD_d
+	do
+		if [ ! -d "${!_d}" ] ; then
+			ErrExit ${EX_SOFTWARE} "${_d}:${!_d} is not a directory"
+		fi
+	done
+
+	clustername=$(scontrol show config | grep -i clustername | awk '{print $3}')
+	if [ -z "${clustername}" ] ; then
+		ErrExit ${EX_SOFTWARE} "clustername not defined in slurm configuration"
+	fi
+	account_exists=$(sacctmgr -iQ show account default -n cluster=${clustername} withassoc | grep "${clustername}" | awk '{print $1}' | head -1)
+	if [ -z "${account_exists}" ] ; then
+		ErrExit ${EX_SOFTWARE} "account \"default\" does not exist"
+	fi
+
+  # may be a login-only account
+  if [ ! -d ${slurm_acct} ] ; then
+    return
+  fi
+
+	# a skeleton template
+  if [ "${_u}" = "User.Template" -o  "${_u}" = "user.template" -o -f ${USERADD_u}/Template ] ; then
+		return
+  fi
+
+	qsufx="__${clustername}"
+  if [ -d ${slurm_acct}/DefaultAccount ] ; then
+    DefaultAccount=$(echo $(ls ${slurm_acct}/DefaultAccount) | awk '{print $1}')
+  fi
+  if [ -d ${slurm_acct}/Accounts ] ; then
+    accounts=$(echo $(ls ${slurm_acct}/Accounts))
+  fi
+
+  if [ -d ${slurm_attr}/qos ] ; then
+    qos=$(echo $(ls ${slurm_attr}/qos))
+  fi
+  qosadded=""
+  qos_exists=$(echo $(sacctmgr show qos -n name=${qos}${qsufx} format=name%-30))
+  if [ -z "${qos_exists}" ] ; then
+    Rc ErrExit ${EX_SOFTWARE} "sacctmgr -iQ add qos name=${qos}${qsufx} ;"
+    qosadded="${qosadded} ${qos}${qsufx}"
+  fi
+
+  if [ -n "${qosadded}" ] ; then
+    Verbose "  added qos: ${qosadded}"
+  fi
+
+  multiple=""
+  numeric="^[0-9]+$"
+  if [ -d ${multiple_attr} ] ; then
+    multiple=$(echo $(ls ${multiple_attr}))
+  fi
+  if [ -z "${multiple}" ] ; then
+    multiple=1
+  fi
+  if ! [[ ${multiple} =~ ${numeric} ]] ; then
+    ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"
+  fi
+
+  for m in $(seq 1 ${multiple})
+  do
+    U=${u}
+    if [ ${multiple} -gt 1 ] ; then
+      U=${u}${m}
+    fi
+
+    associations=$(echo $(ls ${slurm_assoc}))
+    for a in ${associations}
+    do
+      _p=""
+      _q=""
+      _a=""
+      exists=""
+      def_arg=""
+
+      _p=$(basename $(echo $(readlink ${slurm_assoc}/${a}/partition)))
+      _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
+      _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
+
+      q="qos=${qos}${qsufx}"
+      namepartacctcluster="name=${U} partition=${_p} account=${_a} cluster=${clustername}"
+      exists=$(sacctmgr show user withassoc -n ${namepartacctcluster} ${q} | egrep "${clustername}.*${_a}.*${_p}.*${qos}")
+      if [ -n "${DefaultAccount}" ] ; then
+        def_arg="defaultaccount=${DefaultAccount}"
+      fi
+      if [ -z "${exists}" ] ; then
+        Rc ErrExit 9 "sacctmgr -iQ add user ${namepartacctcluster} ${q} ${def_arg}"
+      else
+        Rc ErrExit 10 "sacctmgr -iQ modify user ${namepartacctcluster} ${q} set ${def_arg}"
+        Rc ErrExit 11 "sacctmgr -iQ modify user ${namepartacctcluster} set default${q}"
+      fi
+    done #associations
+
+    if [ -d "${slurm_adminlevel}" ] ; then
+      _adminlevel=$(echo $(ls ${slurm_adminlevel}))
+      case "${_adminlevel}" in
+        *"perator"|*"dministrator")
+          Rc ErrExit 12 "sacctmgr -iQ update user name=${U} cluster=${clustername} set AdminLevel=${_adminlevel}"
+          ;;
+        "")
+          ;;
+        *)
+          ErrExit 13 "${U}: unknown AdminLevel ${_adminlevel}"
+          ;;
+        esac
+    fi
+  done #multiple
 	return
 }
 

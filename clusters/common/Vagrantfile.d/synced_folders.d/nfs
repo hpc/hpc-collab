@@ -25,6 +25,10 @@
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
 
+  config.vm.synced_folder "../common/bin", "/%CLUSTERNAME%/cfg/provision/bin", create: true, type: "nfs", nfs_udp: false,
+                            mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
+                            linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]
+
   config.vm.synced_folder "../common/env", "/%CLUSTERNAME%/cfg/provision/env", create: true, type: "nfs", nfs_udp: false,
                             mount_options: [ "ro", 'tcp', 'async', 'actimeo=60', 'rsize=131072' ],
                             linux__nfs_options: ['ro','no_subtree_check','all_squash','async','insecure' ]

@@ -1,1 +1,1 @@
-/home/vagrant/common/provision/env/site-vars.sh
+/home/vc/common/provision/env/site-vars.sh

@@ -99,7 +99,7 @@ chkConfig() {
     fi
   fi
 
-  if [ -s "${NO_NFS_F}" -a "${which_nfs}" = "nfs4" ] ; then
+  if [ -s "${NO_NFS_F}" -a "${which_fs}" = "nfs4" ] ; then
     which_fs=$(echo $(cat ${NO_NFS_F}))
   fi
 

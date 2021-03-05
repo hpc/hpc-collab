@@ -40,7 +40,7 @@ declare -x EX_OK=0
 
 if [ ! -d /${BASEDIR} ] ; then
   if [ "${BASEDIR}" != vagrant ] ; then
-    if [ -d /vagrant ] ; then
+    if [ -d /${BASEDIR} ] ; then
       ln -s /vagrant /${BASEDIR}
       export BASEDIR=vagrant
       export PROVISION_SRC_D=/${BASEDIR}/cfg/provision
@@ -1346,7 +1346,7 @@ LinkSlashVagrant() {
 }
 
 ## @fn TidyDetritus()
-## @brief remove installation artifacts
+## @brief remove installation artifacts, leave a convenience link in /${BASEDIR}
 ##
 TidyDetritus() {
   for d in bin env flag inc lib loader
@@ -1355,6 +1355,14 @@ TidyDetritus() {
       Rc ErrExit ${EX_OSFILE} "rmdir /common/provision/${d}"
     fi
   done
+  if [ -d "/${BASEDIR}" -a ! -L /${BASEDIR} ] ; then
+    Rc Warn ${EX_OSFILE} "rmdir /${BASEDIR}"
+  fi
+  if [ ! -L "/${BASEDIR}" ] ; then
+    if [ ! -d "/${BASEDIR}" ] ; then
+      Rc ErrExit ${EX_OSFILE} "ln -s -f /home/${BASEDIR} /${BASEDIR}"
+    fi
+  fi
   return
 }
 
@@ -1413,6 +1421,22 @@ UnmountProvisioningFS() {
             fi
           fi
         done
+        if [ -z "${any_failed_unmounts}" ] ; then
+          for m in ${needs_umount}
+          do
+            fstype=$(stat -f --format "%T" ${m} 2>/dev/null)
+            if [ ! -d "${m}" -o -L "${m}" -o \( "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" \) ] ; then 
+              continue
+            fi
+            Rc ErrExit ${EX_OSFILE} "umount -f ${m} >/dev/null 2>&1"
+          done
+          for m in ${needs_umount}
+          do
+            if [ -d "${m}" -a ! -L "${m}" ] ; then
+              Rc ErrExit ${EX_OSFILE} "rmdir /${m}"
+            fi
+          done
+        fi
       fi
     else
       if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 

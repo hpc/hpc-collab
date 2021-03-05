@@ -4,6 +4,8 @@
 ## Source:
 ## @file vxlogin/config/slurm/4.configure-slurm-db
 
+set -o nounset
+
 VCLOAD=../../../provision/loader/shload.sh
 
 if [ ! -f "${VCLOAD}" ] ; then
@@ -52,113 +54,15 @@ else
   fi
 fi
 
-qsufx="__${clustername}"
 for u in ${users} vagrant
 do
-  slurm_attr=${USERADD}/${u}/slurm
-  multiple_attr="${USERADD}/${u}/multiple"
-  slurm_acct=${slurm_attr}/acct
-  slurm_qos=${slurm_attr}/qos
-  slurm_assoc=${slurm_attr}/assoc
-  slurm_adminlevel=${slurm_attr}/AdminLevel
-  DefaultAccount=""
-  accounts=""
-  associations=""
-  multiple=""
-	qos_exists=""
-
-  # may be a login-only account
-  if [ ! -d ${slurm_acct} ] ; then
-    continue
-  fi
-  if [ -f ${USERADD}/${u}/Template ] ; then
-    continue
-  fi
-  if [ -d ${slurm_acct}/DefaultAccount ] ; then
-    DefaultAccount=$(echo $(ls ${slurm_acct}/DefaultAccount) | awk '{print $1}')
-  fi
-  if [ -d ${slurm_acct}/Accounts ] ; then
-    accounts=$(echo $(ls ${slurm_acct}/Accounts))
-  fi
-
-  if [ -d ${slurm_attr}/qos ] ; then
-    qos=$(echo $(ls ${slurm_attr}/qos))
-  fi
-
-	qosadded=""
-	qos_exists=$(echo $(sacctmgr show qos -n name=${qos}${qsufx} format=name%-30))
-	if [ -z "${qos_exists}" ] ; then
-		Rc ErrExit ${EX_SOFTWARE} "sacctmgr -iQ add qos name=${qos}${qsufx} ;"
-		qosadded="${qosadded} ${qos}${qsufx}"
+	if [ ! -d ${USERADD}/${u} ] ; then
+		continue
 	fi
-
-	if [ -n "${qosadded}" ] ; then
-		Verbose "  added qos: ${qosadded}"
-	fi
-
-  multiple=""
-  numeric="^[0-9]+$"
-  if [ -d ${multiple_attr} ] ; then
-    multiple=$(echo $(ls ${multiple_attr}))
-  fi
-  if [ -z "${multiple}" ] ; then
-    multiple=1
-  fi
-  if ! [[ ${multiple} =~ ${numeric} ]] ; then
-    ErrExit ${EX_CONFIG} "user: ${multiple}, non-numeric"
-  fi
-
-  for m in $(seq 1 ${multiple})
-  do
-    U=${u}
-    if [ ${multiple} -gt 1 ] ; then
-      U=${u}${m}
-    fi
-
-    associations=$(echo $(ls ${slurm_assoc}))
-    for a in ${associations}
-    do
-      _p=""
-      _q=""
-      _a=""
-      exists=""
-			def_arg=""
-
-      _p=$(basename $(echo $(readlink ${slurm_assoc}/${a}/partition)))
-      _q=$(basename $(echo $(readlink ${slurm_assoc}/${a}/qos)))
-      _a=$(basename $(echo $(readlink ${slurm_assoc}/${a}/acct)))
-
-			q="qos=${qos}${qsufx}"
-			namepartacctcluster="name=${U} partition=${_p} account=${_a} cluster=${clustername}"
-			exists=$(sacctmgr show user withassoc -n ${namepartacctcluster} ${q} | egrep "${clustername}.*${_a}.*${_p}.*${qos}")
-			if [ -n "${DefaultAccount}" ] ; then
-				def_arg="defaultaccount=${DefaultAccount}"
-			fi
-	    if [ -z "${exists}" ] ; then
-				Rc ErrExit 9 "sacctmgr -iQ add user ${namepartacctcluster} ${q} ${def_arg}"
-			else
-				Rc ErrExit 10 "sacctmgr -iQ modify user ${namepartacctcluster} ${q} set ${def_arg}"
-				Rc ErrExit 11 "sacctmgr -iQ modify user ${namepartacctcluster} set default${q}"
-			fi
-    done
-
-    if [ -d "${slurm_adminlevel}" ] ; then
-      _adminlevel=$(echo $(ls ${slurm_adminlevel}))
-      case "${_adminlevel}" in
-        *"perator"|*"dministrator")
-          Rc ErrExit 12 "sacctmgr -iQ update user name=${U} cluster=${clustername} set AdminLevel=${_adminlevel}"
-          ;;
-        "")
-          ;;
-        *)
-          ErrExit 13 "${U}: unknown AdminLevel ${_adminlevel}"
-          ;;
-        esac
-    fi
-  done
+	AddSlurmAccountUserAssociations ${USERADD}/${u}
 done
 
 trap '' 0
 exit ${EX_OK}
 
-# vim: background=dark ts=2 bs=2 sw=2
+# vim: background=dark ts=2 bs=2 sw=2 syntax
