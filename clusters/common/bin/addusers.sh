@@ -84,8 +84,8 @@ declare -x GID=$(id -n -g)
 declare -x IAM=$(basename $0 .sh)
 
 declare -x NODELIST=""
-declare -x SSH_OPTARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o CheckHostIP=no"
-declare -x SSH="ssh -q ${SSH_OPTARGS} "
+declare -x SSH_OPTARGS="-q -o BatchMode=yes -o CheckHostIP=no -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+declare -x SSH="ssh ${SSH_OPTARGS} "
 
 declare -x TMPDIR=${TMPDIR:-/tmp}
 declare -x TRACE=""
