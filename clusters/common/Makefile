@@ -36,6 +36,7 @@ VC_D		= $(CLUSTERS_DIR)/$(VC)
 CFG	        = cfg
 NODES  	        = $(filter $(VC)%, $(notdir $(wildcard $(CFG)/*)))
 TSTAMP	       := $(shell date +%y%m%d.%H%M)
+HUMAN_TSTAMP	 := $(shell date)
 OS	        = $(shell uname -s)
 
 ifeq (,$(findstring $(BASE_DIR)/bin,$(PATH)))
@@ -445,6 +446,7 @@ vpath % $(PROVISIONED_D)
 #  ie. all PROVISIONED, all POWEROFF, all UNPROVISION
 
 up provision: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES) verifylocalenv $(PROVISIONED_FLAGS) ingest-state
+	echo started: $(HUMAN_TSTAMP)
 
 up! provision!: unprovision up ingest-state
 
