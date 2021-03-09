@@ -266,7 +266,7 @@ primeSubstKeys() {
   Rc ErrExit ${EX_SOFTWARE} "cp -b ${TMP2} ${HOSTS_FILE_TARGET} ;"
 
   ## @todo add an "excludes pattern" .excludes and "includes pattern" .includes for each cluster's cfg
-  local _nodes=$(ls -d ${VC_D}/cfg/* ${ALT_VC_D}/cfg/* | egrep -v '(provision|slurm_version|README)')
+  local _nodes=$(ls -d ${VC_D}/cfg/* ${ALT_VC_D}/cfg/* | egrep -v '(provision|slurm_version|default_provider|README)')
   local nodes=""
   local _n
   for _n in ${_nodes}

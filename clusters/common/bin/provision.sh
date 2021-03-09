@@ -1456,7 +1456,11 @@ UnmountProvisioningFS() {
   if [ ! -L /common ] ; then
     Rc ErrExit ${EX_OSFILE} "ln -s ${COMMON} /common"
   fi
-  Rc ErrExit ${EX_OSFILE} "ln -s -f ${HOMEVAGRANT} /vagrant"
+  if [ ! -L "/vagrant" ] ; then
+    if [ ! -d "/vagrant" ] ; then
+      Rc ErrExit ${EX_OSFILE} "ln -s -f ${HOMEVAGRANT} /vagrant"
+    fi
+  fi
 
   # some mounts are not needed post configuration
   # XXX @todo add a per-node cfg file list of umounts, as needed
