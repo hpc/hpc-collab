@@ -252,7 +252,7 @@ AddSlurmAccountUserAssociations() {
 	for _d in USERADD_u USERADD_d
 	do
 		if [ ! -d "${!_d}" ] ; then
-			ErrExit ${EX_SOFTWARE} "${_d}:${!_d} is not a directory"
+			Warn ${EX_SOFTWARE} "Warning:	${_d}:${!_d} is not a directory"
 		fi
 	done
 
