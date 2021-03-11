@@ -65,6 +65,9 @@ to construct cluster images with security guarantees.
          cd hpc-collab
  [csh] % source bin/setpath.csh
  [bash/zsh] $ . bin/setpath.sh
+ % make -C clusters/vc Vagrantfile
+ % make -C clusters/vx Vagrantfile
+ % ln -s /scratch/tarballs  <--- assuming a separate, larger /scratch partition
 ~~~
 
 <BR>
