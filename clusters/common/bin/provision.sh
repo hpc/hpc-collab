@@ -351,7 +351,6 @@ VerifyEnv() {
   if [ ! -d "${VC}" ] ; then
     ErrExit ${EX_SOFTWARE} "VC:${VC} not a directory"
   fi
-  local flagfile="∕${BASEDIR}:\ NOT\ MOUNTED"
   if [ -f "${VC}/${flagfile}" ] ; then
     Verbose " already provisioned? ${VC}/${flagfile} exists"
     exit ${EX_OK}
@@ -1374,7 +1373,6 @@ UnmountProvisioningFS() {
 
   if [ -n "${PREVENT_SLASHVAGRANT_MOUNT}" ] ; then
     local opwd=$(pwd)
-    local flagfile="∕${BASEDIR}:\ NOT\ MOUNTED"
     cd /
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
@@ -1416,7 +1414,7 @@ UnmountProvisioningFS() {
             any_failed_unmounts="${any_failed_unmounts} ${m}"
           fi
           if [ -z "${any_failed_unmounts}" ] ; then
-            if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 
+            if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" -a -n "${flagfile}" ] ; then 
               Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
             fi
           fi
@@ -1439,7 +1437,7 @@ UnmountProvisioningFS() {
         fi
       fi
     else
-      if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 
+      if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" -a -n "${flagfile}" ] ; then 
         Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
       fi
     fi
