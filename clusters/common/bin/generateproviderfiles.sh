@@ -6,38 +6,63 @@
 
 ## @brief create the various configuration files that may vary dependent upon the active virtualization provider
 
-#set -o nounset
-
-## This ANCHOR is used because the shell loader may be called from the primary host ("dom0") or from the guest host ("/vagrant/...")
+## This ANCHOR is used because the shell loader may be called from the
+## primary host ("dom0") or from the guest host ("/vagrant/...")
 declare -x VC=${VC:-_VC_UNSET_}
+ANCHOR_INCLUSTER=/home/${VC}/common/provision
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
 
 if [ ${VC} = "_VC_UNSET_" ] ; then
-  echo ${0}: VC is unset. Need virtual cluster identifier.
-  exit 97
+  if [ -d "${ANCHOR_INCLUSTER}" -a "${ANCHOR_INCLUSTER:2}" = "${HOSTNAME:0:2}" ] ; then
+    declare -x VC=${ANCHOR_INCLUSTER}
+  else
+    declare -x VC=${HOSTNAME:0:2}
+  fi
+  declare -x CLUSTERNAME=${VC}
+  echo ${0}: VC is unset. Assuming: \"${VC}\"
 fi
-env_VC=${VC}
 
-### need a cluster dependency tree config
+isvirt=$(systemd-detect-virt)
+rc=$?
+
+if [ "${isvirt}" != "none" -a "${MODE}" != "host" ] ; then
+  # running on VM, add users' accounts to all nodes, on one of them (Features=controller),
+  # add slurm user accounts and associations
+  # assume 
+  declare -x ANCHOR=${ANCHOR_INCLUSTER}
+  declare -x MODE=${MODE:-"cluster"}
+else
+  declare -x MODE=${MODE:-"host"}
+  ## the invocation directory is expected to be the clusters/${VC} directory
+  ## % pwd
+  ## <git-repo>/clusters/vc
+  ## % env VC=vc MODE="host" ../../clusters/common/bin/generateproviderfiles.sh
+  declare -x ANCHOR=../common
+fi
+
+declare -x LOADER_SHLOAD=$(realpath ${ANCHOR}/loader/shload.sh)
+declare -x BASEDIR=$(realpath ${ANCHOR}/..)
+
+if [ -z "${LOADER_SHLOAD}" ] ; then
+  echo "${0}: empty: LOADER_SHLOAD -- be sure to invoke with: env VC=<clustername> $(basename ${0})"
+  exit 98
+fi
+
+if [ ! -f "${LOADER_SHLOAD}" ] ; then
+  echo "${0}: nonexistent: LOADER_SHLOAD:${LOADER_SHLOAD} -- be sure to invoke with: env VC=<clustername> $(basename ${0})"
+  exit 99
+fi
+source ${LOADER_SHLOAD}
+
+env_VC=$(basename ${VC})
+
+### @todo XXX need a cluster dependency tree config.
+### @todo XXX In this case vx is dependent on vc.
 if [ "${env_VC}" = "vc" ] ; then
   alt_VC=vx
 else
   alt_VC=vc
 fi
-
-declare -x ANCHOR=../common
-declare -x LOADER_SHLOAD=${ANCHOR}/loader/shload.sh
-declare -x BASEDIR=${ANCHOR}/..
-
-if [ -z "${LOADER_SHLOAD}" ] ; then
-  echo "${0}: empty: LOADER_SHLOAD"
-  exit 98
-fi
-
-if [ ! -f "${LOADER_SHLOAD}" ] ; then
-  echo "${0}: nonexistent: LOADER_SHLOAD:${LOADER_SHLOAD}"
-  exit 99
-fi
-source ${LOADER_SHLOAD}
 
 # if we're given an argument, append test output to it
 declare -x SUFFIX=${2:-""}
@@ -45,13 +70,26 @@ declare -x SUFFIX=${2:-""}
 # this wonkiness is so that this script can orient itself when run by different users
 # in different dom0 home directory structures
 if [ ! -d "$(cd ${VC}; pwd)" ] ; then
-  ErrExit ${EX_CONFIG} "echo VC:${VC} not a directory?"
+  ErrExit ${EX_CONFIG} "VC:${VC} not a directory?"
 fi
 
-declare -x ANCHOR_D=$(realpath ${ANCHOR})
-declare -x ANCHOR_D_UP=$(realpath ${ANCHOR_D}/..)
-declare -x VC_D=$(realpath ${ANCHOR_D_UP}/${env_VC})
-declare -x ALT_VC_D=$(realpath ${ANCHOR_D_UP}/${alt_VC})
+declare -x ANCHOR_D=$(realpath ${ANCHOR} 2>&1)
+if [ ! -d "${ANCHOR_D}" ] ; then
+  ErrExit ${EX_CONFIG} "ANCHOR:${ANCHOR} ANCHOR_D:${ANCHOR_D}"
+fi
+declare -x ANCHOR_D_UP=$(realpath ${ANCHOR_D}/.. 2>&1)
+if [ ! -d "${ANCHOR_D_UP}" ] ; then
+  ErrExit ${EX_CONFIG} "ANCHOR_D_UP:${ANCHOR_D_UP}"
+fi
+
+declare -x VC_D=$(realpath ${ANCHOR_D_UP}/${env_VC} 2>&1)
+if [ ! -d "${VC_D}" ] ; then
+  ErrExit ${EX_CONFIG} "VC_D:${VC_D} ANCHOR_D:${ANCHOR_D} ANCHOR_D_UP:${ANCHOR_D_UP}"
+fi
+declare -x ALT_VC_D=$(realpath ${ANCHOR_D_UP}/${alt_VC} 2>&1)
+if [ ! -d "${ALT_VC_D}" ] ; then
+  ErrExit ${EX_CONFIG} "alt_VC:${alt_VC} ALT_VC_D:${ALT_VC_D} ANCHOR_D:${ANCHOR_D} ANCHOR_D_UP:${ANCHOR_D_UP}"
+fi
 
 # must match Makefile
 declare -x GENERATED_FLAG_F=${VC_D}/.regenerated
@@ -104,10 +142,6 @@ getSRCS() {
   return
 }
 
-declare -x ANCHOR_D=$(realpath ${ANCHOR})
-declare -x ANCHOR_D_UP=$(realpath ${ANCHOR_D}/..)
-declare -x VC_D=$(realpath ${ANCHOR_D_UP}/${env_VC})
-declare -x ALT_VC_D=$(realpath ${ANCHOR_D_UP}/${alt_VC})
 declare -x VAGRANTFILE_D=${ANCHOR_D}/Vagrantfile.d
 declare -x HOSTS_FILE_TARGET=$(realpath ${VC_D}/common/etc/hosts)
 declare -x HOSTS_FILE=${HOSTS_FILE_TARGET}.%${env_VC^^}-NET%
@@ -130,7 +164,7 @@ whichProvider() {
   do
     local _d="${!d}"
     if [ ! -d "${_d}" ] ; then
-      echo "EX_CONFIG: d:${d}=${!d} not a directory pwd:$(pwd)"
+      echo "EX_CONFIG: d:${d}=${!d} not a directory pwd:$(pwd)" >&2
       exit ${EX_CONFIG}
     fi
   done
@@ -139,17 +173,17 @@ whichProvider() {
   do
     local _f="${!f}"
     if [ ! -f "${_f}" ] ; then
-      echo "  EX_CONFIG: ${f}:${_f} missing"
+      echo "  EX_CONFIG: ${f}:${_f} missing" >&2
       exit ${EX_CONFIG}
     fi
     if [ ! -s "${_f}" ] ; then
-      echo "EX_CONFIG:  ${f} empty"
+      echo "EX_CONFIG:  ${f} empty" >&2
       exit ${EX_CONFIG}
     fi
   done
 
   if [ ! -d "${CFG}" ] ; then
-    echo "EX_CONFIG:   VC:${VC}, but CFG:${CFG} ! dir"
+    echo "EX_CONFIG:   VC:${VC}, but CFG:${CFG} ! dir" >&2
     exit ${EX_CONFIG}
   fi
 
@@ -157,7 +191,7 @@ whichProvider() {
   which_provider=${default_provider}
 
   if [ ! -f ${CFG_VM_PROVIDERS_D}/${which_provider} ] ; then
-    echo "EX_CONFIG: VC:${VC} default_provider:${default_provider} does not exist"
+    echo "EX_CONFIG: VC:${VC} default_provider:${default_provider} does not exist" >&2
     exit ${EX_CONFIG}
   fi
 
