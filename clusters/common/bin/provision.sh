@@ -11,17 +11,47 @@ CLUSTERNAME=${HOSTNAME:0:2}
 VC=${VC:-${CLUSTERNAME}}
 BASEDIR=${VC:-vagrant}
 
-set -o nounset
+isvirt=$(systemd-detect-virt)
+rc=$?
 
+if [ "${isvirt}" != "none" ] ; then
+  # running on VM, add users' accounts to all nodes, on one of them (Features=controller),
+  # add slurm user accounts and associations
+  # assume 
+  declare -x MODE=${MODE}:-"cluster"
+  declare -x ANCHOR=/${BASEDIR}/common/provision
+  declare -x BASEDIR=$(realpath ${ANCHOR}/..)
+  declare -x PROVISION_SRC_D=/${BASEDIR}/cfg/provision
+
+  declare -x PROVISION_SRC_LIB_D=${PROVISION_SRC_D}/lib
+  declare -x PROVISION_SRC_INC_D=${PROVISION_SRC_D}/inc
+  declare -x PROVISION_SRC_ENV_D=${PROVISION_SRC_D}/env
+  declare -x PROVISION_SRC_FLAG_D=${PROVISION_SRC_D}/flag
+  else
+  declare -x MODE=${MODE}:-"host"
+  ## the invocation directory is expected to be the clusters/${VC} directory
+  ## % pwd
+  ## <git-repo>/clusters/vc
+  ## % env VC=vc ../../clusters/common/bin/addusers.sh
+  declare -x ANCHOR=../common
+fi
+
+set -o nounset
+declare -x LOADER_SHLOAD=$(realpath ${ANCHOR}/loader/shload.sh)
+
+if [ -z "${LOADER_SHLOAD}" ] ; then
+  echo "${0}: empty: LOADER_SHLOAD -- be sure to invoke with: env VC=<clustername> $(basename ${0})"
+  exit 98
+fi
+
+if [ ! -f "${LOADER_SHLOAD}" ] ; then
+  echo "${0}: nonexistent: LOADER_SHLOAD:${LOADER_SHLOAD} -- be sure to invoke with: env VC=<clustername> $(basename ${0})"
+  exit 99
+fi
+source ${LOADER_SHLOAD}
 declare -x DEBUG=${DEBUG:-""}
 
 ## The following cannot be in a sub-function in order for source <___> to have global scope, ex. EX_OK, etc.
-declare -x PROVISION_SRC_D=/${BASEDIR}/cfg/provision
-
-declare -x PROVISION_SRC_LIB_D=${PROVISION_SRC_D}/lib
-declare -x PROVISION_SRC_INC_D=${PROVISION_SRC_D}/inc
-declare -x PROVISION_SRC_ENV_D=${PROVISION_SRC_D}/env
-declare -x PROVISION_SRC_FLAG_D=${PROVISION_SRC_D}/flag
 declare -x ANCHOR=${ANCHOR:-""}
 
 if [ -d ${PROVISION_SRC_INC_D} ] ; then
@@ -351,7 +381,6 @@ VerifyEnv() {
   if [ ! -d "${VC}" ] ; then
     ErrExit ${EX_SOFTWARE} "VC:${VC} not a directory"
   fi
-  local flagfile="∕${BASEDIR}:\ NOT\ MOUNTED"
   if [ -f "${VC}/${flagfile}" ] ; then
     Verbose " already provisioned? ${VC}/${flagfile} exists"
     exit ${EX_OK}
@@ -1355,12 +1384,14 @@ TidyDetritus() {
       Rc ErrExit ${EX_OSFILE} "rmdir /common/provision/${d}"
     fi
   done
-  if [ -d "/${BASEDIR}" -a ! -L /${BASEDIR} ] ; then
-    Rc Warn ${EX_OSFILE} "rmdir /${BASEDIR}"
+  if [ -d "/${CLUSTERNAME}" -a ! -L /${CLUSTERNAME} ] ; then
+    Rc Warn ${EX_OSFILE} "rmdir /${CLUSTERNAME}"
   fi
-  if [ ! -L "/${BASEDIR}" ] ; then
-    if [ ! -d "/${BASEDIR}" ] ; then
-      Rc ErrExit ${EX_OSFILE} "ln -s -f /home/${BASEDIR} /${BASEDIR}"
+  if [ ! -L "/${CLUSTERNAME}" ] ; then
+    if [ ! -d "/${CLUSTERNAME}" ] ; then
+      if [ -d "/home/${CLUSTERNAME}" ] ; then
+        Rc ErrExit ${EX_OSFILE} "ln -s -f /home/${CLUSTERNAME} /${CLUSTERNAME}"
+      fi
     fi
   fi
   return
@@ -1374,7 +1405,6 @@ UnmountProvisioningFS() {
 
   if [ -n "${PREVENT_SLASHVAGRANT_MOUNT}" ] ; then
     local opwd=$(pwd)
-    local flagfile="∕${BASEDIR}:\ NOT\ MOUNTED"
     cd /
     # 32 = (u)mount failed
     # only touch the flagfile if we haven't unmounted /${BASEDIR} ("/vagrant")
@@ -1416,7 +1446,7 @@ UnmountProvisioningFS() {
             any_failed_unmounts="${any_failed_unmounts} ${m}"
           fi
           if [ -z "${any_failed_unmounts}" ] ; then
-            if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 
+            if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" -a -n "${flagfile}" ] ; then 
               Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
             fi
           fi
@@ -1439,7 +1469,7 @@ UnmountProvisioningFS() {
         fi
       fi
     else
-      if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" ] ; then 
+      if [ "${fstype}" != "nfs" -a "${fstype}" != "vboxsf" -a -n "${flagfile}" ] ; then 
         Rc ErrExit ${EX_OSFILE} "cd ${VC}; touch ${flagfile}; chmod 0 ${flagfile}"
       fi
     fi
