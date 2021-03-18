@@ -14,6 +14,9 @@ isvirt=""
 detect_virt=$(which systemd-detect-virt)
 if [ -x "${detect_virt}" ] ; then
   isvirt=$(${detect_virt})
+  if [ -n "${isvirt}" -a "${MODE}" = "host" ] ; then
+    isvirt=""
+  fi
 fi
 
 declare -x IN_CLUSTER=""
@@ -25,12 +28,12 @@ case "${isvirt}" in
         echo "ANCHOR:${ANCHOR} set, but CLUSTERNAME is empty"
         exit 99
       fi
-			declare -x VC=${ANCHOR}/../$(basename ${PWD})
+      declare -x VC=${ANCHOR}/../$(basename ${PWD})
     ;;
   "virtualbox"|"vbox"|"kvm")
      declare -x CLUSTERNAME=${HOSTNAME:0:2}
      declare -x IN_CLUSTER="${isvirt}"
-		 declare -x VC=${ANCHOR}/$(basename ${PWD})
+     declare -x VC=${ANCHOR}/$(basename ${PWD})
     ;;
   *)
     ;;
