@@ -1,4 +1,3 @@
-rsync://rsync.gtlib.gatech.edu
 rsync://centos.sonn.com/CentOS
 rsync://linux.mirrors.es.net
 rsync://mirror.cc.columbia.edu
@@ -8,3 +7,4 @@ rsync://mirrors.cat.pdx.edu
 rsync://mirrors.kernel.org
 rsync://mirrors.ocf.berkeley.edu
 rsync://mirrors.rit.edu
+rsync://rsync.gtlib.gatech.edu

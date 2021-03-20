@@ -32,8 +32,8 @@ $(SAVELOGS_TARGETS): $(wildcard $(PROVISIONED_D)/*)
 # vx depends on its conjoined cluster vc for /etc/hosts, so IP addresses in Vagrantfile and elsewhere
 $(HOSTS): $(PREREQ_HOSTS)
 	$(HUSH)rsync -LHcau $< $@
-	$(HUSH)env VC=$(IAM) ../common/bin/generateproviderfiles.sh
-	$(HUSH)env VC=$(IAM) ../common/bin/compilevagrantfile.sh
+	$(HUSH)env VC=$(IAM) MODE="host" ../common/bin/generateproviderfiles.sh
+	$(HUSH)env VC=$(IAM) MODE="host" ../common/bin/compilevagrantfile.sh
 
 $(STATE_DIRS_ALL):
 	$(HUSH)mkdir -p $@

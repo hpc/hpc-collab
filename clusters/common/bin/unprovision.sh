@@ -6,29 +6,56 @@
 
 ## @brief remove "provisioned" flag file for this node, disable the automatic /vagrant mount in Vagrantfile
 
-## This ANCHOR is used because the shell loader may be called from the primary host ("dom0") or from the guest host ("/vagrant/...")
+## This ANCHOR is used because the shell loader may be called from the
+## primary host ("dom0") or from the guest host ("/vagrant/...")
 declare -x VC=${VC:-_VC_UNSET_}
+ANCHOR_INCLUSTER=/home/${VC}/common/provision
+declare -x HOSTNAME=${HOSTNAME:-$(hostname -s)}
 
 if [ ${VC} = "_VC_UNSET_" ] ; then
-  echo ${0}: VC is unset. Need virtual cluster identifier.
-  exit 97
+  if [ -d "${ANCHOR_INCLUSTER}" -a "${ANCHOR_INCLUSTER:2}" = "${HOSTNAME:0:2}" ] ; then
+    declare -x VC=${ANCHOR_INCLUSTER}
+  else
+    declare -x VC=${HOSTNAME:0:2}
+  fi
+  declare -x CLUSTERNAME=${VC}
+  echo ${0}: VC is unset. Assuming: \"${VC}\"
 fi
 
-#declare -x ANCHOR=cfg/provision
-declare -x ANCHOR=../common
-declare -x LOADER_SHLOAD=${ANCHOR}/loader/shload.sh
-declare -x BASEDIR=${ANCHOR}/..
+isvirt=$(systemd-detect-virt)
+rc=$?
+
+if [ "${isvirt}" != "none" -a "${MODE}" != "host" ] ; then
+  # running on VM, add users' accounts to all nodes, on one of them (Features=controller),
+  # add slurm user accounts and associations
+  # assume 
+  declare -x ANCHOR=${ANCHOR_INCLUSTER}
+  declare -x MODE=${MODE:-"cluster"}
+else
+  declare -x MODE=${MODE:-"host"}
+  ## the invocation directory is expected to be the clusters/${VC} directory
+  ## % pwd
+  ## <git-repo>/clusters/vc
+  ## % env VC=vc MODE="host" ../../clusters/common/bin/unprovision.sh
+  declare -x ANCHOR=../common
+fi
+
+declare -x LOADER_SHLOAD=$(realpath ${ANCHOR}/loader/shload.sh)
+declare -x BASEDIR=$(realpath ${ANCHOR}/..)
 
 if [ -z "${LOADER_SHLOAD}" ] ; then
-  echo "${0}: empty: LOADER_SHLOAD"
+  echo "${0}: empty: LOADER_SHLOAD -- be sure to invoke with: env VC=<clustername> $(basename ${0})"
   exit 98
 fi
 
 if [ ! -f "${LOADER_SHLOAD}" ] ; then
-  echo "${0}: nonexistent: LOADER_SHLOAD:${LOADER_SHLOAD}"
+  echo "${0}: nonexistent: LOADER_SHLOAD:${LOADER_SHLOAD} -- be sure to invoke with: env VC=<clustername> $(basename ${0})"
   exit 99
 fi
 source ${LOADER_SHLOAD}
+
+env_VC=$(basename ${VC})
+
 
 # if we're given an argument, append test output to it
 declare -x SUFFIX=${2:-""}

@@ -17,6 +17,7 @@ clustername              = "#{clustername}".chomp
 
 ENV["LC_ALL"] = "en_US.UTF-8"
 ENV["VC"]     = "#{clustername}"
+ENV["MODE"]		= 'host'
 
 # the following will be replaced per-cluster with the constructed nodes table
 
