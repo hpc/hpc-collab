@@ -108,4 +108,7 @@ $(SUBDIRS): $(PREREQ)
 help:
 	make -s -C clusters/vc $@
 
-# vim: ts=2 sw=2 syntax background=dark
+clean:
+	$(RM) clusters/v*/.regenerated clusters/v*/Vagrantfile
+
+# vim: ts=2 sw=2 syntax=make background=dark
