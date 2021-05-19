@@ -48,7 +48,7 @@ repo_tgz		= repos.tgz
 repo_cksum	= repos.cksum
 
 SCHEDMD_SLURM_URL = https://download.schedmd.com/slurm/
-SLURM_VERSION	 	 := $(shell cat ../../clusters/vc/cfg/vcbuild/build/slurm/version)
+SLURM_VERSION	 	 := $(shell cat ../../clusters/vc/cfg/slurm_version)
 SLURM_TARBALL			= slurm-$(SLURM_VERSION).tar.bz2
 
 TARBALL_D	 = ../../tarballs
@@ -270,4 +270,4 @@ dist-clean: clean
 	rm -fr $(TARBALL_D)/$(WHICH_DB)
 
 
-# vim: background=dark ts=2 sw=2 syntax
+# vim: background=dark ts=2 sw=2 syntax=Makefile

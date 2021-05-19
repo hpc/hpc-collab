@@ -23,6 +23,7 @@ declare -x DEFAULT_PREFERRED_REPO="rsync://linux.mirrors.es.net"
 declare -x DEFAULT_COLUMNS=${COLUMNS:-100}
 declare -x RSYNC_CENTOS_REPO=${RSYNC_CENTOS_REPO:-""}
 declare -x SINC=${SINC:-"1"}
+declare -x NESTED_VIRT_COEF=${NESTED_VIRT_COEF:-"1"}
 declare -x SKIP_SW=${SKIP_SW:-""}
 declare -x SKIP_UPDATERPMS=${SKIP_UPDATERPMS:-""}
 declare -x DEFAULT_DB="${DEFAULT_DB:-mariadb}"

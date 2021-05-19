@@ -102,4 +102,4 @@ fi
 
 exit ${rc}
 
-# vim: background=dark ts=2 sw=2 syntax
+# vim: background=dark ts=2 sw=2 syntax=shell

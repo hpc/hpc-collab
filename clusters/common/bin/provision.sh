@@ -14,11 +14,18 @@ BASEDIR=${VC:-vagrant}
 isvirt=$(systemd-detect-virt)
 rc=$?
 
+if [ -n "${isvirt}" -a -n "${MODE}" -a "${MODE}" = "host" ] ; then
+  # @todo XXX need a better heuristic
+  # NESTED_VIRT_COEF=10 is based on measurements of virtualbox/kvm/ProxMox/2.67Ghz Xeon 5650
+  declare -x NESTED_VIRT_COEF=10
+fi
+
 if [ "${isvirt}" != "none" ] ; then
   # running on VM, add users' accounts to all nodes, on one of them (Features=controller),
   # add slurm user accounts and associations
   # assume 
   declare -x MODE=${MODE}:-"cluster"
+  
   declare -x ANCHOR=/${BASEDIR}/common/provision
   declare -x BASEDIR=$(realpath ${ANCHOR}/..)
   declare -x PROVISION_SRC_D=/${BASEDIR}/cfg/provision
@@ -27,8 +34,9 @@ if [ "${isvirt}" != "none" ] ; then
   declare -x PROVISION_SRC_INC_D=${PROVISION_SRC_D}/inc
   declare -x PROVISION_SRC_ENV_D=${PROVISION_SRC_D}/env
   declare -x PROVISION_SRC_FLAG_D=${PROVISION_SRC_D}/flag
-  else
+else
   declare -x MODE=${MODE}:-"host"
+
   ## the invocation directory is expected to be the clusters/${VC} directory
   ## % pwd
   ## <git-repo>/clusters/vc
@@ -121,7 +129,7 @@ fi
 # debugging note: each of these routines must be able to be called in a state where the node is already
 # provisioned or partially provisioned, allowing for it to be run or rerun manually.
 
-declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeSinc TimeStamp VerifyEnv SetupSecondDisk CopyHomeVagrant       \
+declare -x CORE_ORDER_OF_OPERATIONS="SetFlags TimeStamp TimeSinc VerifyEnv SetupSecondDisk CopyHomeVagrant       \
                                      CopyCommon OverlayRootFS AppendFilesRootFS CreateNFSMountPoints             \
                                      InstallEarlyRPMS ConfigureCentOSRepos WaitForPrerequisites ConfigureDBRepos \
                                      InstallRPMS InstallFlaggedRPMS BuildSW InstallLocalSW ConfigSW SetServices  \
@@ -898,7 +906,8 @@ ConfigureDBMariaCommunityRepo() {
   fi 
 
   ## external Makefile may remove the ${repo_root}/.copied-to-xfr flag file
-  for r in mariadb-main mariadb-tools
+#  for r in mariadb-main mariadb-tools
+  for r in mariadb-main
   do
     ## if local cached RPMs are available, use them, fall back to a full reposync
     Verbose "    ${r}"
@@ -2080,19 +2089,29 @@ UpdateRPMS() {
 ##  Adjust TIMEOUTs based upon SINC
 ##
 TimeSinc() {
-  Znumeric="[1-9]"
+  local Znumeric="[1-9]"
+  local Z0numeric="[0-9]"
+  local _v=""
 
-  if [[ ! ${SINC} = ${Znumeric} ]] ; then
-    ErrExit ${EX_CONFIG} "  SINC is not: ${Znumeric}"
-  fi
-  export DEFAULT_TIMEOUT=${SINC}
-  export YUM_TIMEOUT_BASE=$(expr 20 \* ${SINC})
+  for _v in SINC NESTED_VIRT_COEF
+  do
+    if [[ ! ${!_v} = ${Znumeric} ]] ; then
+      ErrExit ${EX_CONFIG} "  ${_v}:${!v} is not: ${Znumeric}"
+    fi
+  done
+
+  export DEFAULT_TIMEOUT=$(expr ${SINC} \* ${NESTED_VIRT_COEF})
+  export YUM_TIMEOUT_BASE=$(expr 20 \* ${SINC} \* ${NESTED_VIRT_COEF})
   export YUM_TIMEOUT_EARLY=$(expr ${YUM_TIMEOUT_BASE} \* 12)
   export YUM_TIMEOUT_INSTALL=$(expr ${YUM_TIMEOUT_BASE} \* 24)
   export YUM_TIMEOUT_UPDATE=$(expr ${YUM_TIMEOUT_BASE}  \* 56)
   export RSYNC_TIMEOUT_DRYRUN=$(expr ${YUM_TIMEOUT_BASE} / 2)
   export RSYNC_TIMEOUT=$(expr ${YUM_TIMEOUT_BASE} \* 2)
   export TIMEOUT=${DEFAULT_TIMEOUT}
+
+  if [ "${NESTED_VIRT_COEF}" -gt 1 ] ; then
+    Verbose " NESTED_VIRT_COEF:${NESTED_VIRT_COEF} > 1, timeouts increased"
+  fi
   return
 }
 
