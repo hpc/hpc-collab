@@ -1,6 +1,6 @@
 
 TARGETS			 = sudo-auth sudo-modify-exports modify-exports sudo-enable-nfs-through-firewall
-TARGETS_OPTIMISTIC	 = modify-exports sudo-auth sudo-modify-exports
+TARGETS_OPTIMISTIC	 = modify-exports sudo-auth sudo-modify-exports invoker-userid-in-virt-groups
 
 SUDO_CHECK		:= $(shell sudo id -n -u)
 SUDO_NEED		 = root
@@ -39,3 +39,9 @@ sudo-enable-nfs-through-firewall:
 		sudo firewall-cmd --zone=trusted --add-interface=vboxnet0			; \
 		sudo firewall-cmd --zone=trusted --add-service=nfs				; \
 	fi
+
+invoker-userid-in-virt-groups:
+	:
+	$(warn verify that invoker's groupid includes libvirt & kvm (if PROVIDER=libvirt) or vboxusers (if virtualbox))
+	$(warn verify that /etc/libvirt/libvirtd.conf unix_sock_group = "libvirt")
+	$(warn verify that /etc/libvirt/libvirtd.conf unix_sock_rw_perms = "0770")

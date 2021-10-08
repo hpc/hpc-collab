@@ -56,8 +56,8 @@ SlurmdUser=root
 #SrunProlog=
 StateSaveLocation=/var/spool/slurm/state
 SwitchType=switch/none
-TaskPlugin=task/cgroup
-TaskPluginParam=Sched
+TaskPlugin=task/cgroup,task/affinity
+#pre21.08 TaskPluginParam=Sched
 #TaskProlog=/opt/slurm/task_prolog
 #TaskEpilog=/opt/slurm/task_epilog
 TopologyPlugin=topology/none
@@ -105,6 +105,7 @@ DependencyParameters=kill_invalid_depend
 PriorityFlags=NO_FAIR_TREE
 PriorityType=priority/multifactor
 #PriorityCalcPeriod=
+PriorityDecayHalfLife=4-0
 #PriorityFavorSmall=NO
 #PriorityMaxAge=32-0
 ##PriorityUsageResetPeriod=
@@ -112,8 +113,9 @@ PriorityWeightAge=14400
 PriorityWeightAssoc=1
 PriorityWeightFairshare=48000
 PriorityWeightJobSize=14400
-PriorityWeightPartition=0
-PriorityWeightQOS=64800
+PriorityWeightPartition=1
+PriorityWeightQOS=86400
+PriorityWeightTRES=cpu=1
 #
 #
 #
@@ -126,7 +128,8 @@ AccountingStorageLoc=slurm_acct_db
 #AccountingStoragePort=
 AccountingStorageType=accounting_storage/slurmdbd
 #AccountingStorageUser=
-AccountingStoreJobComment=YES
+#pre21.08 AccountingStoreJobComment=YES
+AccountingStoreFlags=job_comment
 ClusterName=vx
 DebugFlags=Agent,Backfill,BackfillMap,CPU_Bind,Dependency,License,Network,NodeFeatures,Power,Priority,Reservation,Steps,TraceJobs,Triggers,WorkQueue
 #JobCompPass=

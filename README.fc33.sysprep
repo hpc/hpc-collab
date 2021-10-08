@@ -1,0 +1,41 @@
+# 5.11 fails due to #20198
+#  "cannot create network; /dev/vboxnet does not exist" 
+
+1. update to latest:
+	# dnf distro-sync
+	# reboot
+
+2. install infrastructure software
+	# dnf install vagrant vagrant-libvirt libvirt-client
+	# dnf install libvirt-daemon-config-network libvirt-daemon-kvm qemu-kvm virt-manager virt-viewer
+	# dnf install libguestfs-tools python3-libguestfs virt-top
+	#
+	VirtualBox prerequisite RPMS
+	   # dnf install python2.7 binutils gcc make patch libgomp glibc-headers glibc-devel qt5-qtx11extras libxkbcommon
+	Depending on what kernel is running, you may need to do:
+     # yum install "kernel-devel-*$(uname -r)"
+	   # dnf install kernel-headers kernel-devel dkms
+	VirtualBox
+		 retrieve VirtualBox installer
+		 % wget https://download.virtualbox.org/virtualbox/6.1.18/VirtualBox-6.1.18-142142-Linux_amd64.run
+		# chmod +x VirtualBox-6.1.18-142142-Linux_amd64.run
+		# ./VirtualBox-6.1.18-142142-Linux_amd64.run
+		add user to vboxusers group
+
+3. a. set permissions & ownership on /run/libvirt/*sock*
+   b. ensure in libvirt, libvirtd, wheel, root, qemu, kvm groups
+4. ensure sufficient space
+5. Start nfs service
+   edit /etc/nfs.conf, making sure that nfsd and at least one nfs protocol version is enabled, preferably 4.2
+   # systemctl enable nfs-server ; systemctl start nfs-server
+   # systemctl enable libvirtd ; systemctl start libvirtd
+   # systemctl status nfs-server
+   # systemctl status libvirtd
+   # firewall-cmd --permanent --add-service=nfs
+   # firewall-cmd --permanent --zone=libvirt --add-port=2049/tcp
+   # firewall-cmd --reload
+6. pull git repo clone; install git and git-lfs if they aren't already
+7. set link to space directory in repo clone
+8. build/run
+   When switching virtualization providers you may need to either reboot the node or explicitly remove any
+   virtual bridge interfaces that have been left behind. Both libvirt and virtualbox assume they own 'virbr*'
