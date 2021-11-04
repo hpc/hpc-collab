@@ -95,6 +95,7 @@ PrologEpilogTimeout=180
 #MaxMemPerCPU=0
 #SchedulerTimeSlice=30
 SchedulerParameters=bf_continue,bf_interval=240,bf_max_job_user_part=10,bf_max_job_test=3000,default_queue_depth=3600,allow_zero_lic,nohold_on_prolog_fail,max_rpc_count=256
+LaunchParameters=use_interactive_step
 SchedulerType=sched/backfill
 SelectType=select/cons_res
 SelectTypeParameters=CR_CORE
