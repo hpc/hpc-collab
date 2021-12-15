@@ -190,7 +190,12 @@ $(REPO_OS) $(REPO_UPDATES):
 		echo "  to      $(@D) $(realpath $(@D))"                                                ; \
 		exit 99                                                                                 ; \
 	fi
-	rsync -4 -avz --delete --exclude=*i686.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D)
+	rsync -4 -avz --delete --exclude=*i686.rpm $(REPO_URL)$(subst $(REPO_WORKSPACE_D),,$(@D))/ $(@D); \
+	rc=$$?																																										; \
+  if [ "$${rc}" -ne 0 ] ; then																																\
+		echo "Remote repository: $(REPO_URL) inaccessible? Try rearranging $(CURDIR)/repos"			; \
+		exit 99																																									; \
+	fi
 	echo $(REPO_URL) > $(TARBALL_D)/REPO_URL
 	touch $@
 
