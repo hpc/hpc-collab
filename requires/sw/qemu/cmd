@@ -1,1 +1,0 @@
-/usr/bin/qemu-system-x86_64 --version | grep version | awk '{print $4}'
