@@ -1,5 +1,4 @@
 rsync://centos.sonn.com/CentOS
-rsync://linux.mirrors.es.net
 rsync://mirror.cc.columbia.edu
 rsync://mirror.es.its.nyu.edu
 rsync://mirror.math.princeton.edu/pub
@@ -8,3 +7,4 @@ rsync://mirrors.kernel.org
 rsync://mirrors.rit.edu
 rsync://rsync.gtlib.gatech.edu
 rsync://mirrors.ocf.berkeley.edu
+rsync://linux.mirrors.es.net
