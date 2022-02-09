@@ -1,0 +1,1 @@
+qemu-kvm --version | grep version | awk '{print $4}'
