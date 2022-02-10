@@ -21,8 +21,8 @@ if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
   exec > >(tee -a "${OUT}") 2>&1
 fi
-
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} sinfo              >/dev/null"
+sleep 2
+Rc ErrExit ${EX_SOFTWARE}  "timeout 5 sinfo              >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show part >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} scontrol show res  >/dev/null"
 Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} squeue             >/dev/null"
