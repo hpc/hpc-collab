@@ -51,12 +51,19 @@ SCHEDMD_SLURM_URL = https://download.schedmd.com/slurm/
 SLURM_VERSION	 	 := $(shell cat ../../clusters/vc/cfg/slurm_version)
 SLURM_TARBALL			= slurm-$(SLURM_VERSION).tar.bz2
 
+VAGRANT_RPM					= vagrant_2.2.19_x86_64.rpm
+VAGRANT_URL_2_2_19	= https://releases.hashicorp.com/vagrant/2.2.19/$(VAGRANT_RPM)
+VAGRANT_URL					=	$(VAGRANT_URL_2_2_19)
+VAGRANT_INSTALLED		= VAGRANT_RPM
+
 TARBALL_D	 = ../../tarballs
 TARBALL_D	:= $(realpath $(TARBALL_D))
 
-TARGETS_BASE	 = $(TARBALL_D)/$(repo_cksum) $(TARBALL_D)/$(repo_tgz)		\
+TARGETS_BASE	 = \
 		   $(TARBALL_D)/$(VBOX_ISO)					\
 		   $(TARBALL_D)/$(SLURM_TARBALL)				\
+		   $(TARBALL_D)/$(VAGRANT_INSTALLED)				\
+		   $(TARBALL_D)/$(repo_cksum) $(TARBALL_D)/$(repo_tgz)		\
 
 TARGETS_FINAL	 =								\
 		   $(TARBALL_D)/WHICH_DB					\
@@ -208,6 +215,13 @@ $(TARBALL_D)/$(repo_cksum): $(TARBALL_D)/$(repo_tgz)
 
 $(TARBALL_D)/$(SLURM_TARBALL):
 	wget -4 -P $(@D) $(SCHEDMD_SLURM_URL)/$(SLURM_TARBALL)
+
+$(TARBALL_D)/$(VAGRANT_INSTALLED): $(TARBALL_D)/$(VAGRANT_RPM)
+	sudo yum -y localinstall $<
+	echo $(VAGRANT_RPM) > $@
+
+$(TARBALL_D)/$(VAGRANT_RPM):
+	wget -4 -P $(@D) $(VAGRANT_URL) || rm -f $(TARBALL_D)/$(VAGRANT_RPM)
 
 # set http_proxy or https_proxy if need be
 $(TARBALL_D)/$(VBOX_ISO):
