@@ -1,36 +1,8 @@
-# 5.11 fails due to #20198
-#  "cannot create network; /dev/vboxnet does not exist" 
 
-# SKIP THIS STEP until this bug: https://www.virtualbox.org/ticket/20198 allows using the linux 5.11 kernel
-#1. update to latest:
-#	# dnf distro-sync
-#	# reboot
-1. add epel repository (to get vagrant & its plugins)
-  yum install epel-release
-
-2. install infrastructure software
-	vagrant
-	vagrant-libvirt
-	VirtualBox prerequisite RPMS
-	   # yum install kernel-devel kernel-devel-$(uname -r) kernel-headers kernel-headers-$(uname -r) make patch gcc
-	   # yum install python2.7 binutils gcc make patch libgomp glibc-headers glibc-devel kernel-headers kernel-devel dkms qt5-qtx11extras libxkbcommon
-	   # wget -q https://www.virtualbox.org/download/oracle_vbox.asc -O oracle_vbox.asc
-	   # rpm --import oracle_vbox.asc
-	   ###create /etc/yum.repos.d/virtualbox.repo
-	   ###from: https://download.virtualbox.org/virtualbox/rpm/fedora/virtualbox.repo
-           --- oracle-virtualbox.repo ---
-[oracle-virtualbox]
-name=Oracle Linux / RHEL / CentOS-$releasever / $basearch - VirtualBox
-baseurl=http://download.virtualbox.org/virtualbox/rpm/el/$releasever/$basearch
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://www.virtualbox.org/download/oracle_vbox.asc
-           --- virtualbox.repo ---
-	   # yum install VirtualBox
-3. a. set permissions & ownership on /run/libvirt/*sock*
-   b. ensure in libvirt, libvirtd, wheel, root, qemu, kvm, vboxusers groups
-3. ensure sufficient space
-4. pull git repo clone
-5. set link to space directory in repo clone
-6. build/run
+1. pull git repo clone
+2. make prereq
+3. [only necessary if not triggered by make prereq]
+   a. cd clusters/vc ; make Vagrantfile
+   b. cd clusters/vx ; make Vagrantfile
+4. ensure sufficient space in /tmp and tarballs
+5. build/run
