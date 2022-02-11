@@ -1,11 +1,40 @@
+#!/usr/bin/make
 
 
-VBOX_VERSION	:= $(shell cat ../../clusters/vc/common/provision/config/vboxadd/version)
+VBOX_INGEST_D			= ../../requires/ingest/vbox
+VBOX_SW_D					= ../../requires/sw/vbox
 
-VBOX_ISO	 = VBoxGuestAdditions_$(VBOX_VERSION).iso
-VBOX_ISO_URL	 = https://download.virtualbox.org/virtualbox/$(VBOX_VERSION)/
+VBOX_VERSION_SW	 := $(shell cat $(VBOX_SW_D)/version)
+VBOX_VERSION_ISO := $(VBOX_VERSION_SW)
+VBOX_VERSION_RPM := $(shell echo $(VBOX_VERSION_SW) | cut -d '.' -f 1,2)
+#VBOX_VERSION		 := $(shell cat ../../clusters/vc/common/provision/config/vboxadd/version)
+#VBOX_VERSION		 := $(shell cat clusters/vc/common/provision/config/vboxadd/version)
+VBOX_VERSION			= $(VBOX_VERSION_SW)
 
+VBOX_GPGKEY_FILE		= oracle_vbox.asc
+VBOX_GPGKEY_URL			= $(VBOX_HOST_URL)/$(VBOX_GPGKEY_FILE)
+VBOX_INGEST_GPGKEY	= $(VBOX_INGEST_D)/$(VBOX_GPGKEY_FILE)
+VBOX_GPGKEY					= $(VBOX_INGEST_GPGKEY)
 
+VBOX_HOST_URL			=	https://download.virtualbox.org
+VBOX_ISO					= VBoxGuestAdditions_$(VBOX_VERSION_ISO).iso
+VBOX_ISO_URL			= $(VBOX_HOST_URL)/virtualbox/$(VBOX_VERSION_ISO)
+VBOX_LONGNAME			=	$(shell cat $(VBOX_INGEST_D)/longname)
+VBOX_RPM_PREREQ		= $(shell cd $(VBOX_INGEST_D)/prereq; echo *)
+VBOX_RPM					= $(VBOX_LONGNAME)-$(VBOX_VERSION_RPM)
+
+YUM_REPO_D				 = /etc/yum.repos.d
+VBOX_REPO_F				 = vbox.repo
+VBOX_INGEST_REPO_F = $(VBOX_INGEST_D)/$(VBOX_REPO_F)
+VBOX_YUM_REPO_F		 = $(YUM_REPO_D)/$(VBOX_REPO_F)
+
+VBOX_IS_INSTALLED					 := $(shell rpm -q $(VBOX_RPM))
+VBOX_INSTALLED_FLAG					= VBOX_WHICH_RPM
+TARBALL_VBOX_INSTALLED_FLAG = $(TARBALL_D)/$(VBOX_INSTALLED_FLAG)
+
+ifeq ($(VBOX_IS_INSTALLED),'package $(VBOX_RPM) is not installed')
+	rm -f $(TARBALL_VBOX_INSTALLED_FLAG)
+endif
 
 COMMUNITY_MYSQL_URL		= https://dev.mysql.com/get/
 COMMUNITY_MYSQL_PRIMER_RPM	= mysql80-community-release-el7-3.noarch.rpm
@@ -51,19 +80,27 @@ SCHEDMD_SLURM_URL = https://download.schedmd.com/slurm/
 SLURM_VERSION	 	 := $(shell cat ../../clusters/vc/cfg/slurm_version)
 SLURM_TARBALL			= slurm-$(SLURM_VERSION).tar.bz2
 
-VAGRANT_RPM					= vagrant_2.2.19_x86_64.rpm
-VAGRANT_URL_2_2_19	= https://releases.hashicorp.com/vagrant/2.2.19/$(VAGRANT_RPM)
-VAGRANT_URL					=	$(VAGRANT_URL_2_2_19)
-VAGRANT_INSTALLED		= VAGRANT_RPM
-
 TARBALL_D	 = ../../tarballs
 TARBALL_D	:= $(realpath $(TARBALL_D))
 
+VAGRANT_VERSION				 := $(shell cat ../sw/vagrant/version)
+VAGRANT_WHICH_RPM				= vagrant_$(VAGRANT_VERSION)_x86_64.rpm
+VAGRANT_URL							= https://releases.hashicorp.com/vagrant/$(VAGRANT_VERSION)/$(VAGRANT_WHICH_RPM)
+VAGRANT_IS_INSTALLED	 := $(shell rpm -q vagrant)
+VAGRANT_INSTALLED_FLAG	= VAGRANT_WHICH_RPM
+TARBALL_VAGRANT_INSTALLED_FLAG = $(TARBALL_D)/$(VAGRANT_INSTALLED_FLAG)
+ifeq ($(VAGRANT_IS_INSTALLED),'package vagrant is not installed')
+	rm -f $(TARBALL_VAGRANT_INSTALLED_FLAG)
+endif
+
 TARGETS_BASE	 = \
+		   $(TARBALL_VAGRANT_INSTALLED_FLAG)	\
 		   $(TARBALL_D)/$(VBOX_ISO)					\
 		   $(TARBALL_D)/$(SLURM_TARBALL)				\
-		   $(TARBALL_D)/$(VAGRANT_INSTALLED)				\
 		   $(TARBALL_D)/$(repo_cksum) $(TARBALL_D)/$(repo_tgz)		\
+		   $(VBOX_INGEST_GPGKEY) $(VBOX_INGEST_REPO_F) $(VBOX_YUM_REPO_F)	\
+		   $(TARBALL_VBOX_INSTALLED_FLAG)
+
 
 TARGETS_FINAL	 =								\
 		   $(TARBALL_D)/WHICH_DB					\
@@ -216,17 +253,28 @@ $(TARBALL_D)/$(repo_cksum): $(TARBALL_D)/$(repo_tgz)
 $(TARBALL_D)/$(SLURM_TARBALL):
 	wget -4 -P $(@D) $(SCHEDMD_SLURM_URL)/$(SLURM_TARBALL)
 
-$(TARBALL_D)/$(VAGRANT_INSTALLED): $(TARBALL_D)/$(VAGRANT_RPM)
+$(TARBALL_VAGRANT_INSTALLED_FLAG): $(TARBALL_D)/$(VAGRANT_WHICH_RPM)
 	sudo yum -y localinstall $<
-	echo $(VAGRANT_RPM) > $@
+	echo $(VAGRANT_WHICH_RPM) > $@
 
-$(TARBALL_D)/$(VAGRANT_RPM):
-	wget -4 -P $(@D) $(VAGRANT_URL) || rm -f $(TARBALL_D)/$(VAGRANT_RPM)
+$(TARBALL_D)/$(VAGRANT_WHICH_RPM):
+	wget -4 -P $(@D) $(VAGRANT_URL) || rm -f $@
 
 # set http_proxy or https_proxy if need be
 $(TARBALL_D)/$(VBOX_ISO):
 	wget -4 -P $(@D) $(VBOX_ISO_URL)/$(VBOX_ISO)
 
+$(VBOX_INGEST_GPGKEY):
+	wget -4 -O$@ $(VBOX_GPGKEY_URL)
+
+$(VBOX_YUM_REPO_F): $(VBOX_INGEST_GPGKEY) $(VBOX_INGEST_REPO_F)
+	sudo rpm --import - < $<
+	sudo cp $(VBOX_INGEST_REPO_F) $@
+
+$(TARBALL_VBOX_INSTALLED_FLAG): $(VBOX_YUM_REPO_F)
+	sudo yum -y install $(VBOX_RPM_PREREQ)
+	sudo yum -y install $(VBOX_RPM)
+	echo $(VBOX_RPM) > $@
 
 # DB selection & ingestion
 
