@@ -1,1 +1,0 @@
-vagrant plugin list | grep vagrant-libvirt | awk '{print $2}' | sed 's/(//' | sed 's/,$//'
