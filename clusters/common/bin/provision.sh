@@ -2223,8 +2223,18 @@ SW() {
         ErrExit ${EX_SOFTWARE} "${what}/${_s}/${stop_flag} present"
       fi
       cmds=$(echo $(ls ${what}/${_s}))
+
+      if [ -L "${where}" ] ; then
+        local target=$(readlink -e "${where}")
+        if [ -f "${target}" ] ; then
+          Rc ErrExit ${EX_OSFILE} "rm -f ${where}"
+        elif [ -d "${target}" ] ; then
+          Rc ErrExit ${EX_OSFILE} "rmdir ${where}"
+        fi
+      fi
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${where}"
       Rc ErrExit ${EX_OSFILE} "chmod 0755 ${where}"
+
       local c
       for c in ${cmds}
       do
