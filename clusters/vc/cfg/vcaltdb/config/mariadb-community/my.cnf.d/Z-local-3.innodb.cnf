@@ -1,4 +1,3 @@
 [mysqld]
-innodb_buffer_pool_size=5120
 innodb_flush_log_at_trx_commit=1
 innodb_lock_wait_timeout=900
