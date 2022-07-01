@@ -1,1 +1,1 @@
-qemu-kvm --version | grep version | awk '{print $4}'
+/usr/libexec/qemu-kvm --version | grep version | awk '{print $4}'
