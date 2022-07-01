@@ -1,4 +1,5 @@
 SlurmctldHost=vcsched(%VCSCHED%)
+SlurmctldAddr=%VCSCHED%
 AuthType=auth/munge
 CryptoType=crypto/munge
 DisableRootJobs=NO
@@ -46,6 +47,7 @@ ReturnToService=2
 SallocDefaultCommand="srun -n1 -N1 --mem-per-cpu=0 --pty --preserve-env $SHELL"
 SlurmctldPidFile=/var/run/slurmctld.pid
 SlurmctldPort=6817
+#SlurmctldParameters=preempt_send_user_signal,max_dbd_msg_action=exit #schedmd#14358
 SlurmctldParameters=preempt_send_user_signal
 SlurmdPidFile=/var/run/slurm/slurmd.pid
 SlurmdPort=6818
@@ -121,16 +123,16 @@ PriorityWeightQOS=86400
 #
 # LOGGING AND ACCOUNTING
 AccountingStorageEnforce=associations,limits,qos,safe
-AccountingStorageHost=vcdb
-AccountingStorageExternalHost=vxdb
+AccountingStorageHost=db-host-local
+#AccountingStorageExternalHost=db-host-local
 AccountingStorageLoc=slurm_acct_db
 #AccountingStoragePass=
 #AccountingStoragePort=
 AccountingStorageType=accounting_storage/slurmdbd
 #AccountingStorageUser=
 #pre21.08 AccountingStoreJobComment=YES
-AccountingStoreFlags=job_comment
-# MaxDBDMsgs=Max(MaxJobCount * 2 + Node Count * 4, 10,000)
+AccountingStoreFlags=job_comment,job_env,job_script
+# default: MaxDBDMsgs=Max(MaxJobCount * 2 + Node Count * 4, 10,000)
 MaxDBDMsgs=200000
 ClusterName=vc
 DebugFlags=Agent,Backfill,BackfillMap,CPU_Bind,Dependency,License,Network,NodeFeatures,Power,Priority,Reservation,Steps,TraceJobs,Triggers,WorkQueue
@@ -195,6 +197,6 @@ PartitionName=login     Nodes=vclogin				        Default=NO   State=UP          
 PartitionName=compile   Nodes=vcbuild				        Default=NO   State=UP   	                    MaxTime=1-00:00:00 	PriorityTier=10
 PartitionName=exclusive Nodes=vc[1-2] Oversubscribe=EXCLUSIVE	        Default=NO   State=UP	DefaultTime=1:00:00 MaxTime=10-00:00:00	PriorityTier=100
 PartitionName=shared    Nodes=vc[1-2] Oversubscribe=FORCE   	        Default=YES  State=UP	DefaultTime=1:00:00 MaxTime=90-00:00:00	PriorityTier=1000
-PartitionName=infrastructure Nodes=vcfs,vcsvc,vcdb,vcaltdb,vcsched,vcgate Default=NO State=Down	DefaultTime=0:00:01 MaxTime=00:00:01    PriorityTier=0
+PartitionName=infrastructure Nodes=vcfs,vcsvc,vcdb,vcaltdb,vcsched,vcgate Default=NO State=Down	DefaultTime=0:00:01 MaxTime=00:00:01    PriorityTier=0 DenyAccounts=ALL DenyQOS=ALL Hidden=YES
 
 
