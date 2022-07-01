@@ -7,12 +7,14 @@
 
 ## hostonly network: 
 
+#10.0.2.2	gw.host-local gw host-gw gw.host ext-db db-ext db.host db.host-local db-host-local db
+
 ### following is used by generateproviderfiles.sh
 ### 192.168.56 %%%VC-VIRTUALBOX-NET%%% ###
 ### 192.168.56 %%%VX-VIRTUALBOX-NET%%% ###
 
 192.168.56.0   virtualbox-net0.tc hostonly.tc hostonly hostonly.test-cluster hostonly.testcluster vbox-net
-192.168.56.1   gw.vbox.tc gw-vbox gw.vbox.test-cluster gw.vbox.testcluster
+192.168.56.1   gw.vbox.tc gw-vbox gw.vbox.test-cluster gw.vbox.testcluster db-host-local db.host-local db.host db
 
 ### following is used by generateproviderfiles.sh
 ### 192.168.78 %%%VC-LIBVIRT-NET%%% ###
