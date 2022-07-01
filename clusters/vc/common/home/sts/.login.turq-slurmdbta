@@ -1,0 +1,18 @@
+setenv http_proxy http://proxyout.lanl.gov:8080
+setenv https_proxy http://proxyout.lanl.gov:8080
+setenv proxy http://proxyout.lanl.gov:8080
+
+setenv SLURM_CONF /etc/slurm/slurm.conf.vc
+
+pushd ~/hpc-collab/http-repo
+source bin/setpath.csh
+mkdir -p /tmp/tarballs
+mkdir -p /tmp/VirtualBox\ VMs
+pushd clusters/vc
+make Vagrantfile
+cd ../vx
+make Vagrantfile
+show
+popd
+
+
