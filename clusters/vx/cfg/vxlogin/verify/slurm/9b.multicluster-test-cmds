@@ -41,10 +41,25 @@ do
 	clusters=$(echo $(sacctmgr show user ${_u} withass format=cluster -n | sort | uniq))
 done
 
+set -xv
+export TIMEOUT=3
+_T="timeout ${TIMEOUT} "
+
 for _c in ${clusters}
 do
-	Rc ErrExit ${EX_SOFTWARE} "squeue -M ${_c} -h"
-	Rc ErrExit ${EX_SOFTWARE} "sacct -M ${_c} -a"
+	# dbd commands
+	for _C in "sacct -a" "sacct -M ${_c} -a"
+	do
+		#echo "$_C"	
+		Rc ErrExit ${EX_SOFTWARE} "${_T} ${_C}"
+	done
+	# ctld commands
+	for _C in "sdiag" "sdiag -M ${_c}" "squeue -h" "squeue -M ${_c} -h"
+	do
+		#echo "$_C"	
+		#Rc ErrExit ${EX_SOFTWARE} "${_T} ${_C}"
+		${_T} ${_C}
+	done
 done
 
 trap '' 0
