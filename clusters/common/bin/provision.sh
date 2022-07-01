@@ -539,7 +539,7 @@ ConfigureCentOSRepos() {
       return
   fi
 
-  repos_size=$(du -x -s -m ${_have_repos} 2>&1 | awk '{print $1}')
+  repos_size=$(cd ${_have_repos}; du -x -s -m . 2>&1 | awk '{print $1}')
   if ! [[ ${repos_size} =~ ${numeric} ]] ; then
     ErrExit ${EX_CONFIG} "ingest repository is corrupt or empty: ${repos_size}"
   fi
@@ -2223,8 +2223,18 @@ SW() {
         ErrExit ${EX_SOFTWARE} "${what}/${_s}/${stop_flag} present"
       fi
       cmds=$(echo $(ls ${what}/${_s}))
+
+      if [ -L "${where}" ] ; then
+        local target=$(readlink -e "${where}")
+        if [ -f "${target}" ] ; then
+          Rc ErrExit ${EX_OSFILE} "rm -f ${where}"
+        elif [ -d "${target}" ] ; then
+          Rc ErrExit ${EX_OSFILE} "rmdir ${where}"
+        fi
+      fi
       Rc ErrExit ${EX_OSFILE} "mkdir -p ${where}"
       Rc ErrExit ${EX_OSFILE} "chmod 0755 ${where}"
+
       local c
       for c in ${cmds}
       do

@@ -446,7 +446,11 @@ vpath % $(PROVISIONED_D)
 #  ie. all PROVISIONED, all POWEROFF, all UNPROVISION
 
 up provision: $(VAGRANTFILE) $(TARGET_PROVIDER_FILES) verifylocalenv $(PROVISIONED_FLAGS) ingest-state
-	echo started: $(HUMAN_TSTAMP)
+	# XXX pull from cluster definition & generator
+	#sudo mariadb -r -B -s -e "UPDATE cluster_table SET control_host = '192.168.56.64' WHERE NAME= 'vc';" slurm_acct_db
+	#sudo mariadb -r -B -s -e "UPDATE cluster_table SET control_host = '192.168.56.50' WHERE NAME= 'vx';" slurm_acct_db
+	#sudo mariadb -r -B -s -e 'select * from cluster_table;' slurm_acct_db
+	#echo started: $(HUMAN_TSTAMP)
 
 up! provision!: unprovision up ingest-state
 
@@ -635,4 +639,4 @@ $(XFR_VBOXADD_ISO): $(TARBALLS_VBOXADD_ISO)
 	    rsync -LHcau $< $@										; \
 	fi
 
-# vim: background=dark
+# vim: background=dark ts=2 sw=2 syntax=make

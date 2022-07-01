@@ -25,6 +25,8 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
+set -xv
+
 HOSTNAME=${HOSTNAME:-$(hostname -s)}
 CLUSTERNAME=${HOSTNAME:0:2}
 XFR=/${CLUSTERNAME}/xfr
@@ -71,10 +73,25 @@ if [ ! -d "${BUILDWHERE_PRODUCT}" ] ; then
 fi
 if [ ! -r "${SLURM_SPANK_LUA_SPEC}" ] ; then
   need_ingest=true
+else
+  SLURM_SPANK_LUA_SPEC_VERSION=$(awk '/Version:/ {print $2}' ${SLURM_SPANK_LUA_SPEC})
+  if [ "${SLURM_SPANK_LUA_SPEC_VERSION}" != "${SLURM_SPANK_LUA_VERSION}" ] ; then
+    Verbose " SLURM_SPANK_LUA_VERSION: ${SLURM_SPANK_LUA_VERSION}"
+    Verbose " SLURM_SPANK_LUA_SPEC_VERSION: ${SLURM_SPANK_LUA_SPEC_VERSION}"
+    ErrExit ${EX_OSFILE} "Update VERSION_FILE to: ${SLURM_SPANK_LUA_SPEC_VERSION}"
+  fi
 fi
 
 if [ -n "${need_ingest}" ] ; then
   Verbose " recreating BUILDWHERE_PRODUCT:${BUILDWHERE_PRODUCT}"
+  if [ -L "${BUILDWHERE_PRODUCT}" ] ; then
+    target=$(readlink -e ${BUILDWHERE_PRODUCT})
+    Verbose "  BUILDWHERE_PRODUCT -> ${target}"
+    if [ "${target}" != "${BUILDWHERE_PRODUCT_VERSION}" ] ; then
+      Verbose "  target:${target} != ${BUILDWHERE_PRODUCT_VERSION} -- version mismatch?"
+      Rc ErrExit ${EX_OSFILE} "rm -f ${BUILDWHERE_PRODUCT_VERSION}"
+    fi
+  fi
   if [ -r ${XFR}/${SLURM_SPANK_LUA_TARBALL} ] ; then
     if [ ! -d ${BUILDWHERE_PRODUCT} ] ; then
       Rc ErrExit ${EX_OSFILE} "tar -xzf ${XFR}/${SLURM_SPANK_LUA_TARBALL} -C ${BUILDWHERE}"
@@ -128,4 +145,5 @@ fi
 Rc ErrExit ${EX_OSFILE} "cp -v --preserve=all ${RPMBUILD}/SOURCES/${slurm_spank_lua_vers}${TAR_SUFFIX} ${XFR}"
 
 exit ${EX_OK}
-# vim: background=dark
+
+# vim: background=dark ts=2 sw=2 syntax=sh

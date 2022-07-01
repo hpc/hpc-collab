@@ -17,19 +17,21 @@ declare -x OUT=${1:-""}
 
 if [ -n "${OUT}" ] ; then
   touch ${OUT} || exit 1
+  exec > >(tee -a "${OUT}") 2>&1
 fi
-
-exec > >(tee -a "${OUT}") 2>&1
 
 declare -x ETC=/etc
 declare -x VARLOGSLURM=/var/log/slurm
 declare -x VARSPOOLSLURM=/var/spool/slurm
 declare -x COMMONVARLOGSLURM=${COMMON}${VARLOGSLURM}
+declare -x VARSPOOLSLURMHOST=${VARSPOOLSLURM}/$(hostname -s)
 
 if [ ! -L ${VARLOGSLURM} ] ; then
   Rc ErrExit 2 "ln -s ${COMMONVARLOGSLURM} ${VARLOGSLURM}"
 fi
-Rc ErrExit 3 "mkdir -p ${VARSPOOLSLURM}/$(hostname -s)"
+if [ ! -d ${VARSPOOLSLURMHOST} ] ; then
+  Rc ErrExit 3 "mkdir -p ${VARSPOOLSLURMHOST}"
+fi
 
 trap '' 0
 exit ${EX_OK}

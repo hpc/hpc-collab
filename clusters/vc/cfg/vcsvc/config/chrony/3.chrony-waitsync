@@ -21,7 +21,7 @@ if [ -n "${OUT}" ] ; then
 fi
 SetFlags >/dev/null 2>&1
 
-( cd / ; chronyc waitsync ) &
+( cd / ; timeout 10 chronyc waitsync ) &
 
 trap '' 0
 exit ${EX_OK}

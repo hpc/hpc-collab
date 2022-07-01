@@ -70,6 +70,8 @@ do
   fi
 done
 
+ControlHost=$(grep SlurmctldHost /etc/slurm/slurm.conf | sed -s 's/SlurmctldHost=//' | sed 's/(/ /' | sed 's/)/ /' | awk '{print $1}')
+ControlAddr=$(grep SlurmctldHost /etc/slurm/slurm.conf | sed -s 's/SlurmctldHost=//' | sed 's/(/ /' | sed 's/)/ /' | awk '{print $2}')
 exists=$(sacctmgr show cluster ${CLUSTERNAME} -n -P)
 if [ -z "${exists}" ] ; then
   Verbose " creating cluster: ${CLUSTERNAME}"

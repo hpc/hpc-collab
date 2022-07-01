@@ -1,5 +1,5 @@
-DbdAddr=%VCDB%
-DbdHost=vcdb
+DbdAddr=192.168.56.1
+DbdHost=db-host-local
 SlurmUser=root
 DebugFlags=DB_ASSOC,DB_EVENT,DB_QOS,DB_JOB
 DebugLevel=debug3

@@ -62,7 +62,7 @@ do
   clause=" type=license cluster=${cluster} "
   suffix=" count=${count} "
   if [ -n "${existing_licenses}" ] ; then
-    if [[ "${existing_licenses}" != *"${lic}"*"${cluster}" ]] ; then
+    if [[ "${existing_licenses}" = ${lic}*${cluster} ]] ; then
       action="update"
       clause=" cluster=${cluster} set "
       suffix="" 
@@ -83,10 +83,11 @@ do
       attr_val=$(cat ${d}/${attr_name})
     fi
     if [[ "${existing}" == *"${lic_name}"* ]] ; then
-	existing_val=$(sacctmgr show resource withcluster where cluster=${cluster} name=${lic_name} -n | awk '{print $5}') 
+	existing_val=$(sacctmgr show resource withcluster where cluster=${cluster} name=${lic_name} -n | awk '{print $7}') 
 	if [ "${existing_val}" = "${attr_val}" ] ; then
 	  if [ "${attr_val}" -ne 0 ] ; then
             Verbose "license=${lic_name}, cluster=${cluster}, existing_val:${existing_val} = attr_val:${attr_val}, skipped"
+
             continue
 	  fi
 	fi

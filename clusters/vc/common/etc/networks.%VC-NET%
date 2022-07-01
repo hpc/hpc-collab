@@ -1,5 +1,12 @@
 default				0.0.0.0
 loopback			127.0.0.0
+loopback-netmask		255.0.0.0
+
 link-local			169.254.0.0
+link-local-netmask		255.255.0.0
+
 vc-net				%VC-0NET%	virtual-cluster-net virtualcluster-net test-cluster-net vx-net
+vc-netmask			255.255.255.0
+
 nat-ext-net			10.0.2.0	nat-external
+nat-ext-netmask			255.255.255.0
