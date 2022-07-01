@@ -22,16 +22,19 @@ if [ -n "${OUT}" ] ; then
   exec > >(tee -a "${OUT}") 2>&1
 fi
 
-Rc ErrExit 4 "systemctl start slurmdbd"
+DBDHost=$(grep AccountingStorageHost=  /etc/slurm/slurm.conf | sed 's/AccountingStorageHost=//')
+if [ "${DBDHost}" = $(hostname -s) ] ; then
+	Rc ErrExit 4 "systemctl start slurmdbd"
 
-isactive=$(systemctl status slurmdbd | grep Active: | awk '{print $2}')
-if [ "${isactive}" != "active" ] ; then
-  ErrExit ${EX_CONFIG} "slurmdbd failed to start correctly: ${isactive}"
+	isactive=$(systemctl status slurmdbd | grep Active: | awk '{print $2}')
+	if [ "${isactive}" != "active" ] ; then
+		ErrExit ${EX_CONFIG} "slurmdbd failed to start correctly: ${isactive}"
+	fi
+
+	# slurmdbd isn't ready immediately to start servicing requests
+	# if seeing "Connection refused" messages in slurmdbd status, may need to increase this
+	sleep 3
 fi
-
-# slurmdbd isn't ready immediately to start servicing requests
-# if seeing "Connection refused" messages in slurmdbd status, may need to increase this
-sleep 3
 
 Rc ErrExit 3 "sacctmgr show cluster -n"
 
