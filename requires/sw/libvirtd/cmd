@@ -1,1 +1,0 @@
-libvirtd --version | awk '{print $NF}'
