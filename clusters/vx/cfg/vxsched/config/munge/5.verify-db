@@ -25,65 +25,68 @@ SetFlags >/dev/null 2>&1
 declare -x ETCSLURM=/etc/slurm
 declare -x SLURMCONF=${ETCSLURM}/slurm.conf
 declare -x SLURMDBDCONF=${ETCSLURM}/slurmdbd.conf
-declare -x VX_COMMON_ROOT=/home/vx/common/root
-declare -x MYSQL_PW_F=${VX_COMMON_ROOT}/mysql_pw
-declare -x MYSQL_PW
+
+if [ ! -f ${SLURMCONF} ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURMCONF:${SLURMCONF} file not found"
+fi
 
 CLUSTERNAME=$(grep ClusterName ${SLURMCONF} | sed 's/ClusterName=//')
 rc=$?
-
+echo "slurm.conf: ClusterName=\"${CLUSTERNAME}\""
 if [ ${rc} -ne ${GREP_FOUND} ] ; then
-  ErrExit ${EX_SOFTWARE} "ClusterName not found in ${SLURMCONF}"
+  ErrExit ${EX_SOFTWARE} "SLURMCONF:${SLURMCONF} ClusterName not found"
 fi
 
-if [ ! -d "${VX_COMMON_ROOT}" ] ; then
-  ErrExit ${EX_SOFTWARE} "VX_COMMON_ROOT: not a directory (or not mounted)"
-fi
-if [ ! -f "${MYSQL_PW_F}" ] ; then
-  ErrExit ${EX_SOFTWARE} "MYSQL_PW_F:${MYSQL_PW_F} does not exist?"
+if [ ! -f ${SLURMDBDCONF} ] ; then
+  ErrExit ${EX_SOFTWARE} "SLURMDBDCONF:${SLURMDBDCONF} file not found"
 fi
 
-MYSQL_PW=$(cat ${MYSQL_PW_F})
-
-if [ -z "${MYSQL_PW}" ] ; then
-  Warn ${EX_SOFTWARE} "vc cluster mysql password is empty, proceeding"
+STORAGEUSER=$(grep StorageUser ${SLURMDBDCONF} | sed 's/StorageUser=//')
+MYSQL_AUTH=""
+if [ -n "${STORAGEUSER}" ] ; then
+	MYSQL_AUTH="--user=${STORAGEUSER} "
+fi
+STORAGEPASS=$(grep StoragePass ${SLURMDBDCONF} | sed 's/StoragePass=//')
+if [ -n "${STORAGEPASS}" ] ; then
+	MYSQL_AUTH="${MYSQL_AUTH} --password=${STORAGEPASS}"
 fi
 
-MYSQL_U=$(id -n -u)
-
-if [ -z "${MYSQL_U}" ] ; then
-  ErrExit ${EX_SOFTWARE} "MYSQL_U:${MYSQL_U} is empty: $(id -n -u)"
-fi
-
-mysql_auth="--user=${MYSQL_U} --password=${MYSQL_PW}"
-
+export dbdhost=$(grep -i dbdhost ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdhost=//')
 export dbdaddr=$(grep -i dbdaddr ${SLURMDBDCONF} | tr '[:upper:]' '[:lower:]' | sed 's/dbdaddr=//')
 
-STORAGEHOST=$(awk '/^StorageHost=/ {print $NF}' ${SLURMDBDCONF} | sed 's/StorageHost=//')
-
+if [ -z "${dbdhost}" ] ; then
+  ErrExit ${EX_SOFTWARE} "empty dbdhost"
+fi
 if [ -z "${dbdaddr}" ] ; then
   ErrExit ${EX_SOFTWARE} "empty dbdaddr"
 fi
 
-TIMEOUT=10
-# -w (deadline), -W (timeout)
-Rc ErrExit ${EX_SOFTWARE}  "ping -c 1 -i 0.1 -n -w ${TIMEOUT} ${STORAGEHOST} && ping -c 1 -i 0.1 -n -W ${TIMEOUT} ${dbdaddr}"
+DBDHost=$(grep AccountingStorageHost=  ${SLURMCONF} | sed 's/AccountingStorageHost=//')
 
-Rc Warn ${EX_SOFTWARE}  "timeout ${TIMEOUT} mysql --host=${STORAGEHOST} ${mysql_auth} --batch --execute 'show databases;'"
-
-clustername=$(timeout ${TIMEOUT} mysql --database=slurm_acct_db --host=${STORAGEHOST} ${mysql_auth} --batch --skip-column-names --execute 'select name from cluster_table;' )
-
-if [[ ${clustername} = *" ${CLUSTERNAME} "* ]] ; then
-  ErrExit ${EX_SOFTWARE} "select name from cluster_table => ${clustername} != ${CLUSTERNAME}"
+MYSQL_CMD="mysql ${MYSQL_AUTH} --batch"
+if [ "${DBDHost}" = $(hostname -s) ] ; then
+	MYSQL_CMD="${MYSQL_CMD} --host=${dbdhost}"
+	grep StorageUser ${SLURMDBDCONF}
+else
+	MYSQL_CMD="${MYSQL_CMD} --host=${DBDHost}"
+	dbdhost=${DBDHost}
+	dbdaddr=$(host ${DBDHost} | awk '{print $4}')
 fi
+Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ping -c 1 -i 1 -n ${dbdhost}"
 
-Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} mysql --database=slurm_acct_db --host=${STORAGEHOST} ${mysql_auth} --batch --execute 'show tables;' --skip-column-names | grep ${CLUSTERNAME}_last_ran"
-rc=$?
-if [ "${rc}" -ne ${GREP_FOUND} ] ; then
-  ErrExit ${EX_SOFTWARE} "did not find ${CLUSTERNAME}_last_ran_table in 'show tables;'"
-fi
+#XXX Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --execute 'show databases;'"
+
+timeout ${TIMEOUT} ${MYSQL_CMD} --execute 'show databases;'
+
+clustername=$(timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'select name from cluster_table;' )
+
+#XXX if [[ ${clustername} != ${CLUSTERNAME} ]] ; then
+#XXX   ErrExit ${EX_SOFTWARE} "select name from cluster_table => ${clustername} != ${CLUSTERNAME}"
+#XXX fi
+
+#XXX Rc ErrExit ${EX_SOFTWARE}  "timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran"
+
+timeout ${TIMEOUT} ${MYSQL_CMD} --database=slurm_acct_db --skip-column-names --execute 'show tables;' | grep ${CLUSTERNAME}_last_ran
 
 trap '' 0
 exit ${EX_OK}
-
-# vi: background=dark
