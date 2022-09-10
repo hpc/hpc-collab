@@ -1,38 +1,10 @@
 #!/bin/bash
 
-## $Header: $
-## Source: https://git.lanl.gov/sts/qstats
-## @file qstats.sh
-## @author LANL/HPC/ENV/WLM/sts Steven Senator sts@lanl.gov
-## @note This script is mostly written in POSIX style, with a soupçon of bashisms.
-## This is a consequence of the author's heritage, and deadlines, not due to a requirement.
-##
-
-## @page Copyright
-## <h2>© 2019-2020. Triad National Security, LLC. All rights reserved.</h2>
-## &nbsp;
-## <p>This program was produced under U.S. Government contract 89233218CNA000001
-## for Los Alamos National Laboratory (LANL), which is operated by Triad National Security, LLC
-## for the U.S. Department of Energy/National Nuclear Security Administration.</p>
-## <p>All rights in the program are reserved by Triad National Security, LLC, and the
-## U.S. Department of Energy/National Nuclear Security Administration. The US federal Government
-## is granted for itself and others acting on its behalf a nonexclusive, paid-up, irrevocable
-## worldwide license in this material to reproduce, prepare derivative works, distribute copies
-## to the public, perform publicly and display publicly, and to permit others to do so.</p>
-## <p>The public may copy and use this information without charge, provided that this Notice
-## and any statement of authorship are reproduced on all copies. Neither the Government
-## nor Triad National Security, LLC makes any warranty, express or implied, or assumes any
-## liability or responsibility for the use of this information.</p>
-## <p>This program has been approved for release from LANS by LA-CC Number 10-066, being part of
-## the HPC Operational Suite.</p>
-## &nbsp;
-##
-
 #
 # qstats.sh
-#  Usage:  qstats.sh [-a] [-b] [-B] [-c] [-C] [-d] [-f] [-F] [-l] [-L] [-N] [-n] [-p] [-P] [-q] [-r] [-R] [-S|-D] [-s] [-t] [-u] [-w] [--boot]
+#  Usage:  qstats.sh [-a] [-b] [-B] [-c] [-C] [-d] [-f] [-F] [-l] [-L] [-N] [-n] [-o] [-O] [-p] [-q] [-r] [-R] [-S|-D] [-s] [-t] [-u] [-w] [--boot]
 #
-
+# Remember: Usually this file is being executed by cron. Edit a copy.
 #
 # Retrieves and lists the following slurm data:
 #  [-a] accounts: fair share for accounts
@@ -47,8 +19,9 @@
 #  [-L] licenses
 #  [-N] node attributes
 #  [-n] node counts for nodes' state for the default partition
+#  [-o] node lists for running jobs
+#  [-O] running job list for allocated nodes
 #  [-p] priority components for each pending job
-#  [-P] pending job characteristics
 #  [-q] QOS requested by pending jobs
 #  [-u] user's fairshare values for enqueued, pending jobs
 #  [-R] running job characteristics
@@ -58,7 +31,6 @@
 #  [-t] total time enqueued
 #  [-w] weights used to calculate total priority
 #  [-D] Debug mode: stdout output, mutually exclusive with "-S", syslog output
-#  [-V] CSV data output format [not all options recognize this output format]
 #  [--boot] boot mode:
 #       for each non-scheduled node, set the node weight to an explicit value of DISCOVERED_DOWN_WEIGHT
 #
@@ -87,6 +59,7 @@
 ## @see Signals [Linux-specific]: <tt>/usr/include/bits/signum.h</tt>
 ## @see Errno's [Linux/ASM-specific]<tt>/usr/include/asm-generic/errno.h</tt>
 ## @see tldp.org et. al. for SIGBASE
+## @ref https://git.lanl.gov/sts/qstats
 
 declare -A ExitCodeNames
 ## The operation worked.
@@ -155,22 +128,41 @@ ExitCodeNames[${EX_SIGBASE}]='EX_SIGBASE'
 
 ## see Log()
 declare -x DEFAULT_OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL:-"syslog"}
+declare -x RM_DISABLED=""
+declare -x VARTMP=/var/tmp
+declare -x IAM=$(basename $0 .sh)
+declare -x TMPDIR=${VARTMP}/${IAM}
+declare -x TMP_OUT=${TMPDIR}.$$
+declare -x LOG_PRIORITY=daemon.notice
 
 ## see main()
 declare -x TIMEOUT=${TIMEOUT:-300}
 
+# 67 is arbitrary but a bit longer than the default slurm timeout of 60s retry to parse SLURM_CONF
+declare -x SDIAG_TIMEOUT=${SDIAG_TIMEOUT:-67}
+declare -x SPRIO_TIMEOUT=${SPRIO_TIMEOUT:-${SDIAG_TIMEOUT}}
+declare -x SCONTROL_TIMEOUT=${SCONTROL_TIMEOUT:-30}
+declare -x SQUEUE_TIMEOUT=${SQUEUE_TIMEOUT:-60}
+declare -x STAT_TIMEOUT=${STAT_TIMEOUT:-3}
+declare -x SHA1SUM_TIMEOUT=${SHA1SUM_TIMEOUT:-30}
+declare -x SINFO_SHORT_TIMEOUT=${SHA1SUM_TIMEOUT:-30}
+declare -x SINFO_LONG_TIMEOUT=${SHA1SUM_TIMEOUT:-240}
+
 ## local, this is interpreted as a parameter @see TidyUp() so must be no spaces in the value
 declare -x TIDYUP_FORCE="ignore_LEAVE_BREADCRUMBS"
 declare -x TIDYUP_LOCK=""
-declare -x LEAVE_BREADCRUMB_PROCS=${LEAVE_BREADCRUMB_PROCS:-""}
+declare -x LEAVE_BREADCRUMB_PROCS=${LEAVE_BREADCRUMB_PROCS:-"parent_signals_all"}
 declare -x LEAVE_BREADCRUMBS=${LEAVE_BREADCRUMBS:-""}
 
 declare -x TRAP_NOISY=${TRAP_NOISY:-""}
 
+#caches of various cmd output
 declare -x CLUSTERNAME=""
 declare -x SHOW_CONFIG=""
-declare -x CSV="csv"
-declare -x SEPARATOR="\n"
+declare -x SDIAG_OUT=""
+
+# deliberately *not* SLURM_CONF to avoid interpretation by slurm commands
+declare -x _SLURMCONF=""
 
 ## @fn Trap()
 ## declares an exit and interrupt trap, calls TidyUp with its arguments
@@ -225,7 +217,7 @@ ErrExit() {
     bsrc="$(basename ${BASH_SOURCE}): "
     export calledby="${bsrc}${FUNCNAME[1]}(${BASH_LINENO[0]}):"
 
-    Log "${calledby} $@"
+    echo "$@" | Log "${calledby}"
     [ -n "${DEBUG}" ] && echo "${calledby} $@"
 
     local stackframes=${#BASH_LINENO[@]}
@@ -264,8 +256,12 @@ Log(){
   if [[ ${OUTPUT_PROTOCOL} == syslog* ]] ; then
     if [[ ${flush} != flush ]] ; then
       shift
-      suffix="-- $*"
+      suffix=""
+      if [ -n "$*" ] ; then
+        suffix="-- $*"
+      fi
     else
+      touch ${TMP_OUT}
       suffix="-f ${TMP_OUT}"
       if [ -z "${TMP_OUT}" -o ! -r "${TMP_OUT}" -o ! -s "${TMP_OUT}" ] ; then
         return
@@ -282,11 +278,17 @@ Log(){
     fi
   fi
 
+  log_cmd="logger -t \"${tag}\" -p ${LOG_PRIORITY} -S 4096"
+
   if [[ ${OUTPUT_PROTOCOL} == syslog ]] ; then
-      ${prefix} | logger -t "${tag}" -S 4096 ${suffix}
+    if [ -n "${prefix}" ] ; then
+      eval ${prefix} | ${log_cmd} "${suffix}"
+    else
+      eval ${log_cmd} "${suffix}" </dev/null
+    fi
 
   elif [[ ${OUTPUT_PROTOCOL} == syslog-remote ]] ; then
-    ${prefix} | logger -t "${tag}" -S 4096 -P 514 --tcp -n ${OUTPUT_HOST} ${suffix}
+    eval ${log_cmd} -P 514 --tcp -n ${OUTPUT_HOST} "${suffix}" </dev/null
     if [ $? -ne 0 ] ; then
       printf "logger(syslog-remote) failed"
       exit ${EX_SOFTWARE}
@@ -388,7 +390,7 @@ TidyUpUnlock() {
 GetOSVersion() {
   local os_version="_no_os_specified_"
   if [ ! -r /etc/os-release ] ; then
-    ErrExit ${EX_SOFTWARE} "/etc/os-release unreadable"
+    ErrExit ${EX_DATAERR} "/etc/os-release unreadable"
   fi
   if [ -n "${OS_VERSION}" ] ; then
     echo ${OS_VERSION}
@@ -398,9 +400,9 @@ GetOSVersion() {
   local v
   v=$(grep -E '^ID=' /etc/os-release | sed 's/ID=//' | sed 's/"//g')
   case "${v}" in
-    rhel|"Red Hat Enterprise Linux"*|RHEL|centos) os_version="rhel"   ;;
-    sles|"SUSE Linux Enterprise Server"*|SLES)    os_version="sles"   ;;
-    *) ErrExit ${EX_CONFIG} "/etc/os-release unrecognized: \"${v}\""  ;;
+    rhel|"Red Hat Enterprise Linux"*|RHEL)     os_version="rhel"           ;;
+    sles|"SUSE Linux Enterprise Server"*|SLES|sle_hpc) os_version="sles"   ;;
+    *) ErrExit ${EX_CONFIG} "/etc/os-release unrecognized: \"${v}\""       ;;
   esac
 
   echo ${os_version}
@@ -411,7 +413,7 @@ GetOSVersion() {
 declare -A RequiredCommands
 # @todo build this via introspection of ourselves
 # [base] linux-distribution independent required commands
-RequiredCommands[base]="awk base64 basename cat cksum dirname echo grep head hostname logger ls mkdir printf ps pwd rm su sed setsid sha1sum stat strings sum tail test timeout wc"
+RequiredCommands[base]="awk base64 basename cat cksum dirname echo grep head hostname logger ls mkdir pgrep printf ps pwd rm su sed setsid sha1sum stat strings sum tail test timeout touch wc"
 # [cray] Cray-specific required commands
 RequiredCommands[cray]=""
 # [rhel] RHEL or RHEL-alike (TOSS, CentOS, &c) required commands
@@ -486,7 +488,25 @@ mklock() {
     mkdir_out=$(mkdir ${mklockdir} 2>&1) || ErrExit ${EX_SOFTWARE} "! -d ${mklockdir}, mkdir mklockdir:${mklockdir}: ${mkdir_out}"
   fi
   if [ -d ${lock} ] ; then
-    ErrExit ${EX_ALREADY}  "lock exists: ${lock}"
+    if [ -e ${lock}/pid -a -r ${lock}/pid ] ; then
+      opid=$(cat ${lock}/pid)
+      running_pids=$(pgrep ${IAM})
+      found_running=""
+      for _r in ${running_pids}
+      do
+        if [[ ${_r} == ${opid} ]] ; then
+          if [[ $$ != ${opid} ]] ; then
+            found_running=${_r}
+            break
+          fi
+        fi
+      done
+
+      if [ -n "${found_running}" ] ; then
+        ErrExit ${EX_ALREADY}  "lock exists: ${lock}"
+      fi
+      TidyUp ${lock} ${lock}/pid ${lock}
+    fi
   fi
   export TIDYUP_LOCK=""
   local mkdir_out=""
@@ -503,8 +523,7 @@ SetEnv() {
   VerifyEnv
   OUTPUT_PROTOCOL=${DEFAULT_OUTPUT_PROTOCOL}
 
-  IAM=`basename $0`
-  local lock=/var/tmp/$(basename ${IAM} .sh)
+  local lock=${TMPDIR}
 
   export SQUEUE_SORT="-t,-p,e,S"
 
@@ -518,14 +537,14 @@ SetEnv() {
   # may be overridden by a value inherited from the run-time environment
   export DISCOVERED_DOWN_WEIGHT=${DISCOVERED_DOWN_WEIGHT:-20480}
 
-  export SHOW_CONFIG=$(timeout 15s scontrol show config 2>&1)
+  export SHOW_CONFIG=$(timeout ${SCONTROL_TIMEOUT} scontrol show config 2>&1)
   if [ -z "${SHOW_CONFIG}" ] ; then
     ErrExit ${EX_SOFTWARE} "empty SHOW_CONFIG"
   fi
-  if [[ ${SHOW_CONFIG} = *"fail "* ]] ; then
+  if [[ ${SHOW_CONFIG} = *fail* ]] ; then
     ErrExit ${EX_SOFTWARE} "show config: ${SHOW_CONFIG}"
   fi
-  export CLUSTERNAME=$(scontrol show config | grep ClusterName | awk '{print $3}')
+  export CLUSTERNAME=$(echo "${SHOW_CONFIG}" | grep ClusterName | sed 's/.*ClusterName.*= //')
   HOSTNAME=$(hostname -s)
   if [[ ${HOSTNAME} !=  master ]] ; then
     OUTPUT_PROTOCOL=${OUTPUT_PROTOCOL:-syslog}
@@ -549,10 +568,8 @@ SetEnv() {
 
   elif [[ ${OUTPUT_PROTOCOL} == syslog-remote ]] ; then
     export OUTPUT_PROTOCOL=syslog
-    local output_host=${OUTPUT_HOST:=${CLUSTER2LETTERS}-mon2}
-    ping -n -c 1 -w 1 ${output_host} >/dev/null 2>&1
-    rc=$?
-    if [ ${rc} -ne ${EX_OK} ] ; then
+    local output_host=${OUTPUT_HOST:=${CLUSTER2LETTERS}-mon2}.lanl.gov
+    if ping -n -c 1 -w 1 ${output_host} >/dev/null 2>&1  ; then
       export OUTPUT_HOST=${output_host}
     fi
   fi
@@ -563,13 +580,17 @@ SetEnv() {
     DSTMODE=true
   fi
 
-  export SLURM_CONF=$(echo ${SHOW_CONFIG} | sed 's/.*SLURM_CONF = //' | awk '{print $1}')
-  if [ ! -r ${SLURM_CONF} ] ; then
-    ErrExit ${EX_SOFTWARE} "slurm.conf:${SLURM_CONF} unreadable"
+  export _SLURMCONF=$(echo ${SHOW_CONFIG} | sed 's/.*SLURM_CONF = //' | awk '{print $1}')
+  if [ ! -e "${_SLURMCONF}" ] ; then
+    : LogBuf "SLURM_CONF=<nonexistent>"
+  elif [ ! -r "${_SLURMCONF}" ] ; then
+    : LogBuf "SLURM_CONF=<unreadable>"
   fi
 
-  TMP_OUT=/tmp/${IAM}.$$
-  > ${TMP_OUT}
+  sdiag=$(which sdiag)
+  export SDIAG_OUT=$(timeout ${SDIAG_TIMEOUT} ${sdiag})
+
+  touch ${TMP_OUT}
   mklock ${lock}
 }
 
@@ -579,18 +600,19 @@ SetDebug() {
   OUTPUT_PROTOCOL="stdout"
 }
 
-SetOutputCSV() {
-  export CSV="csv"
-}
-
 LogBuf() {
-  local size=$(timeout 5s stat --format="%s" ${SLURM_CONF})
-  if [ ${size} -gt ${MAX_RELIABLE_MSG_SIZE} ] ; then
+  local size=255
+  if [ -f ${_SLURMCONF} ] ; then
+    size=$(timeout ${STAT_TIMEOUT} stat -L --format="%s" ${_SLURMCONF} 2>&1)
+  elif [ -n "${MAX_RELIABLE_MSG_SIZE}" ] ; then
+    size="${MAX_RELIABLE_MSG_SIZE}"
+  fi
+  if [ -n "${size}" ] ; then
     Log flush
-    > ${TMP_OUT}
+    touch ${TMP_OUT}
   fi
   if [ -n "${TMP_OUT}" -a -w "${TMP_OUT}" ] ; then
-    echo -e "$@" >> ${TMP_OUT}
+    echo $@ >> ${TMP_OUT}
   fi
   return
 }
@@ -599,19 +621,25 @@ ClusterName() {
   if [ -z "${CLUSTERNAME}" ] ; then
     ErrExit ${EX_SOFTWARE} "empty ClusterName"
   fi
-  cl="CLUSTERNAME=${CLUSTERNAME}"
-  if [ -n "${CSV}" ] ; then
-    cl="CLUSTERNAME ${CLUSTERNAME}"
-  fi
-  LogBuf "${cl}"
+  CLUSTERNAME=$(echo "${SHOW_CONFIG}" | grep ClusterName | sed 's/.*ClusterName.*= //' )
+  LogBuf "CLUSTERNAME=${CLUSTERNAME}"
 }
 
 Configuration() {
   # slurm.conf: current signature and last changed timestamp
-
-  local ctime=$(timeout 5s stat --format="%y" ${SLURM_CONF})
-  local slurmconf_sig=$(timeout 30s sha1sum ${SLURM_CONF} | awk '{print $1}')
-  LogBuf "SLURM_CONF=${SLURM_CONF} SLURM_CONF_SIG=${slurmconf_sig}  SLURM_CONF_CTIME=${ctime}"
+  local configless=$(echo "${SHOW_CONFIG}" | grep enable_configless)
+  # enable_configless may be set and slurm.conf may still be present, especially on the slurmctld host
+  if [ -f "${_SLURMCONF}" ] ; then
+    local ctime=$(timeout ${STAT_TIMEOUT} stat -L --format="%y" ${_SLURMCONF})
+    local slurmconf_sig=$(timeout ${SHA1SUM_TIMEOUT} sha1sum ${_SLURMCONF} | awk '{print $1}')
+    configless_msg=""
+    if [ -n "${configless}" ] ; then
+      configless_msg=" (enable_configless)"
+    fi
+    LogBuf "SLURM_CONF=${_SLURMCONF} SLURM_CONF_SIG=${slurmconf_sig}  SLURM_CONF_CTIME=${ctime}${configless_msg}"
+  elif [ -n "${enable_configless}" ] ; then
+    LogBuf "SLURM_CONF nonexistent (enable_configless)"
+  fi
   LogBuf "SHOW_CONFIG=${SHOW_CONFIG}"
 }
 
@@ -632,42 +660,34 @@ Backfill() {
 #   Last queue length: 403
 #   Queue length mean: 124
 
+  if [ -z "${SDIAG_OUT}" ] ; then
+    sdiag=$(which sdiag)
+    export SDIAG_OUT=$(timeout ${SDIAG_TIMEOUT} ${sdiag})
+  fi
   # yes the sed commands could be combined, but this shows the decomposition
-  bf_stats=$(timeout 30s sdiag | sed -n '/Backfilling stats/,/Queue length mean:/s/: /=/p' | sed 's/ /_/g' | sed 's/=_/=/' | sed 's/(//' | sed 's/)//')
+  bf_stats=$(echo "${SDIAG_OUT}" | sed -n '/Backfilling stats/,/Queue length mean:/s/: /=/p' | sed 's/ /_/g' | sed 's/=_/=/' | sed 's/(//' | sed 's/)//')
   bf=$(echo ${bf_stats} | sed 's/ / BACKFILL_/g')
   # XXX fixme BACKFILL_ in the following
   LogBuf BACKFILL_${bf}
 }
 
 Diagnostics() {
-  CTLD_SINCE=$(timeout 30s sdiag | awk '/Data since/ {print $8}' | sed 's/(//' | sed 's/)//')
-  DBD_AGENT_QUEUE_SIZE=$(timeout 30s sdiag | awk '/DBD Agent queue size:/ {print $5}')
-  LogBuf "SLURMCTLD_SINCE=${CTLD_SINCE} DBD_AGENT_QUEUE_SIZE=${DBD_AGENT_QUEUE_SIZE}"
+  if [ -z "${SDIAG_OUT}" ] ; then
+    sdiag=$(which sdiag)
+    export SDIAG_OUT=$(timeout ${SDIAG_TIMEOUT} ${sdiag})
+  fi
+  CTLD_SINCE=$(echo "${SDIAG_OUT}"  | awk '/Data since/')
+  DBD_AGENT_QUEUE_SIZE=$(echo "${SDIAG_OUT}" | awk '/DBD Agent queue size:/ {print $5}')
+  LogBuf "SLURMCTLD_SINCE=${CTLD_SINCE}"
+  LogBuf "DBD_AGENT_QUEUE_SIZE=${DBD_AGENT_QUEUE_SIZE}"
 }
 
 JobAttributes() {
-  local header=""
-  if [ "${1}" = "_header_" ] ; then
-    header="true"
-    shift
-  fi
   jobid=${1:-:no_jobid:}
-  attr=$(timeout 30s scontrol show job $jobid -o)
-  heading=$(echo $(scontrol show job ${jobid} | sed 's/ /\n/g' | sed '/^$/d' | sed 's/=.*$//'))
-  x_attr_noeq=$(echo $(echo $(scontrol show job ${jobid} | sed 's/ /\n/g' | sed '/^$/d' | sed 's/^.*=//')) | sed 's/ /,/g')
-  attr_noeq=${x_attr_noeq/${jobid},/${jobid}  }
- 
 
 #% scontrol show job 1068851 -o
 # JobId= JobName= UserId= GroupId= MCS_label=N/A Priority= Nice=0 Account= QOS=standard WCKey=* JobState=PENDING Reason=Resources Dependency=(null) Requeue=0 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0 RunTime=00:00:00 TimeLimit=16:00:00 TimeMin=N/A SubmitTime=2018-11-02T10:12:12 EligibleTime=2018-11-02T10:39:51 StartTime=2018-11-02T12:21:12 EndTime=2018-11-03T04:21:12 Deadline=N/A PreemptTime=None SuspendTime=None SecsPreSuspend=0 Partition=standard AllocNode:Sid=ko-fe1:176331 ReqNodeList=(null) ExcNodeList=(null) NodeList=(null) SchedNodeList=ko025 NumNodes=1-1 NumCPUs=1 NumTasks=1 CPUs/Task=1 ReqB:S:C:T=0:0:*:* TRES=cpu=1,node=1 Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=* MinCPUsNode=1 MinMemoryNode=0 MinTmpDiskNode=0 Features=(null) DelayBoot=00:00:00 Gres=(null) Reservation=(null) OverSubscribe=NO Contiguous=0 Licenses=(null) Network=(null) Command=... WorkDir=.. AdminComment={ "color" : "TURQUOISE" }  StdErr=... StdIn=... StdOut=... Power=
-  if [ -z "${CSV}" ] ; then 
-    LogBuf $(timeout 30s scontrol show job $jobid -o)
-  else
-    if [ -n "${header}" ] ; then
-      LogBuf "${heading}"
-    fi
-    LogBuf "${attr_noeq}"
-  fi
+  LogBuf $(timeout ${SCONTROL_TIMEOUT} scontrol show job $jobid -o)
 }
 
 Licenses() {
@@ -680,45 +700,38 @@ Licenses() {
   do
     _licname=`echo ${_licname} | sed -e 's/LicenseName=//'`
     LogBuf "LICENSE[${_licname}] ${_lictotal} ${_licused} ${_licfree} ${_licremote}"
-  done < <(timeout 30s scontrol show licenses -o 2>&1)
-}
-
-PendingJobs() {
-  Jobs pending $@
+  done < <(timeout ${SCONTROL_TIMEOUT} scontrol show licenses -o 2>&1)
 }
 
 RunningJobs() {
-  Jobs running $@
-}
-
-Jobs() {
-  local state=$1
-  local lstate
-  if [ "${state}" = "pending" ] ; then
-    lstate=PD
-  else
-    lstate=R
-  fi
-  shift
 
   local QL
-  QL=`squeue -t ${lstate} -h | grep -v "Zero Bytes were transmitted" | wc -l`
-  if [ -n "${CSV}" ] ; then
-    LogBuf "QUEUELENGTH[${state}] ${QL}"
-  else
-    LogBuf QUEUELENGTH[${state}]=${QL}
-  fi
+  QL=`squeue -t R -h | grep -v "Zero Bytes were transmitted" | wc -l`
+  LogBuf QUEUELENGTH[running]=${QL}
 
-  first="_header_"
-  for j in $(timeout 60s squeue -t ${lstate} -h | awk '{print $1}' 2>&1 | grep -v "Zero Bytes were transmitted")
+  for j in $(timeout ${SQUEUE_TIMEOUT} squeue -t R -h | awk '{print $1}' 2>&1 | grep -v "Zero Bytes were transmitted")
   do
-    if [ -n "${CSV}" ] ; then
-      JobAttributes ${first} $j
-      first=""
-    else
-      JobAttributes $j
-    fi
+    JobAttributes $j
   done
+}
+
+RunningJobsNodes() {
+  while read -r _jobid _nodelist
+  do
+    LogBuf "JOBID=${_jobid} Nodes=${_nodelist}"
+  done < <(timeout ${SQUEUE_TIMEOUT} squeue -t R -h --format="%A %N")
+}
+
+NodesRunningJobs() {
+  while read -r _jobid _nodelist
+  do
+    _hostlist=$(timeout ${SCONTROL_TIMEOUT} scontrol show hostnames ${_nodelist})
+    # nodes with multiple jobs allocated will show up multiple times
+    for _n in ${_hostlist}
+    do
+      LogBuf "Node=${_n} JOBID=${_jobid}"
+    done
+  done < <(timeout ${SQUEUE_TIMEOUT} squeue -t R -h --format="%A %N")
 }
 
 JobPrioritiesComponents() {
@@ -731,7 +744,7 @@ JobPrioritiesComponents() {
   # sprio only selects pending jobs that are not Dependent, Blocked, etc
   # TRES is likely to be missing (slurm.conf of Oct 2018, slurm version 17.02)
 
-  sprio_version=$(timeout 60s sprio --version | awk '{print $2}')
+  sprio_version=$(timeout ${SPRIO_TIMEOUT} sprio --version | awk '{print $2}')
   case $sprio_version in
   17.02*)
     readwhat="_jobid _user _priority _age _fairshare _jobsize _partition _qos _nice"
@@ -742,7 +755,7 @@ JobPrioritiesComponents() {
   18.08*)
     readwhat="_jobid _partitionname _user _priority _age _fairshare _jobsize _partition _qos _nice"
     ;;
-  19.05*|20.02*)
+  19.05*|21.08*|22.05*)
     readwhat="_jobid _partitionname _user _priority _site _age _assoc _fairshare _jobsize _partition _qos _nice _tres"
     ;;
   *)
@@ -757,36 +770,26 @@ JobPrioritiesComponents() {
     (( i++ ))
     LogBuf "JOBID=${_jobid} USER=${_user} PRIORITY=${_priority} AGE=${_age} FAIRSHARE=${_fairshare} ASSOCIATION=${_assoc} JOBSIZE=${_jobsize} QOS=${_qos} SITE=${_site} NICE=${_nice} TRES=${_tres}"
     JobAttributes ${_jobid}
-  done < <(timeout 60s sprio -l -h)
+  done < <(timeout ${SPRIO_TIMEOUT} sprio -l -h)
 #  "sprio -l -h -n" #emits equivalent floats
   LogBuf "QUEUELENGTH[pending]=${i}"
 }
 
 EnqueuedBlocked() {
-  local cmd=LogBuf
-  local show_header=""
-  local first="true"
+  local cmd=Log
 
   if [ "$1" = "-l" ] ; then
     cmd=echo
-  else
-    if [ -n "${CSV}" ] ; then
-      show_header="JobID  Blocked Reason"
-    fi
   fi
 
   while read -r _jobid _priority _qos _account _user _state _time _time_limit _end_time _nodes _reason
   do
-    if [ -n "${first}" -a -n "${show_header}" ] ; then
-      LogBuf "${show_header}"
-    fi
-    if [ -n "${cmd}" ] ; then
-      ${cmd} ${_jobid} `echo ${_reason} | sed 's/(//' | sed 's/)//'`
+    if [ "${cmd}" = echo ] ; then
+      echo "JOBID=${_jobid} BlockedReason="`echo ${_reason} | sed 's/(//' | sed 's/)//'`
     else
-      ${cmd} JOBID=${_jobid} BlockedReason=`echo ${_reason} | sed 's/(//' | sed 's/)//'`
+      LogBuf JOBID=${_jobid} BlockedReason=`echo ${_reason} | sed 's/(//' | sed 's/)//'`
     fi
-    first=""
-  done < <(timeout 60s squeue --noheader -t PD 2>&1 | grep -v "Zero Bytes were transmitted" | sed 's/\[/ &/' | sed 's/\]/& /')
+  done < <(timeout ${SQUEUE_TIMEOUT} squeue -t PD -h 2>&1 | grep -v "Zero Bytes were transmitted" | sed 's/\[/ &/' | sed 's/\]/& /')
 }
 
 TotalTime() {
@@ -827,7 +830,7 @@ TotalTime() {
               ;;
     esac
     (( totaltime["all"] = ${totaltime["all"]} + ${_t} ))
-  done < <(timeout 60s squeue -t PD -h 2>&1)
+  done < <(timeout ${SQUEUE_TIMEOUT} squeue -t PD -h 2>&1)
 
   for _k in $total_keys
   do
@@ -840,20 +843,21 @@ SchedulerParams() {
 # SchedulerParameters     = kill_invalid_depend,bf_continue,bf_interval=240,bf_max_job_user_part=10,bf_max_job_test=3000,default_queue_depth=3600
 # SchedulerTimeSlice      = 30 sec
 # SchedulerType           = sched/backfill
-  schedparam=$(echo ${SHOW_CONFIG} | sed -n '/Scheduler/s/ = /=/p' | sed -n 's/ \+//gp')
+  schedparam=$(echo "${SHOW_CONFIG}" | sed -n '/Scheduler/s/ = /=/p' | sed -n 's/ \+//gp')
   LogBuf $schedparam
 }
 
 Reservations() {
-#ReservationName=sts-test StartTime=2018-10-11T17:53:10 EndTime=2018-10-12T18:00:00 Duration=1-00:06:50 Nodes=sn360 NodeCnt=1 CoreCnt=36 Features=(null) PartitionName=standard Flags=OVERLAP,IGNORE_JOBS TRES=cpu=36 Users=(null) Accounts=root Licenses=(null) State=ACTIVE BurstBuffer=(null) Watts=n/a
-  reservations=$(timeout 30s scontrol show reservation -o | awk '/ReservationName=/ {print $1}' | sed 's/^ReservationName=//')
+#
+#ReservationName=debug StartTime=2021-08-11T11:53:59 EndTime=2024-05-31T11:53:59 Duration=1024-00:00:00 Nodes=nid[001215-001217,001364,001590] NodeCnt=5 CoreCnt=640 Features=(null) PartitionName=debug Flags=REPLACE TRES=cpu=1280 Users=(null) Groups=(null) Accounts=root Licenses=(null) State=ACTIVE BurstBuffer=(null) Watts=n/a MaxStartDelay=(null)
+  reservations=$(timeout ${SCONTROL_TIMEOUT} scontrol show reservation -o | awk '/ReservationName=/ {print $1}' | sed 's/^ReservationName=//')
   Active=""
   Inactive=""
   r=$(echo $reservations)
 
   for _r in $r
   do
-    while read -r _resname _starttime _endtime _duration _nodes _nodecnt _corecnt _features _partitionname _flags _tres _users _accounts _licenses _state _burstbuffer _watts
+    while read -r _resname _starttime _endtime _duration _nodes _nodecnt _corecnt _features _partitionname _flags _tres _users _groups _accounts _licenses _state _burstbuffer _watts _maxstartdelay
     do
       local _s
       LogBuf "RESERVATION=${_r} ${_state} ${_nodecnt} ${_partitionname} ${_features} ${_flags} ${_users} ${_accounts} ${_starttime} ${_endtime}"
@@ -878,17 +882,16 @@ Reservations() {
           ;;
         esac
         LogBuf "RESERVATION=${_r} JOBID=${_jobid} JOBQOS=${_jobqos} JOBACCOUNT=${_jobaccount} JOBUSER=${_jobuser} JOBSTATE=${_jobstate} JOBTIME=${_jobtime} JOBTIME_LIMIT=${_jobtime_limit} JOBEND_TIME=${_jobendtime} JOBNODES=${_jobnodes} ${_suffix}"
-      done < <(timeout 60s squeue --reservation=${_r} -h 2>&1)
+      done < <(timeout ${SQUEUE_TIMEOUT} squeue --reservation=${_r} -h 2>&1)
 
-    done < <(timeout 30s scontrol show reservation ${_r} -o)
-    for _a in Active Inactive
-    do
-      if [ -n "${!_a}" ] ; then
-        LogBuf "RESERVATIONS[${_a^^}]=\"${!_a}\""
-      fi
-    done
+    done < <(timeout ${SCONTROL_TIMEOUT} scontrol show reservation ${_r} -o)
   done
-
+  for _a in Active Inactive
+  do
+    if [ -n "${!_a}" ] ; then
+      LogBuf "RESERVATIONS[${_a^^}]=\"${!_a}\""
+    fi
+  done
 }
 
 ResetNodeWeights() {
@@ -903,7 +906,7 @@ ResetNodeWeights() {
       scontrol update node=${_node} weight=${DISCOVERED_DOWN_WEIGHT}
       LogBuf "NODE=${_node} STATE=${_state} USER=${_user} WHEN=${_timestamp} REASON=\"${_reason}\" WEIGHT=${DISCOVERED_DOWN_WEIGHT}"
     fi
-  done < <(timeout 240s sinfo -R -N -o "%N %8t %12U %19H %E" -h)
+  done < <(timeout ${SINFO_LONG_TIMEOUT} sinfo -R -N -o "%N %8t %12U %19H %E" -h)
   if (( ${found_any} > 0 )) ; then
     LogBuf "NODE[unschedulable]=${found_any}"
   fi
@@ -912,19 +915,19 @@ ResetNodeWeights() {
 NodeState() {
 
   # print # nodes in a given state
-  defaultPartition=$(timeout 240s sinfo -o "%12P" -h | grep '*' | sed 's/*//' | sed 's/ //g')
+  defaultPartition=$(timeout ${SINFO_LONG_TIMEOUT} sinfo -o "%12P" -h | grep '*' | sed 's/*//' | sed 's/ //g')
   if [ -z "$defaultPartition" ] ; then
     LogBuf "NodeState(): cannot determine default partition"
     return
   fi
   LogBuf "PARTITION[default]=${defaultPartition}"
 
-  for _p in $(timeout 30s sinfo -o "%16R" -h)
+  for _p in $(timeout ${SINFO_SHORT_TIMEOUT} sinfo -o "%16R" -h)
   do
     while read -r _partitionstate _nodecount _nodestate
     do
       LogBuf "PARTITION[${_p}]=${_partitionstate} NODESTATE[${_nodestate}]=${_nodecount}"
-    done < <(timeout 30s sinfo --partition=${_p} -o "%.5a %.6D %.6t" -h)
+    done < <(timeout ${SINFO_SHORT_TIMEOUT} sinfo --partition=${_p} -o "%.5a %.6D %.6t" -h)
   done
 
   # for nodes which are drained or down, print the timestamp, culprit and reason that they're down
@@ -932,7 +935,7 @@ NodeState() {
   while read -r _node _state _user _timestamp _reason
   do
     LogBuf "NODE=${_node} STATE=${_state} USER=${_user} WHEN=${_timestamp} REASON=\"${_reason}\""
-  done < <(timeout 240s sinfo -R -N -o "%N %8t %12U %19H %E" -h -p any)
+  done < <(timeout ${SINFO_LONG_TIMEOUT} sinfo -R -N -o "%N %8t %12U %19H %E" -h -p any)
 }
 
 declare -x SHOW_NODE
@@ -956,7 +959,7 @@ InitNodeAttr() {
     local retry=0
     while [ -z "${SHOW_NODE}" -a ${retry} -lt ${RETRY_LIMIT} ]
     do
-      export SHOW_NODE=$(timeout 60s scontrol -o show node ${HOSTNAME} 2>&1)
+      export SHOW_NODE=$(timeout ${SCONTROL_TIMEOUT} scontrol -o show node ${HOSTNAME} 2>&1)
       (( retry++ ))
       if [[ "${SHOW_NODE}" == *"Transport endpoint is not connected"* ]] ; then
         LogBuf "InitNodeAttr($LINENO): 'scontrol show node': ${SHOW_NODE} (retry: ${retry})"
@@ -1009,16 +1012,19 @@ NodeAttr() {
 Nodes() {
   # NODELIST PARTITION WEIGHT ACTIVE_FEATURES AVAIL_FEATURES
   # nodes in multiple partitions will be listed multiple times
-  defaultPartition=$(timeout 30s sinfo -o "%12P" -h | grep '*' | sed 's/*//' | sed 's/ //g')
+  defaultPartition=$(timeout ${SINFO_SHORT_TIMEOUT} sinfo -o "%12P" -h | grep '*' | sed 's/*//' | sed 's/ //g')
   if [ -z "$defaultPartition" ] ; then
     LogBuf "NodeState(): cannot determine default partition"
     return
   fi
-  fe_nodes=$(grep FUTURE ${SLURM_CONF} | sed 's/NodeName=//' | awk '{print $1}')
-  while read -r _node _weight _availableFeatures _activeFeatures
-  do
-    LogBuf "NODE=${_node} WEIGHT=${_weight} FEATURES_AVAIL=${_availableFeatures} FEATURES_ACTIVE=${_activeFeatures}"
-  done < <(sinfo -N --partition=${defaultPartition} -o "%N %w %f %b" -h)
+  fe_nodes=""
+  if [ -r ${_SLURMCONF} ] ; then
+    fe_nodes=$(grep FUTURE ${_SLURMCONF} | sed 's/NodeName=//' | awk '{print $1}')
+    while read -r _node _weight _availableFeatures _activeFeatures
+    do
+      LogBuf "NODE=${_node} WEIGHT=${_weight} FEATURES_AVAIL=${_availableFeatures} FEATURES_ACTIVE=${_activeFeatures}"
+    done < <(sinfo -N --partition=${defaultPartition} -o "%N %w %f %b" -h)
+  fi
   for _n in ${fe_nodes}
   do
     _weight=$(NodeAttr ${_n} Weight Owner)
@@ -1035,26 +1041,39 @@ PriorityWeights() {
   ((_fairshare=0))
   ((_jobsize=0))
   ((_qos=0))
-  read _weights _age _fairshare _jobsize _qos < <(sprio -w -h 2>&1 | grep -v "Zero Bytes were transmitted")
+  read _weights _site _age _fairshare _jobsize _qos < <(sprio -w -h 2>&1 | grep -v "Zero Bytes were transmitted")
   [ _age = "" ] && _age=
   LogBuf "PRIORITYWEIGHT[AGE]=$_age PRIORITYWEIGHT[FAIRSHARE]=$_fairshare PRIORITYWEIGHT[JOBSIZE]=$_jobsize PRIORITYWEIGHT[QOS]=$_qos"
-
 }
 
 FairShareAccount() {
   local accounts
   local _a
-  accounts=$(echo $(sacctmgr show accounts format=account%-40 -n))
+  accounts=$(echo $(sacctmgr show accounts format=account%-45 -n))
 
   for _a in ${accounts}
   do
 
-# note empty columns
+# note empty columns, so we need to do individual queries for each parameter, in case they are blank
 # Account User Partition RawShares NormShares RawUsage NormUsage EffectvUsage FairShare LevelFS GrpTRESMins TRESRunMins
 #      xd                 46989000  0.981411 12994716338 0.138147 1.000000 0.981411              cpu=2695366394,mem=0,energy=0+
+#    sshare --helpformat
+# Account Cluster EffectvUsage FairShare GrpTRESMins GrpTRESRaw ID LevelFS NormShares NormUsage Partition RawShares RawUsage TRESRunMins User
 
-     read -r __account __rawshares __normshares __rawusage __effectvusage __fairshare __levelfs __etc < <(sshare --account=${_a} --partition -l -n )
-    LogBuf "ACCOUNT=${_a} RAWSHARES=${__rawshares} NORMSHARES=${__normshares} RAWUSAGE=${__rawusage} EFFECTVUSAGE=${__effectvusage} FAIRSHARE=${__fairshare} LEVELFS=${__levelfs}""${suffix}"
+     _record="ACCOUNT=${_a} "
+     for _p in cluster effectvusage fairshare levelfs normshares normusage rawshares rawusage
+     do
+      read -r _account _val < <(sshare --account=${_a} --format=account%45,${_p} --noheader)
+      if [ "$_account" != ${_a} ] ; then
+        LogBuf "account mismatch: requested:${_a} received:${_account}"
+        continue
+      fi
+      if [ -z "${_val}" ] ; then
+        continue
+      fi
+      _record="${_record} ${_p^^}=${_val} "
+     done
+     LogBuf "${_record}""${suffix}"
   done
   return
 }
@@ -1133,11 +1152,7 @@ FairShareUser() {
 
 BlockedLength() {
   blockedLength=$(EnqueuedBlocked -l | wc -l)
-  if [ -z "${CSV}" ] ; then
-    LogBuf "QUEUELENGTH[blocked]=${blockedLength}"
-  else
-    LogBuf "QUEUELENGTH[blocked]  ${blockedLength}"
-  fi
+  LogBuf "QUEUELENGTH[blocked]=${blockedLength}"
 }
 
 EnqueuedQOS() {
@@ -1199,7 +1214,7 @@ ParseArgs() {
   local opt
   local _doWhat
   _doWhat=""
-  while getopts "DBabdCcFfLlNnpPqRrSstuVw-:" opt; do
+  while getopts "DBabdCcFfLlNnOopqRrSstuw-:" opt; do
     case "${opt}" in
     "-")
       case ${OPTARG} in
@@ -1212,10 +1227,7 @@ ParseArgs() {
       esac
       ;;
     "D")
-        _doWhat="SetDebug ${_doWhat}"
-      ;;
-    "V")
-        _doWhat="SetOutputCSV ${_doWhat}"
+        _doWhat="setdebug ${_doWhat}"
       ;;
     "a")
         _doWhat="${_doWhat} FairShareAccount"
@@ -1253,11 +1265,14 @@ ParseArgs() {
     "N")
         _doWhat="${_doWhat} Nodes"
       ;;
+    "o")
+        _doWhat="${_doWhat} RunningJobsNodes"
+        ;;
+    "O")
+        _doWhat="${_doWhat} NodesRunningJobs"
+        ;;
     "p")
         _doWhat="${_doWhat} JobPrioritiesComponents"
-      ;;
-    "P")
-        _doWhat="${_doWhat} PendingJobs"
       ;;
     "q")
         _doWhat="${_doWhat} QOSPriorityWeights EnqueuedQOS"
@@ -1312,14 +1327,10 @@ main() {
 
   # setdebug is treated specially so that it takes effect before any other functions
   # no matter where in the argument string that it was presented
-  if [[ "$DoWhat" =~ "SetDebug" ]] ; then
+  if [[ "$DoWhat" =~ "setdebug " ]] ; then
     SetDebug debug
-    DoWhat=${DoWhat#SetDebug}
+    DoWhat=${DoWhat#setdebug }
     OUTPUT_PROTOCOL="stdout"
-  fi
-  if [[ "$DoWhat" =~ "SetOutputCSV" ]] ; then
-    SetOutputCSV
-    DoWhat=${DoWhat#SetOutputCSV}
   fi
 
   Do ${DoWhat}
